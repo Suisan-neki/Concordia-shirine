@@ -1,198 +1,126 @@
-# Concordia Shrine 仕様書兼設計書（v0 → v1）
+# Concordia Shrine — 仕様書兼設計書 (v0 → v1)
 
-このリポジトリは、Concordia Shrine プロトタイプの仕様・設計をまとめています。以下をそのままコピペして、Manus への指示や README ベースとして利用できます。
+Concordia Shrine は、対話の「空気」だけを聴き、判断の自由をそっと守るための祠プロダクト。ここでは PC 版プロトタイプ (フェーズ0) から祠デバイス (フェーズ1) までの仕様をまとめています。Manus への指示や README のベースとしてこのまま利用できます。
+
+## 目次
+
+1. [ドキュメントの使い方 / TL;DR](#1-ドキュメントの使い方--tldr)  
+2. [コンセプトと世界観](#2-コンセプトと世界観)  
+3. [ロードマップ (フェーズ構成)](#3-ロードマップ-フェーズ構成)  
+4. [フェーズ0：PC プロトタイプ仕様](#4-フェーズ0pc-プロトタイプ仕様)  
+5. [ソフトウェア構成 (フェーズ0)](#5-ソフトウェア構成-フェーズ0)  
+6. [コアロジック詳細 (フェーズ0)](#6-コアロジック詳細-フェーズ0)  
+7. [抽象化 (フェーズ0→1 共通)](#7-抽象化-フェーズ01-共通)  
+8. [フェーズ1：祠 + Raspberry Pi + Pico](#8-フェーズ1祠--raspberry-pi--pico)  
+9. [config.yaml サンプル](#9-configyaml-サンプル)  
+10. [Manus への意図](#10-manus-への意図)
 
 ---
 
-## 0. コンセプトと世界観（濃いめ）
+## 1. ドキュメントの使い方 / TL;DR
 
-### 0.1 プロジェクト名とタグライン
+- 目的: PC 上で動くフェーズ0をまず完成させ、そのロジックをそのまま祠デバイスへ拡張できる形を示す。  
+- ポリシー: 会話内容は理解しない・保存しない。VAD で空気の揺らぎだけを聴き、儀式的な光・音で介入する。  
+- 守るもの: 「はい」と言ってしまう 0.5 秒前の自由な心、気まずさで飲み込まれる違和感、場に流される前の本心。  
+- 使い方: 設計をそのままコピペしてチーム指示に使う。ライブラリ選定や実装詳細は任意だが、インターフェイス分離を崩さない。
+
+---
+
+## 2. コンセプトと世界観
+
+### 2.1 プロジェクト名とタグライン
 
 **プロジェクト名**: Concordia Shrine  
-**タグライン（仮）**:
+**タグライン（仮）**: 「空気だけを聴き、判断の自由をそっと守る祠」
 
-> 「空気だけを聴き、判断の自由をそっと守る祠」
+### 2.2 問題意識（守りたいもの）
 
-### 0.2 問題意識（守りたいもの）
+- 医療現場、ゼミ、進路相談、交渉、1on1 などの「対話の場」では、内容よりも **空気・沈黙・同調圧** が判断を縛る。  
+- 多くのテクノロジーは「言葉の意味」を解析し助言するが、失敗すると冷め、新しい圧力にもなり得る。  
+- 守りたいもの:  
+  - **「はい」と言ってしまう 0.5 秒前の、まだ自由な心**  
+  - **気まずさや沈黙のせいで飲み込まれてしまう違和感**  
+  - **場の空気に押し流される前の「本当はこう思っている」の可能性**
 
-* 医療現場、ゼミ、進路相談、交渉、1on1 など「対話の場」では、内容よりも**空気・沈黙・同調圧**が人の判断を縛る。
-* 多くのテクノロジーは「言葉の意味」を解析し、AI がアドバイスや提案をする。
-* しかしそれは、うまくいけば便利でも、失敗した瞬間に冷めるし、「またAIが口を出してくる」という**新しい圧力**にもなり得る。
+### 2.3 セキュリティの観点 — Human Decision Security
 
-Concordia Shrine が守りたいのは、
+- 従来: データ/ネットワーク/権限を暗号・認証・監査で守る。  
+- Concordia: **人の判断の自由**を守る。説得・圧力・沈黙・同調といった内在的脅威へ「余白」を提供。内容を理解/保存せず、**テンポ・沈黙・割り込み**だけを聴き、圧が高まる瞬間に介入。  
+- 狙う領域: Human Decision Security / Consent Integrity / Psychosocial Security Engineering。
 
-* **「はい」と言ってしまう 0.5 秒前の、まだ自由な心**
-* **気まずさや沈黙のせいで飲み込まれてしまう違和感**
-* **場の空気に押し流される前の「本当はこう思っている」の可能性**
+### 2.4 既存デバイスとの差別化
 
-であり、「誰が正しいか」「何が合意か」を決めることではない。
-
-### 0.3 セキュリティの観点 — Human Decision Security
-
-従来のセキュリティ：
-
-* データ・ネットワーク・アクセス権限を守る
-* 暗号・認証・監査ログで「外部からの攻撃」を防ぐ
-
-Concordia Shrine のセキュリティ：
-
-* **人の判断の自由**を守る
-* 説得・圧力・沈黙・同調といった**内在的な脅威**に対する「余白」を提供する
-* 会話の内容は一切理解しない・保存しない
-* ただ**空気の揺らぎ（テンポ・沈黙・割り込み）だけを聴き、高密度の「圧」の瞬間にそっと介入する**
-
-→ カテゴリとしては
-
-* Human Decision Security
-* Consent Integrity
-* Psychosocial Security Engineering
-
-のような新しい領域を狙う。
-
-### 0.4 既存デバイスとの差別化（Amazon Echo 等との違い）
-
-* Amazon Echo やスマートスピーカー：
-  * 人間の言葉を**意味として理解**する
-  * 質問に**答える**
-  * クラウドに送って**処理・記録**する
-* Concordia Shrine：
-  * **意味を理解しない**（STTなし、VADのみ）
-  * **質問に答えない**（対話しない）
-  * **何も記録しない**（音声もテキストも保存しない）
-  * ただし、会話の**テンポ・沈黙・割り込みパターン**から「空気の状態」だけを推定し、
-    * 祠の光
-    * 奥で鳴る風・水滴・木の軋みの音
-      で**儀式的に場に介入する**
-
-### 0.5 フェーズ構成（実装ロードマップ）
-
-本仕様書は、以下の2段階で成立するように書く：
-
-1. **フェーズ0：PCプロトタイプ**
-   * ラズパイや物理祠なし
-   * ノートPC or デスクトップのマイクで音声を拾い
-   * 画面上のビジュアル（波打つアニメーション）と PC スピーカーからの自然音だけで振る舞いを可視化する
-
-2. **フェーズ1：物理祠 + Raspberry Pi + Pico**
-   * フェーズ0の**コアロジックはそのまま再利用**
-   * 出力先を「画面ビジュアル → LED」「PCスピーカー → 祠内スピーカー」に差し替える
-   * 物理筐体（祠）を追加し、会議室等に置ける「小さな祠」として成立させる
-
-以降の仕様はまず **フェーズ0（PC版）** をきちんと動かし、その後 **抽象化レイヤを増やして祠へ移植**しやすい構造を意識している。
+- スマートスピーカー: 言葉の意味を理解し、回答し、クラウドで処理・記録。  
+- Concordia Shrine: **意味を理解しない** (STTなし、VADのみ)、**答えない**、**記録しない**。テンポや沈黙から空気を推定し、光と自然音で儀式的に介入。
 
 ---
 
-## 1. フェーズ0：PC プロトタイプ仕様
+## 3. ロードマップ (フェーズ構成)
 
-### 1.1 開発環境・前提
+1. **フェーズ0：PCプロトタイプ**  
+   - PC マイク入力 → VAD → イベント検出 → 画面ビジュアル + 自然音。  
+2. **フェーズ1：祠 + Raspberry Pi + Pico**  
+   - コアロジックはそのまま。出力先を LED / 祠内スピーカーに差し替え、物理祠として成立させる。  
 
-* 言語: Python 3.10+（想定）
-* 対象OS: Windows / macOS / Linux のいずれか（とりあえずローカルPC）
-* 入力:
-  * PC に接続されたマイク（内蔵 or 外付け）
-* 出力:
-  * 画面上のビジュアル（1ウィンドウ）
-  * スピーカーからの自然音（風・水滴・木・鈴など）
+まず PC 版を完成させ、抽象レイヤを活かして祠へ移植する。
 
-UI ライブラリ候補（どれを使うかは実装側に任せられるようにする）：
+---
 
-* シンプル: `pygame` でフルスクリーンまたはウィンドウ上のアニメーション
-* もしくは `tkinter` / `PyQt` / `Processing.py` など
+## 4. フェーズ0：PC プロトタイプ仕様
 
-本仕様書では、**抽象的な「VisualAdapter」として設計**し、具体ライブラリは実装側に委ねる。
+### 4.1 開発環境・前提
 
-### 1.2 フェーズ0のユースケース
+- 言語: Python 3.10+（想定）  
+- OS: Windows / macOS / Linux  
+- 入力: PC マイク (内蔵/外付け)  
+- 出力: 画面ビジュアル 1 ウィンドウ / 自然音 (風・水滴・木・鈴など)  
+- UI ライブラリ例: `pygame`（推奨シンプル）、`tkinter` / `PyQt` / `Processing.py` も可。  
+- 設計: 「VisualAdapter」などの抽象で束ね、ライブラリ依存を避ける。
 
-* ユーザは PC の前で会話する（2人でも1人芝居でも良い）
-* アプリを起動すると：
-  * 画面に**波打つような図形やオーラのようなビジュアル**が表示される
-  * マイクで会話の音声を常時取得
-  * 内部で VAD により speech / non-speech を判定
-  * 「沈黙」「早口での独演」「割り込みっぽいパターン」が検出されると、ビジュアルと自然音が変化する
+### 4.2 ユースケース
 
-例：
+- ユーザが PC 前で会話（2人/1人芝居どちらも可）。  
+- 起動すると、波打つビジュアルが表示され、マイクを常時取得。VAD で speech/non-speech 判定。  
+- 「沈黙」「長い独演」「割り込みっぽい切替多発」を検出すると、ビジュアルと自然音が変化。  
+- 例:  
+  - 長い沈黙 → 柔らかい白〜青の呼吸光 + 風音  
+  - 一方が話し続ける → 紫の脈動 + 水滴音  
+  - かぶせ合い/切替多 → 琥珀のフラッシュ + 木の軋み
 
-* しばらく誰も話していないと、画面が柔らかく白く光り、風の音が流れる
-* 一方がずっと話し続けると、画面に紫の波紋が2回脈打ち、水滴の音が鳴る
-* 早口でかぶせ合うような話し方が続くと、琥珀色の波が一瞬強く走り、木の軋む音が鳴る
+### 4.3 機能要件
 
-これにより、**「Concordia が空気に反応している」**ことを体験できる。
+- **F0-1: 音声入力**  
+  - マイクを 16kHz 程度でストリーミング。フレーム長 20–30ms (例: 0.02s で 320 サンプル@16kHz)  
+- **F0-2: VAD**  
+  - ライブラリ任意 (例: Silero VAD, WebRTC VAD ラッパ)。  
+  - 出力は bool (`True`=speech, `False`=silence)。  
+- **F0-3: パターン検出 (イベント化)**  
+  - SilenceLong: non-speech が `silence_long_sec` 以上連続。  
+  - MonologueLong: speech が `monologue_long_sec` 以上連続。  
+  - OverlapBurst: 直近 `overlap_window_sec` に切替が `overlap_switch_threshold` 回以上。  
+  - StableCalm: 上記が発火せず、適度な交互が `stable_min_duration_sec` 続く。  
+- **F0-4: イベント→演出**  
+  - SilenceLong → 白〜淡青の呼吸フェード + 柔らかい風音(3–5s)  
+  - MonologueLong → 紫の二連脈動 + 水滴2回  
+  - OverlapBurst → 琥珀のフラッシュ/ライン + 木の軋み  
+  - StableCalm → 青〜緑グラデーションの静かな波。音は基本なし。  
+- **F0-5: クールダウン**  
+  - 前回イベントから `cooldown_sec` 未満は新規演出を抑制または弱化。  
+- **F0-6: アプリ UI**  
+  - 1 ウィンドウに描画。タイトル「Concordia Shrine Prototype」。ESC or × で終了。
 
-### 1.3 機能要件（フェーズ0）
+### 4.4 非機能要件
 
-#### F0-1: 音声入力
+- レイテンシ: 会話体験を阻害しない数百 ms 程度。  
+- パフォーマンス: リアルタイム維持、CPU 負荷は控えめ。  
+- プライバシ: 音声/解析結果を保存しない。  
+- ネットワーク: 行わない。完全ローカル。
 
-* PCのマイク入力から音声をストリーミングする。
-* サンプルレート: 16kHz 程度
-* フレーム長: 20ms〜30ms（例: 0.02秒で320サンプル@16kHz）
+---
 
-#### F0-2: VAD（音声活動検知）
+## 5. ソフトウェア構成 (フェーズ0)
 
-* VAD ライブラリを用いて、各フレームごとに speech / non-speech を判定する。
-  * 任意のライブラリ可（例: Silero VAD, WebRTC VAD の Python ラッパなど）
-* 出力は単純な bool (`True`=話している, `False`=沈黙) とする。
-
-#### F0-3: パターン検出（イベント化）
-
-VAD の時系列から、以下のイベントを検出：
-
-1. **SilenceLong**
-   * `non-speech` が `silence_long_sec` 以上連続した場合。
-2. **MonologueLong**
-   * `speech` が `monologue_long_sec` 以上連続した場合。
-3. **OverlapBurst**
-   * 直近 `overlap_window_sec` の中で `speech/non-speech` の切り替えが `overlap_switch_threshold` 回以上発生した場合。
-   * （実際には話者分離はしないが、「雰囲気として落ち着かない／かぶせ合っている」状態とみなす）
-4. **StableCalm**
-   * 上記 1〜3 が発火しておらず、適度な speech・non-speech の交互が `stable_min_duration_sec` 続いた場合。
-
-#### F0-4: イベント → ビジュアル/サウンドマッピング
-
-各イベントが発火した時、**ビジュアルとサウンド**を変化させる。
-
-* SilenceLong
-  * 画面：
-    * 背景が白〜淡い青にゆっくりフェードし、「呼吸する」ように明滅する
-  * 音：
-    * 柔らかい風音（3〜5秒）
-* MonologueLong
-  * 画面：
-    * 中央にある円や波紋が紫色で2回ドクンと脈打つアニメーション
-  * 音：
-    * 水滴が2回落ちる音（ぽちゃん…ぽちゃん…）
-* OverlapBurst
-  * 画面：
-    * 琥珀色の光またはラインが一瞬強く走る（フラッシュ）
-  * 音：
-    * 木がギシッと軋むような低い短音
-* StableCalm
-  * 画面：
-    * 落ち着いた青〜緑のグラデーションがゆっくり波打ち続ける
-  * 音：
-    * 基本的には何も鳴らさない（あるいはごく弱い環境ノイズ）
-
-#### F0-5: クールダウン制御
-
-* 演出が連続しすぎてうるさくならないよう、
-  * 前回イベントから `cooldown_sec` 経過するまでは新しい演出を発火させない、
-  * あるいは「弱い演出」だけにするなどの制御を行う。
-
-#### F0-6: アプリケーション UI（最低限）
-
-* 1つのウィンドウを開き、そこにビジュアルを表示。
-* ウィンドウのタイトル等に「Concordia Shrine Prototype」と表示。
-* 終了操作（ESCキー or ×ボタン）に対応。
-
-### 1.4 非機能要件（フェーズ0）
-
-* 音声や VAD の処理は、**人間が会話しているときに気にならないレイテンシ**（数百msレベル）で行う。
-* CPU 使用率が高すぎないよう、フレーム処理はリアルタイムを維持できる範囲に留める。
-* 音声データや解析結果は**ファイルとして保存しない**。
-* ネットワーク通信は行わず、完全ローカルで動く。
-
-### 1.5 ソフトウェア構成（フェーズ0）
-
-#### 推奨ディレクトリ構成
+推奨ディレクトリ:
 
 ```
 concordia_pc/
@@ -203,7 +131,7 @@ concordia_pc/
   │   │   ├─ vad.py             # VADラッパ
   │   │   └─ event_detector.py  # VAD→イベント検出
   │   ├─ core/
-  │   │   ├─ state_manager.py   # クールダウンや現在状態
+  │   │   ├─ state_manager.py   # クールダウンや状態管理
   │   │   └─ mapping.py         # イベント→演出（抽象）
   │   ├─ output/
   │   │   ├─ visuals.py         # 画面アニメーション（VisualAdapter）
@@ -211,7 +139,7 @@ concordia_pc/
   │   ├─ config/
   │   │   └─ config_loader.py   # YAML/JSON設定読み込み
   │   └─ util/
-  │       └─ logging.py         # ログ（必要なら）
+  │       └─ logging.py         # 任意のロギング
   ├─ sounds/
   │   ├─ wind_soft.ogg
   │   ├─ drip_single.ogg
@@ -222,37 +150,35 @@ concordia_pc/
   └─ README.md
 ```
 
-### 1.6 コアロジック（フェーズ0）詳細設計
+---
 
-#### 1.6.1 イベント定義
+## 6. コアロジック詳細 (フェーズ0)
+
+### 6.1 イベント定義
 
 ```python
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Dict
 
 @dataclass
 class ConcordiaEvent:
-    type: str         # "SilenceLong" / "MonologueLong" / "OverlapBurst" / "StableCalm"
+    type: str         # "SilenceLong" | "MonologueLong" | "OverlapBurst" | "StableCalm"
     timestamp: float
     metadata: Dict
 ```
 
-#### 1.6.2 EventDetector の仕様
+### 6.2 EventDetector
 
-入力：
+入力: `is_speech: bool`, `now: float` (秒)。  
+内部状態:
 
-* `is_speech: bool`
-* `now: float`（秒）
+- `speech_run_length`: 連続 speech 秒数  
+- `silence_run_length`: 連続 non-speech 秒数  
+- `switch_count_recent`: 直近 window の切り替え回数  
+- `window_buffer`: `deque[(timestamp, is_speech)]`  
+- `last_label: Optional[bool]`
 
-内部状態として：
-
-* `speech_run_length: float`（連続 speech 秒数）
-* `silence_run_length: float`（連続 non-speech 秒数）
-* `switch_count_recent: int`（直近 window の切り替え回数）
-* `window_buffer: deque[(timestamp, is_speech)]`
-* `last_label: Optional[bool]`
-
-パラメータ（config.yaml）：
+設定例 (`config.yaml`):
 
 ```yaml
 events:
@@ -263,37 +189,31 @@ events:
   stable_min_duration_sec: 15.0
 ```
 
-挙動（疑似コードイメージ）：
+挙動イメージ:
 
-* speech / non-speech の連続長を更新
-* ラベルが変わったら `switch_count_recent`++
-* 古いレコードは `overlap_window_sec` を超えたら削除
-* 各条件を満たせば `ConcordiaEvent` を `yield` する
+- speech/non-speech 連続長を更新。ラベル変化で `switch_count_recent`++。  
+- `overlap_window_sec` を超えた古いサンプルは削除。  
+- 条件成立で `ConcordiaEvent` を `yield`。
 
-#### 1.6.3 VisualAdapter（画面演出）
-
-抽象インターフェイス例：
+### 6.3 VisualAdapter（抽象）
 
 ```python
 class VisualAdapter:
     def update_base_state(self, is_speech: bool, now: float) -> None:
-        """常時呼ばれる。呼吸アニメーションなどのベース状態更新。"""
+        """常時呼ばれる。呼吸や波打ちなどベース状態を更新。"""
 
     def trigger_effect(self, event: ConcordiaEvent) -> None:
-        """イベントに応じて、色・パターン・強度などを変える。"""
+        """イベントに応じて色・パターン・強度を変える。"""
 
     def render(self, surface) -> None:
-        """フレームごとに描画処理。pygame.Surfaceなどを想定。"""
+        """フレームごとに描画。pygame.Surface などを想定。"""
 ```
 
-* `update_base_state` で「今の空気」の継続的な変化（呼吸・波打ち）を反映
-* `trigger_effect` で一時的な強い変化（フラッシュ・脈動）
-* `render` がウィンドウに対して実際の描画を行う
+- `update_base_state`: 現在の空気をなめらかに反映。  
+- `trigger_effect`: 瞬間的な強い変化（フラッシュ/脈動）。  
+- `render`: 実際の描画。
 
-#### 1.6.4 SoundPlayer（サウンド）
-
-* `play(SoundEffect)` を呼ばれると適切な音を再生。
-* クールダウン制御は内部に持つ。
+### 6.4 SoundPlayer
 
 ```python
 from dataclasses import dataclass
@@ -304,59 +224,46 @@ class SoundEffect:
     volume: float # 0.0 - 1.0
 ```
 
+- `play(SoundEffect)` で音再生。  
+- クールダウンは内部に保持。
+
 ---
 
-## 2. コアロジック抽象化（フェーズ0→1共通部分）
+## 7. 抽象化 (フェーズ0→1 共通)
 
-フェーズ0で実装したロジックは、そのままフェーズ1（祠デバイス）に持っていきたい。
-
-そのために以下を**インターフェイスとして抽象化**しておく：
-
-### 2.1 EffectOutput 抽象インターフェイス
+フェーズ0のロジックをそのままフェーズ1へ持っていくためのインターフェイス。
 
 ```python
 class EffectOutput:
     def apply_effect(self, event: ConcordiaEvent) -> None:
-        """イベントに応じた演出（光・音・ビジュアル）を発火させる"""
+        """イベントに応じた演出（光・音・ビジュアル）を発火。"""
 ```
 
-フェーズ0：
+- フェーズ0: EffectOutput = 画面ビジュアル + PC サウンド  
+- フェーズ1: EffectOutput = LED (Pico 経由) + 祠内スピーカー  
 
-* `EffectOutput` の実装 = 画面ビジュアル＋PCサウンド
-
-フェーズ1：
-
-* `EffectOutput` の実装 = LED（Pico経由）＋祠内スピーカー
-
-`mapping.py` では
+`mapping.py` 例:
 
 ```python
 def handle_event(event: ConcordiaEvent, output: EffectOutput) -> None:
     output.apply_effect(event)
 ```
 
-のような形にし、**ロジック層は出力先に依存しない**ようにしておく。
+ロジック層は出力先に依存しない。
 
 ---
 
-## 3. フェーズ1：祠 + Raspberry Pi + Pico への拡張設計
+## 8. フェーズ1：祠 + Raspberry Pi + Pico
 
-※ここは将来拡張用。今すぐ書くコードの対象はフェーズ0だが、移植を見越しておく。
+※ 将来拡張用。フェーズ0のロジックをそのまま流用。
 
-### 3.1 追加・変更点
-
-* **入力**: PCマイク → USBマイク + Raspberry Pi 4（ロジックは同じ）
-* **出力**:
-  * 画面ビジュアル → **LED（NeoPixel）** に置換
-  * PCスピーカー → **祠内スピーカー** に変更
-* **構成**:
-  * Raspberry Pi 4：フェーズ0の `concordia_pc` ロジックを実行
-  * Raspberry Pi Pico：LEDアニメーション専用
-  * Pi4 ⇔ Pico 間の通信：シリアル(UART over USB)
-
-### 3.2 EffectOutput 実装（Shrine版）
-
-フェーズ1では、`EffectOutput` を以下のように実装する：
+- 入力: PCマイク → USBマイク + Raspberry Pi 4（処理ロジックは同じ）。  
+- 出力: 画面ビジュアル → **LED (NeoPixel)**、PCスピーカー → **祠内スピーカー**。  
+- 構成:  
+  - Raspberry Pi 4: フェーズ0ロジックを実行。  
+  - Raspberry Pi Pico: LED アニメーション専用。  
+  - 通信: Pi4 ⇔ Pico を UART over USB (JSON メッセージ)。  
+- ShrineEffectOutput 例:
 
 ```python
 class ShrineEffectOutput(EffectOutput):
@@ -365,27 +272,18 @@ class ShrineEffectOutput(EffectOutput):
         self.sound_player = sound_player
 
     def apply_effect(self, event: ConcordiaEvent) -> None:
-        effect = map_event_to_effect(event)  # イベント→ ShrineEffect
+        effect = map_event_to_effect(event)  # イベント→ShrineEffect
         if effect.led:
             self.pico_client.send_led_effect(effect.led)
         if effect.sound:
             self.sound_player.play(effect.sound)
 ```
 
-### 3.3 LED 側の設計（概要）
-
-* Pico 側は MicroPython で動作
-* Pi4 側からの JSON メッセージを受け取り、パターン名と色・時間に応じて LED をアニメーションさせる
-* パターン例：
-  * `breath`（呼吸）
-  * `double_pulse`（二連パルス）
-  * `flash_single`（単発フラッシュ）
-
-（詳細は前の回答をベースにすればよいので、ここでは省略）
+- Pico 側 (MicroPython) はパターン名 + 色/時間を受け取り、`breath` / `double_pulse` / `flash_single` などを再生。
 
 ---
 
-## 4. config.yaml（フェーズ0想定サンプル）
+## 9. config.yaml サンプル
 
 ```yaml
 audio:
@@ -408,7 +306,6 @@ effects:
   cooldown_sec: 10.0
 
 visuals:
-  # ビジュアル側で参照しても良い（色やスピードのプリセットなど）
   base_color_calm: "#66ccff"
   base_color_tense: "#ffcc66"
 
@@ -418,9 +315,10 @@ sound:
 
 ---
 
-## 5. まとめ（Manus向けの意図）
+## 10. Manus への意図
 
-* まずは **フェーズ0（PC版）** として、マイク入力 → VAD → イベント検出 → 画面アニメーション＋自然音の構成を Python で実装する。
-* ディレクトリ構成とクラス設計は上記を基本とし、**EffectOutput / VisualAdapter / SoundPlayer / EventDetector** をそれぞれ分けておくことで、後から Raspberry Pi & Pico & 祠 に拡張しやすいようにする。
+- まず **フェーズ0 (PC版)** を、マイク入力 → VAD → イベント検出 → ビジュアル + 自然音の構成で実装する。  
+- ディレクトリとインターフェイス (EffectOutput / VisualAdapter / SoundPlayer / EventDetector) を守り、後から Raspberry Pi & Pico & 祠へそのまま差し替えできるようにする。  
+- この README を仕様/設計のソースとし、必要に応じてコピペして指示に使う。  
 
-以上を「設計兼仕様書」として扱い、このままコード生成のベースにしてよい。
+以上。
