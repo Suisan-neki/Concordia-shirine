@@ -1,0 +1,25 @@
+audio:
+  device_index: null
+  sample_rate: 16000
+  frame_duration_sec: 0.02
+
+vad:
+  aggressiveness: 2          # 0-3 (WebRTC VAD)
+
+events:
+  silence_long_sec: 12.0
+  monologue_long_sec: 30.0
+  overlap_window_sec: 5.0
+  overlap_switch_threshold: 8
+  stable_min_duration_sec: 15.0
+
+effects:
+  cooldown_sec: 10.0
+
+visuals:
+  base_color_calm: "#66ccff"
+  base_color_tense: "#ffcc66"
+
+sound:
+  enabled: false
+  base_dir: "sounds"

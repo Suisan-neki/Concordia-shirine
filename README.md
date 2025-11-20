@@ -322,3 +322,54 @@ sound:
 - この README を仕様/設計のソースとし、必要に応じてコピペして指示に使う。  
 
 以上。
+
+---
+
+## ブラウザ版の簡易プロトタイプ (web/)
+
+リンク共有で動かしたい場合は、`web/` 以下の静的ファイルを配布してください。マイクアクセスは `https` か `localhost` でのみ許可されます。
+
+### ローカルで試す
+```bash
+cd web
+python -m http.server 8000
+# あるいは: python -m http.server 8000 -d web   (リポジトリルートで実行する場合)
+```
+ブラウザで `http://localhost:8000/` を開き、「マイクを許可して開始」を押して話しかけると波が揺れます（音はなし）。
+
+### リンク共有 (GitHub Pages など)
+1. このリポジトリを GitHub にプッシュ。  
+2. Settings → Pages で `Branch: main` / `Folder: /web` を選ぶ。  
+3. 公開URLが発行されたら、そのリンクを共有。マイク許可のポップアップが出るので許可して使ってもらう。
+
+メモ:
+- ブラウザ版は簡易エネルギーVADで「喋っている/沈黙」だけを判定し、Canvasで波を描画します。  
+- `https` もしくは `localhost` でないとマイク許可が出ない点に注意。
+
+---
+
+## Docker（Linux向け簡易手順）
+
+Linux X11 + ALSA 前提。macOS/Windows の Docker Desktop はマイク・ウィンドウのパススルーが実質困難なので**非推奨**（その場合はネイティブ実行を推奨）。
+
+### 簡易スクリプト（Linux）
+```bash
+./run_docker.sh
+```
+内部で `xhost +local:docker` → `docker build` → `docker run --device /dev/snd ...` を行います。
+
+### 手動でやる場合（Linux）
+```bash
+docker build -t concordia-shrine .
+xhost +local:docker
+docker run --rm -it \
+  --env DISPLAY=$DISPLAY \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  --device /dev/snd \
+  concordia-shrine
+```
+
+メモ:
+- 音はデフォルト無効（`config.yaml` の `sound.enabled: false`）なので録音だけ通れば十分。  
+- PulseAudio/ALSA の設定でマイクが拾えない場合は、ホスト側の入力デバイスを確認してください。  
+- macOS/Windows で Docker を使う場合は、GUI とマイクのパススルーのために XQuartz + PulseAudio ブリッジ等の大掛かりなセットアップが必要になります（推奨しません）。

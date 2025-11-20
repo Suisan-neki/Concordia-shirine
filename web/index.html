@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concordia Shrine — Browser Prototype</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <div class="title">Concordia Shrine</div>
+      <div class="subtitle">空気だけを聴くブラウザ版プロトタイプ</div>
+      <div class="controls">
+        <button id="start-btn">マイクを許可して開始</button>
+        <span id="status">待機中</span>
+      </div>
+      <div class="hint">話しかけると下のオーラが呼吸し、波打ちます。</div>
+    </section>
+    <canvas id="scene" width="960" height="600" aria-hidden="true"></canvas>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

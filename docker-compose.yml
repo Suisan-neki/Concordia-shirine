@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  concordia:
+    build: .
+    image: concordia-shrine:latest
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    devices:
+      - /dev/snd
+    # Uncomment if you need network for package downloads in-container (not used at runtime)
+    # network_mode: host
