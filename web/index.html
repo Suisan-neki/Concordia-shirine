@@ -16,11 +16,23 @@
         <span id="status">待機中</span>
       </div>
       <div class="divider"></div>
-      <div class="scene-label" id="scene-label">scene: calm</div>
+      <div style="margin-top: 12px;">
+        <button id="demo-btn" style="width: 100%; margin-bottom: 8px;">デモモード</button>
+        <div id="demo-controls" style="display: none; gap: 6px; flex-wrap: wrap;">
+          <button class="demo-scene-btn" data-scene="静寂">静寂</button>
+          <button class="demo-scene-btn" data-scene="調和">調和</button>
+          <button class="demo-scene-btn" data-scene="沈黙">沈黙</button>
+          <button class="demo-scene-btn" data-scene="一方的">一方的</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="scene-label" id="scene-label">scene: 静寂</div>
       <div class="scene-desc" id="scene-desc">声と静けさが、ゆっくり行き来しています。</div>
+      <div class="divider" style="margin-top: 10px;"></div>
+      <div class="scene-desc" id="debug-info" style="font-size: 11px; color: rgba(230,242,255,0.6);">デバッグ: 待機中</div>
     </section>
     <canvas id="scene" width="960" height="600" aria-hidden="true"></canvas>
   </main>
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>

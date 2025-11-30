@@ -4,6 +4,12 @@ const startBtn = document.getElementById("start-btn");
 const statusEl = document.getElementById("status");
 const sceneLabelEl = document.getElementById("scene-label");
 const sceneDescEl = document.getElementById("scene-desc");
+const debugInfoEl = document.getElementById("debug-info");
+
+// デバッグ情報の初期化
+if (debugInfoEl) {
+  debugInfoEl.textContent = "デバッグ: 初期化中...";
+}
 
 const state = {
   audioCtx: null,
@@ -19,10 +25,12 @@ const state = {
   lastSpeechChange: 0,
   driftPhase: 0, // slow horizontal drift for waves
   lastNowSec: null,
-  scene: "calm",
+  scene: "静寂",
   speechRun: 0,
   silenceRun: 0,
   switchTimestamps: [],
+  demoMode: false, // デモモードフラグ
+  demoScene: "静寂", // デモモード時のシーン
 };
 
 function setStatus(text) {
@@ -36,6 +44,7 @@ function softNoise(x, t, k1 = 0.018, k2 = 0.009) {
     Math.sin(x * k2 + t * 0.3 + Math.sin(t * 0.15) * 2.0) * 0.4
   );
 }
+
 
 function rms(buffer) {
   let sum = 0;
@@ -123,24 +132,93 @@ function draw(nowSec) {
   // Slow global rhythm.
   const timeSlow = nowSec * 0.2;
   const breath = (Math.sin(timeSlow * 0.6) + 1) / 2;
-  const waveLevel = Math.min(1, state.windowEnergy * 0.8); // 15s averaged tone, stronger range
+  
+  // waveLevel = 波の大きさの指標（0.0-1.0）
+  // デモモード時は各シーンの波の大きさを直接指定
+  let waveLevel;
+  if (state.demoMode) {
+    // デモモード時は各シーンに応じた波の大きさを直接指定
+    // 定義：
+    // - 静寂: 中間的な波の大きさ
+    // - 調和: 小さな波（穏やか）
+    // - 一方的: 大きな波（激しく荒れる）
+    // - 沈黙: 大きな波（重く暗く荒れる）
+    const demoWaveLevels = {
+      "静寂": 0.4,   // 中間的な波の大きさ
+      "調和": 0.3,   // 小さな波（穏やか）
+      "一方的": 0.9,  // 大きな波（激しく荒れる）
+      "沈黙": 0.85,  // 大きな波（重く暗く荒れる）
+    };
+    waveLevel = demoWaveLevels[state.scene] || 0.4;
+  } else {
+    // 実際の音声入力時は、音声エネルギーレベルから波の大きさを計算
+    // ただし、波の大きさはシーンによって調整される（rippleBoost/negativeBoost）
+    const audioEnergy = Math.min(1, state.windowEnergy * 0.8);
+    waveLevel = audioEnergy; // 音声エネルギーレベルを波の大きさの基準として使用
+  }
+  
   const drift = state.driftPhase || 0; // slow horizontal drift
   const baseLine = h * 0.66 + 10 * (breath - 0.5);
-  const ampMain = 10 + 24 * waveLevel; // gentler swell
-  const ampSub = 6 + 16 * waveLevel;
+  
+  // 調和シーンは「波の機嫌を伺っている」良い状態なので、波は穏やかになる
+  const isRippled = state.scene === "調和";
+  const isOneSided = state.scene === "一方的"; // 一方的（悪い状態：直接的な同調圧）
+  const isHushed = state.scene === "沈黙"; // 沈黙（悪い状態：間接的な圧力）
+  
+  // デモモード時は各シーンの特徴を強調
+  const demoMultiplier = state.demoMode ? 1.3 : 1.0; // デモモード時は1.3倍に強調
+  
+  // rippled時は波が落ち着いていく（良い状態：みんなが波の機嫌を伺っている）
+  const rippleBoost = isRippled ? (0.7 * (state.demoMode ? 0.6 : 1.0)) : 1.0; // デモモード時はさらに小さく（0.8→0.6）
+  const rippleSpeed = isRippled ? (0.5 * (state.demoMode ? 0.7 : 1.0)) : 1.0; // デモモード時はさらに遅く
+  const rippleNoise = isRippled ? (0.6 * (state.demoMode ? 0.7 : 1.0)) : 1.0; // デモモード時はさらに滑らかに
+  
+  // 一方的はより激しく荒れる（直接的な同調圧 - より悪い）
+  const oneSidedBoost = isOneSided ? (1.8 * demoMultiplier) : 1.0; // より大きく
+  const oneSidedSpeed = isOneSided ? (2.2 * demoMultiplier) : 1.0; // より速く
+  const oneSidedNoise = isOneSided ? (2.5 * demoMultiplier) : 1.0; // より不規則に
+  
+  // 沈黙は重く暗く荒れる（間接的な圧力）
+  const hushedBoost = isHushed ? (1.5 * demoMultiplier) : 1.0; // 大きく（1.3→1.5に増加）
+  const hushedSpeed = isHushed ? (1.2 * demoMultiplier) : 1.0; // 遅く（重い感じ）
+  const hushedNoise = isHushed ? (2.2 * demoMultiplier) : 1.0; // 不規則に
+  
+  // 統合
+  const negativeBoost = isOneSided ? oneSidedBoost : (isHushed ? hushedBoost : 1.0);
+  const negativeSpeed = isOneSided ? oneSidedSpeed : (isHushed ? hushedSpeed : 1.0);
+  const negativeNoise = isOneSided ? oneSidedNoise : (isHushed ? hushedNoise : 1.0);
+  
+  // デモモード時は波の振幅を強調
+  const baseAmpMain = 10 + 24 * waveLevel;
+  const baseAmpSub = 6 + 16 * waveLevel;
+  const ampMain = baseAmpMain * rippleBoost * negativeBoost * (state.demoMode ? 1.2 : 1.0);
+  const ampSub = baseAmpSub * rippleBoost * negativeBoost * (state.demoMode ? 1.2 : 1.0);
   const swell = 10 * Math.sin(timeSlow * 0.6);
-  const t = timeSlow * 0.8; // very slow temporal speed
+  const t = timeSlow * (0.8 * rippleSpeed * negativeSpeed);
 
   // Water body.
   ctx.save();
   ctx.beginPath();
-  for (let x = 0; x <= w; x += 12) {
+  // rippled時はより細かくサンプリングして滑らかに
+  const stepSize = isRippled ? 8 : 12;
+  for (let x = 0; x <= w; x += stepSize) {
+    // rippled時は周波数を上げてより細かい波に
+    const freqMain = isRippled ? 0.012 : 0.008;
+    const freqSub = isRippled ? 0.020 : 0.014;
+    const freqTertiary = isRippled ? 0.005 : 0.003;
+    
     const y =
       baseLine + swell +
-      Math.sin(x * 0.008 + t + drift * 0.6) * ampMain +
-      Math.sin(x * 0.014 + t * 0.9 + drift * 0.4) * ampSub +
-      Math.sin(x * 0.003 + drift * 0.3) * 4 +
-      softNoise(x, t * 6) * (1 + 4 * waveLevel);
+      Math.sin(x * freqMain + t + drift * 0.6) * ampMain +
+      Math.sin(x * freqSub + t * 0.9 + drift * 0.4) * ampSub +
+      Math.sin(x * freqTertiary + drift * 0.3) * (4 * rippleBoost) +
+      softNoise(x, t * 6 * rippleSpeed * negativeSpeed) * (1 + 4 * waveLevel) * rippleNoise * negativeNoise +
+      // rippled時は追加の動きを減らして穏やかに（良い状態：波の機嫌を伺っている）
+      (isRippled ? Math.sin(x * 0.012 + t * 0.6) * (ampMain * 0.1) : 0) +
+      // 一方的時は激しく荒れた不規則な動き（直接的な同調圧 - より悪い）
+      (isOneSided ? Math.sin(x * 0.025 + t * 2.5) * (ampMain * 0.6) + Math.sin(x * 0.040 + t * 2.0) * (ampMain * 0.4) + Math.sin(x * 0.055 + t * 1.8) * (ampMain * 0.3) : 0) +
+      // 沈黙時は重く暗い不規則な動き（間接的な圧力）
+      (isHushed ? Math.sin(x * 0.020 + t * 0.8) * (ampMain * 0.5) + Math.sin(x * 0.035 + t * 0.5) * (ampMain * 0.4) : 0);
     if (x === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
@@ -149,16 +227,51 @@ function draw(nowSec) {
   ctx.closePath();
 
   // Tone and color shift by scene (still driven by 15s energy).
-  const toneBoostMap = { calm: 0, rippled: 0.08, "one-sided": 0.06, hushed: -0.18 };
-  const colorShiftMap = {
-    calm: { r: 0, g: 0, b: 0 },
-    rippled: { r: 6, g: 14, b: 4 },
-    "one-sided": { r: 4, g: 12, b: 4 },
-    hushed: { r: -10, g: -12, b: -10 },
+  // 調和は良い状態（波の機嫌を伺っている）なので穏やかで明るく
+  // 一方的/沈黙は悪い状態（波の機嫌を伺わない）なので荒れて暗く
+  const toneBoostMap = { "静寂": 0, "調和": 0.1, "一方的": -0.15, "沈黙": -0.25 };
+  // デモモード時は色の変化を強調
+  // 一方的はより直接的な同調圧（赤みを強めた暗い色）、沈黙は間接的な圧力（青みを強めた暗い色）
+  const colorShiftBase = {
+    "静寂": { r: 0, g: 0, b: 0 },
+    "調和": { r: 5, g: 12, b: 4 }, // 穏やかで明るい色（良い状態：波が落ち着いている）
+    "一方的": { r: -5, g: -20, b: -18 }, // 暗く、赤みを強めた色（直接的な同調圧 - より悪い）
+    "沈黙": { r: -15, g: -18, b: -8 }, // 暗く、青みを強めた色（間接的な圧力）
   };
+  const colorShiftMap = {};
+  for (const [key, value] of Object.entries(colorShiftBase)) {
+    const multiplier = state.demoMode ? 1.5 : 1.0; // デモモード時は1.5倍に強調
+    colorShiftMap[key] = {
+      r: value.r * multiplier,
+      g: value.g * multiplier,
+      b: value.b * multiplier,
+    };
+  }
   const currentShift = colorShiftMap[state.scene] || { r: 0, g: 0, b: 0 };
-  let waterTone = Math.min(1, state.windowEnergy * 0.7 + (toneBoostMap[state.scene] || 0));
-  waterTone = Math.max(0, Math.min(1, waterTone));
+  
+  // デモモード時は色の変化を強調
+  let waterTone;
+  if (state.demoMode) {
+    // デモモード時は各シーンに応じた固定のトーン値
+    // 一方的はより直接的な同調圧（より悪い）、沈黙は間接的な圧力
+    const demoTones = {
+      "静寂": 0.5,  // 中間的な明るさ
+      "調和": 0.85, // 明るく（良い状態）
+      "一方的": 0.25, // より暗く（直接的な同調圧 - より悪い）
+      "沈黙": 0.15,  // さらに暗く（間接的な圧力）
+    };
+    waterTone = demoTones[state.scene] || 0.5;
+  } else {
+    waterTone = Math.min(1, state.windowEnergy * 0.7 + (toneBoostMap[state.scene] || 0));
+    waterTone = Math.max(0, Math.min(1, waterTone));
+    
+    // rippled時は穏やかで明るく、one-sided/hushed時は荒れて暗く
+    if (isRippled) {
+      waterTone = Math.min(1, waterTone * 1.05); // 穏やかに明るく
+    } else if (isOneSided || isHushed) {
+      waterTone = Math.max(0, waterTone * 0.8); // 荒れて暗く
+    }
+  }
   // Darker base, add gentle teal/green variation with energy.
   const topR = Math.round(40 + 80 * waterTone + currentShift.r);
   const topG = Math.round(110 + 90 * waterTone + currentShift.g);
@@ -173,17 +286,29 @@ function draw(nowSec) {
   ctx.fill();
 
   // Crests.
-  ctx.lineWidth = 1.5;
-  const crestColor = `rgba(240, 250, 255, ${0.06 + 0.08 * waveLevel})`;
+  ctx.lineWidth = isRippled ? 2.0 : 1.5; // rippled時は線を太く
+  const crestAlpha = isRippled ? 0.15 + 0.12 * waveLevel : 0.06 + 0.08 * waveLevel;
+  const crestColor = `rgba(240, 250, 255, ${crestAlpha})`;
   ctx.strokeStyle = crestColor;
   ctx.beginPath();
-  for (let x = 0; x <= w; x += 18) {
+  const crestStep = isRippled ? 12 : 18; // rippled時はより細かく
+  for (let x = 0; x <= w; x += crestStep) {
+    const freqMainCrest = isRippled ? 0.015 : 0.010;
+    const freqSubCrest = isRippled ? 0.025 : 0.020;
+    const freqTertiaryCrest = isRippled ? 0.006 : 0.004;
+    
     const y =
       baseLine +
-      Math.sin(x * 0.010 + t * 0.8 + drift * 0.6) * (ampMain * 0.55) +
-      Math.sin(x * 0.020 + t * 1.1 + drift * 0.4) * (ampSub * 0.5) +
-      Math.sin(x * 0.004 + drift * 0.4) * 3 +
-      softNoise(x * 0.7, t * 5) * (1 + 4 * waveLevel);
+      Math.sin(x * freqMainCrest + t * 0.8 + drift * 0.6) * (ampMain * 0.55) +
+      Math.sin(x * freqSubCrest + t * 1.1 + drift * 0.4) * (ampSub * 0.5) +
+      Math.sin(x * freqTertiaryCrest + drift * 0.4) * (3 * rippleBoost) +
+      softNoise(x * 0.7, t * 5 * rippleSpeed * negativeSpeed) * (1 + 4 * waveLevel) * rippleNoise * negativeNoise +
+      // rippled時は追加の動きを減らして穏やかに（良い状態）
+      (isRippled ? Math.sin(x * 0.015 + t * 0.7) * (ampMain * 0.08) : 0) +
+      // 一方的時は激しく荒れた動き（直接的な同調圧 - より悪い）
+      (isOneSided ? Math.sin(x * 0.030 + t * 2.8) * (ampMain * 0.5) + Math.sin(x * 0.048 + t * 2.2) * (ampMain * 0.35) + Math.sin(x * 0.060 + t * 1.9) * (ampMain * 0.25) : 0) +
+      // 沈黙時は重く暗い動き（間接的な圧力）
+      (isHushed ? Math.sin(x * 0.022 + t * 0.9) * (ampMain * 0.45) + Math.sin(x * 0.038 + t * 0.6) * (ampMain * 0.35) : 0);
     if (x === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
@@ -198,6 +323,7 @@ function draw(nowSec) {
     ctx.fillRect(px, py, 12, 1);
   }
 
+
   // Overlay text.
   ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
   ctx.font = "14px 'Segoe UI', sans-serif";
@@ -210,6 +336,29 @@ function loop() {
   const dt = state.lastNowSec ? now - state.lastNowSec : 0;
   state.lastNowSec = now;
   state.driftPhase += dt * 0.08; // very slow drift
+  
+  // デバッグ情報を常に更新（要素を再取得して確実に更新）
+  const debugEl = document.getElementById("debug-info");
+  if (debugEl) {
+    let waveLevel;
+    if (state.demoMode) {
+      // デモモード時は固定値を使用（draw関数と同じ値）
+      const demoWaveLevels = {
+        "静寂": 0.4,   // 中間的な波の大きさ
+        "調和": 0.3,   // 小さな波（穏やか）
+        "一方的": 0.9,  // 大きな波（激しく荒れる）
+        "沈黙": 0.85,  // 大きな波（重く暗く荒れる）
+      };
+      waveLevel = demoWaveLevels[state.scene] || 0.4;
+    } else {
+      // 実際の音声入力時は、draw関数と同じ計算ロジックを使用
+      waveLevel = Math.min(1, (state.windowEnergy || 0) * 0.8);
+    }
+    debugEl.textContent = `デバッグ: scene=${state.scene}, 波の大きさ=${waveLevel.toFixed(2)}, running=${state.running}, demoMode=${state.demoMode}`;
+  } else {
+    // 要素が見つからない場合のフォールバック
+    console.warn("debug-info element not found");
+  }
 
   if (state.running && state.analyser) {
     state.analyser.getFloatTimeDomainData(state.data);
@@ -235,6 +384,7 @@ function loop() {
     }
     updateWindowEnergy(energy, now);
   }
+  
   classifyScene(now);
   draw(now);
   requestAnimationFrame(loop);
@@ -278,29 +428,122 @@ if (startBtn) {
   console.warn("start button not found in DOM");
 }
 
+// デモモードのボタン
+const demoBtn = document.getElementById("demo-btn");
+const demoControls = document.getElementById("demo-controls");
+const demoSceneBtns = document.querySelectorAll(".demo-scene-btn");
+
+if (demoBtn && demoControls) {
+  demoBtn.addEventListener("click", () => {
+    state.demoMode = !state.demoMode;
+    
+    if (state.demoMode) {
+      demoBtn.textContent = "デモモード終了";
+      demoBtn.style.background = "linear-gradient(135deg, #ff7b7b, #ff9b7b)";
+      demoControls.style.display = "flex";
+      setStatus("デモモード: シーンを選択してください");
+      // デモモード時は音声入力を停止
+      if (state.running && state.micSource) {
+        state.micSource.mediaStream.getTracks().forEach(track => track.stop());
+        state.running = false;
+      }
+    } else {
+      demoBtn.textContent = "デモモード";
+      demoBtn.style.background = "linear-gradient(135deg, #7bd6ff, #b58cff)";
+      demoControls.style.display = "none";
+      setStatus("待機中");
+    }
+  });
+}
+
+// シーン選択ボタン
+demoSceneBtns.forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (state.demoMode) {
+      const scene = btn.getAttribute("data-scene");
+      state.demoScene = scene;
+      state.scene = scene;
+      
+      // ボタンのスタイルを更新
+      demoSceneBtns.forEach(b => {
+        b.style.opacity = "0.6";
+        b.style.transform = "scale(1)";
+      });
+      btn.style.opacity = "1";
+      btn.style.transform = "scale(1.05)";
+      
+      setStatus(`デモモード: ${scene}シーンを表示中`);
+    }
+  });
+});
+
+// DOM読み込み完了後にデバッグ情報を初期化
+function initDebug() {
+  const debugEl = document.getElementById("debug-info");
+  if (debugEl) {
+    debugEl.textContent = "デバッグ: スクリプト読み込み完了";
+  } else {
+    console.error("debug-info element not found on init");
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDebug);
+} else {
+  initDebug();
+}
+
+// デバッグ情報を定期的に更新（setIntervalで確実に実行）
+setInterval(() => {
+  const debugEl = document.getElementById("debug-info");
+  if (debugEl) {
+    let waveLevel;
+    if (state.demoMode) {
+      // デモモード時は固定値を使用（draw関数と同じ値）
+      const demoWaveLevels = {
+        "静寂": 0.4,   // 中間的な波の大きさ
+        "調和": 0.3,   // 小さな波（穏やか）
+        "一方的": 0.9,  // 大きな波（激しく荒れる）
+        "沈黙": 0.85,  // 大きな波（重く暗く荒れる）
+      };
+      waveLevel = demoWaveLevels[state.scene] || 0.4;
+    } else {
+      // 実際の音声入力時は、draw関数と同じ計算ロジックを使用
+      waveLevel = Math.min(1, (state.windowEnergy || 0) * 0.8);
+    }
+    debugEl.textContent = `デバッグ: scene=${state.scene}, 波の大きさ=${waveLevel.toFixed(2)}, running=${state.running}, demoMode=${state.demoMode}`;
+  }
+}, 100); // 100msごとに更新
+
 // Kick off render loop
 loop();
 function classifyScene(nowSec) {
-  const energy = state.windowEnergy;
-  const switchCount = state.switchTimestamps ? state.switchTimestamps.length : 0;
-  const speechRun = state.speechRun || 0;
-  const silenceRun = state.silenceRun || 0;
+  // デモモードの場合は手動で設定したシーンを使用
+  if (state.demoMode) {
+    state.scene = state.demoScene;
+  } else {
+    const energy = state.windowEnergy;
+    const switchCount = state.switchTimestamps ? state.switchTimestamps.length : 0;
+    const speechRun = state.speechRun || 0;
+    const silenceRun = state.silenceRun || 0;
 
-  let label = "calm";
-  if (silenceRun > 8 || (energy < 0.25 && switchCount <= 2)) {
-    label = "hushed";
-  } else if (speechRun > 8 || (energy > 0.65 && switchCount < 3)) {
-    label = "one-sided";
-  } else if (switchCount >= 6 || energy > 0.45) {
-    label = "rippled";
+    let label = "静寂";
+    if (silenceRun > 8 || (energy < 0.25 && switchCount <= 2)) {
+      label = "沈黙";
+    } else if (speechRun > 8 || (energy > 0.65 && switchCount < 3)) {
+      label = "一方的";
+    } else if (switchCount >= 6 || energy > 0.45) {
+      label = "調和";
+    }
+    state.scene = label;
   }
-  state.scene = label;
+  
   const descMap = {
-    "calm": "声と静けさが、ゆっくり行き来しています。",
-    "rippled": "声の出入りが頻繁で、波が立っています。",
-    "one-sided": "ひとつの方向からの声が、長く続いています。",
-    "hushed": "静かな時間が、長めに続いています。",
+    "静寂": "声と静けさが、ゆっくり行き来しています。",
+    "調和": "声の出入りが頻繁で、波が穏やかになっています。",
+    "一方的": "ひとつの方向からの声が、長く続いています。波が荒れています。",
+    "沈黙": "静かな時間が、長めに続いています。波が荒れています。",
   };
-  if (sceneLabelEl) sceneLabelEl.textContent = `scene: ${label}`;
-  if (sceneDescEl) sceneDescEl.textContent = descMap[label] || "";
+  if (sceneLabelEl) sceneLabelEl.textContent = `scene: ${state.scene}${state.demoMode ? " (デモ)" : ""}`;
+  if (sceneDescEl) sceneDescEl.textContent = descMap[state.scene] || "";
 }

@@ -96,6 +96,26 @@ button:active:not(:disabled) {
   box-shadow: 0 4px 14px rgba(123,214,255,0.2);
 }
 
+#demo-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.demo-scene-btn {
+  flex: 1;
+  min-width: 70px;
+  font-size: 12px;
+  padding: 6px 10px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.demo-scene-btn:hover {
+  opacity: 0.8;
+}
+
 #status {
   font-size: 13px;
   color: rgba(230,242,255,0.75);
