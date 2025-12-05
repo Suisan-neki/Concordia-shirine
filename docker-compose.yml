@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   concordia:
     build: .
@@ -8,7 +6,9 @@ services:
       - DISPLAY=${DISPLAY}
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
-    devices:
-      - /dev/snd
+    # Audio device mapping - only works on Linux
+    # Uncomment the devices section if running on Linux and you need audio support
+    # devices:
+    #   - /dev/snd
     # Uncomment if you need network for package downloads in-container (not used at runtime)
     # network_mode: host

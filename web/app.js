@@ -11,6 +11,222 @@ if (debugInfoEl) {
   debugInfoEl.textContent = "デバッグ: 初期化中...";
 }
 
+// 設定値（config.yaml相当）
+const config = {
+  audio: {
+    sample_rate: 16000,
+    frame_duration_sec: 0.02,
+    device_index: null
+  },
+  vad: {
+    aggressiveness: 2
+  },
+  events: {
+    silence_long_sec: 12.0,
+    monologue_long_sec: 30.0,
+    overlap_window_sec: 5.0,
+    overlap_switch_threshold: 8,
+    stable_min_duration_sec: 15.0
+  },
+  effects: {
+    cooldown_sec: 10.0
+  },
+  visuals: {
+    base_color_calm: "#66ccff",
+    base_color_tense: "#ffcc66"
+  },
+  sound: {
+    enabled: true,
+    base_dir: "sounds"
+  }
+};
+
+// ConcordiaEvent データクラス
+class ConcordiaEvent {
+  constructor(type, timestamp, metadata = {}) {
+    this.type = type; // "SilenceLong" | "MonologueLong" | "OverlapBurst" | "StableCalm"
+    this.timestamp = timestamp;
+    this.metadata = metadata;
+  }
+}
+
+// EventDetector クラス（Python版と同等）
+class EventDetector {
+  constructor(params) {
+    this.params = params;
+    this.speech_run_length = 0.0;
+    this.silence_run_length = 0.0;
+    this.switch_count_recent = 0;
+    this.window_buffer = [];
+    this.last_label = null;
+  }
+
+  process(is_speech, now) {
+    const events = [];
+    const frame_duration = this.params.frame_duration_sec || 0.02;
+
+    // Update run lengths
+    if (is_speech) {
+      this.speech_run_length += frame_duration;
+      this.silence_run_length = 0.0;
+    } else {
+      this.silence_run_length += frame_duration;
+      this.speech_run_length = 0.0;
+    }
+
+    // Track switches in the recent window
+    if (this.last_label !== null && this.last_label !== is_speech) {
+      this.switch_count_recent += 1;
+    }
+    this.last_label = is_speech;
+    this.window_buffer.push({ timestamp: now, is_speech: is_speech });
+
+    // Drop old entries
+    const window_sec = this.params.overlap_window_sec;
+    while (this.window_buffer.length > 0 && now - this.window_buffer[0].timestamp > window_sec) {
+      this.window_buffer.shift();
+    }
+
+    // Recompute switch_count_recent from window_buffer for accuracy
+    this.switch_count_recent = 0;
+    for (let i = 1; i < this.window_buffer.length; i++) {
+      if (this.window_buffer[i].is_speech !== this.window_buffer[i - 1].is_speech) {
+        this.switch_count_recent += 1;
+      }
+    }
+
+    // Detect events
+    if (this.silence_run_length >= this.params.silence_long_sec) {
+      events.push(new ConcordiaEvent("SilenceLong", now, { duration: this.silence_run_length }));
+    }
+    if (this.speech_run_length >= this.params.monologue_long_sec) {
+      events.push(new ConcordiaEvent("MonologueLong", now, { duration: this.speech_run_length }));
+    }
+    if (this.switch_count_recent >= this.params.overlap_switch_threshold) {
+      events.push(new ConcordiaEvent("OverlapBurst", now, { switches: this.switch_count_recent }));
+    }
+
+    // StableCalm: sustained balanced interaction without the other triggers
+    if (events.length === 0 && now >= this.params.stable_min_duration_sec) {
+      const threshold_half = Math.floor(this.params.overlap_switch_threshold / 2);
+      if (this.switch_count_recent >= 1 && this.switch_count_recent <= threshold_half) {
+        if (this.speech_run_length < this.params.monologue_long_sec && 
+            this.silence_run_length < this.params.silence_long_sec) {
+          events.push(new ConcordiaEvent("StableCalm", now, {}));
+        }
+      }
+    }
+
+    return events;
+  }
+}
+
+// StateManager クラス（Python版と同等）
+class StateManager {
+  constructor(cooldown_sec) {
+    this.cooldown_sec = cooldown_sec;
+    this.last_event_at = null;
+  }
+
+  allow(now) {
+    if (this.last_event_at === null) {
+      return true;
+    }
+    return (now - this.last_event_at) >= this.cooldown_sec;
+  }
+
+  mark(now) {
+    this.last_event_at = now;
+  }
+}
+
+// SoundPlayer クラス（Web Audio API使用）
+class SoundPlayer {
+  constructor(baseDir) {
+    this.baseDir = baseDir || "sounds";
+    this.audioContext = null;
+    this.soundBuffers = {};
+    this.soundQueue = [];
+  }
+
+  async init() {
+    try {
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // 音声ファイルのプリロード
+      const soundFiles = {
+        "SilenceLong": { file: "wind_soft.ogg", volume: 0.7 },
+        "MonologueLong": { file: "drip_double.ogg", volume: 0.8 },
+        "OverlapBurst": { file: "wood_creak.ogg", volume: 0.65 },
+        "StableCalm": null // 音なし
+      };
+
+      for (const [eventType, soundConfig] of Object.entries(soundFiles)) {
+        if (soundConfig) {
+          try {
+            const buffer = await this.loadSound(`${this.baseDir}/${soundConfig.file}`);
+            this.soundBuffers[eventType] = {
+              buffer: buffer,
+              volume: soundConfig.volume
+            };
+          } catch (err) {
+            console.warn(`音声ファイルの読み込みに失敗: ${soundConfig.file}`, err);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("SoundPlayer初期化エラー（音声は無効になります）:", err);
+    }
+  }
+
+  async loadSound(url) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      return await this.audioContext.decodeAudioData(arrayBuffer);
+    } catch (err) {
+      // 音声ファイルが存在しない場合は静かに失敗
+      console.warn(`音声ファイルの読み込みに失敗: ${url}`, err);
+      return null;
+    }
+  }
+
+  playEvent(event) {
+    if (!this.audioContext || !this.soundBuffers[event.type]) {
+      return;
+    }
+
+    const soundConfig = this.soundBuffers[event.type];
+    if (!soundConfig || !soundConfig.buffer) {
+      return;
+    }
+
+    try {
+      const source = this.audioContext.createBufferSource();
+      const gainNode = this.audioContext.createGain();
+      
+      source.buffer = soundConfig.buffer;
+      gainNode.gain.value = soundConfig.volume;
+      
+      source.connect(gainNode);
+      gainNode.connect(this.audioContext.destination);
+      
+      source.start(0);
+      
+      // 音声再生完了後にクリーンアップ
+      source.onended = () => {
+        source.disconnect();
+        gainNode.disconnect();
+      };
+    } catch (err) {
+      console.warn("音声再生エラー:", err);
+    }
+  }
+}
+
 const state = {
   audioCtx: null,
   analyser: null,
@@ -31,6 +247,18 @@ const state = {
   switchTimestamps: [],
   demoMode: false, // デモモードフラグ
   demoScene: "静寂", // デモモード時のシーン
+  // 新しいイベント検出関連
+  eventDetector: null,
+  stateManager: null,
+  currentEvent: null, // 現在発生中のイベント
+  eventStartTime: 0, // アプリケーション開始時刻
+  activeEffects: {
+    silenceLong: { strength: 0, decay: 1.5 },
+    monologueLong: { strength: 0, decay: 1.0, pulseCount: 0 },
+    overlapBurst: { strength: 0, decay: 0.8 },
+    stableCalm: { strength: 0, decay: 2.0 }
+  },
+  soundPlayer: null
 };
 
 function setStatus(text) {
@@ -324,11 +552,77 @@ function draw(nowSec) {
   }
 
 
+  // イベントに基づく視覚効果のオーバーレイ
+  // SilenceLong: 白〜淡青の呼吸フェード
+  if (state.activeEffects.silenceLong.strength > 0.01) {
+    const alpha = 0.3 * state.activeEffects.silenceLong.strength;
+    const pulseRadius = h * 0.8 + Math.sin(nowSec * 2) * 20;
+    const pulseGradient = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, pulseRadius);
+    pulseGradient.addColorStop(0, `rgba(220, 240, 255, ${alpha})`);
+    pulseGradient.addColorStop(1, `rgba(220, 240, 255, 0)`);
+    ctx.fillStyle = pulseGradient;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  // MonologueLong: 紫の二連脈動
+  if (state.activeEffects.monologueLong.strength > 0.01) {
+    const pulsePhase = Math.sin(nowSec * 4) * 0.5 + 0.5;
+    const alpha = 0.4 * state.activeEffects.monologueLong.strength * pulsePhase;
+    const pulseSurface = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, h * 0.6);
+    pulseSurface.addColorStop(0, `rgba(180, 120, 220, ${alpha})`);
+    pulseSurface.addColorStop(1, `rgba(180, 120, 220, 0)`);
+    ctx.fillStyle = pulseSurface;
+    ctx.fillRect(0, 0, w, h);
+    
+    // 二連脈動の2回目
+    const pulsePhase2 = Math.sin(nowSec * 4 + Math.PI) * 0.5 + 0.5;
+    const alpha2 = 0.3 * state.activeEffects.monologueLong.strength * pulsePhase2;
+    const pulseSurface2 = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, h * 0.5);
+    pulseSurface2.addColorStop(0, `rgba(180, 120, 220, ${alpha2})`);
+    pulseSurface2.addColorStop(1, `rgba(180, 120, 220, 0)`);
+    ctx.fillStyle = pulseSurface2;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  // OverlapBurst: 琥珀のフラッシュ/ライン
+  if (state.activeEffects.overlapBurst.strength > 0.01) {
+    const flashAlpha = 0.5 * state.activeEffects.overlapBurst.strength;
+    ctx.fillStyle = `rgba(255, 200, 120, ${flashAlpha})`;
+    ctx.fillRect(0, 0, w, h);
+    
+    // ライン効果
+    ctx.strokeStyle = `rgba(255, 180, 100, ${flashAlpha * 0.8})`;
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 5; i++) {
+      const y = (h / 6) * (i + 1);
+      const xOffset = Math.sin(nowSec * 5 + i) * 20;
+      ctx.beginPath();
+      ctx.moveTo(0, y + xOffset);
+      ctx.lineTo(w, y + xOffset);
+      ctx.stroke();
+    }
+  }
+
+  // StableCalm: 青〜緑グラデーションの静かな波（特別な処理は不要、通常の波が適切に表示される）
+
   // Overlay text.
   ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
   ctx.font = "14px 'Segoe UI', sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(`scene — ${state.scene}`, w / 2, h - 24);
+  
+  // イベント表示
+  if (state.currentEvent && state.activeEffects[state.currentEvent.type.toLowerCase()].strength > 0.1) {
+    const eventTypeNames = {
+      "SilenceLong": "長い沈黙",
+      "MonologueLong": "一方的な発話",
+      "OverlapBurst": "かぶせ合い",
+      "StableCalm": "調和"
+    };
+    ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.font = "12px 'Segoe UI', sans-serif";
+    ctx.fillText(`イベント: ${eventTypeNames[state.currentEvent.type] || state.currentEvent.type}`, w / 2, h - 8);
+  }
 }
 
 function loop() {
@@ -366,7 +660,8 @@ function loop() {
     const prevSpeech = state.isSpeech;
     detectSpeech(energy);
     const curSpeech = state.isSpeech;
-    // update run lengths
+    
+    // update run lengths (既存のロジック)
     if (dt > 0) {
       if (curSpeech) {
         state.speechRun = (state.speechRun || 0) + dt;
@@ -383,11 +678,50 @@ function loop() {
       state.switchTimestamps.shift();
     }
     updateWindowEnergy(energy, now);
+    
+    // イベント検出（新しいロジック）
+    if (state.eventDetector) {
+      const relativeTime = now - state.eventStartTime;
+      const events = state.eventDetector.process(curSpeech, relativeTime);
+      
+      // イベントが検出された場合
+      for (const event of events) {
+        if (state.stateManager && state.stateManager.allow(relativeTime)) {
+          handleEvent(event, relativeTime);
+          state.stateManager.mark(relativeTime);
+        }
+      }
+    }
   }
+  
+  // アクティブなエフェクトの減衰処理
+  updateActiveEffects(dt);
   
   classifyScene(now);
   draw(now);
   requestAnimationFrame(loop);
+}
+
+// イベント検出器とステートマネージャーの初期化
+async function initEventSystem() {
+  const eventParams = {
+    ...config.events,
+    frame_duration_sec: config.audio.frame_duration_sec
+  };
+  state.eventDetector = new EventDetector(eventParams);
+  state.stateManager = new StateManager(config.effects.cooldown_sec);
+  state.eventStartTime = performance.now() / 1000;
+  
+  // 音声再生システムの初期化
+  if (config.sound.enabled) {
+    state.soundPlayer = new SoundPlayer(config.sound.base_dir);
+    try {
+      await state.soundPlayer.init();
+    } catch (err) {
+      console.warn("音声システムの初期化に失敗しました（音声は無効になります）:", err);
+      config.sound.enabled = false;
+    }
+  }
 }
 
 async function startAudio() {
@@ -396,6 +730,10 @@ async function startAudio() {
       setStatus("このブラウザはマイク取得に対応していません");
       return;
     }
+    
+    // イベント検出システムの初期化
+    await initEventSystem();
+    
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const audioCtx = new AudioContext();
     if (audioCtx.state === "suspended") {
@@ -514,6 +852,68 @@ setInterval(() => {
     debugEl.textContent = `デバッグ: scene=${state.scene}, 波の大きさ=${waveLevel.toFixed(2)}, running=${state.running}, demoMode=${state.demoMode}`;
   }
 }, 100); // 100msごとに更新
+
+// イベントハンドラー
+function handleEvent(event, now) {
+  console.log(`Event detected: ${event.type} at ${now.toFixed(2)}s`, event.metadata);
+  
+  // アクティブエフェクトをトリガー
+  switch (event.type) {
+    case "SilenceLong":
+      state.activeEffects.silenceLong.strength = 1.0;
+      state.currentEvent = event;
+      break;
+    case "MonologueLong":
+      state.activeEffects.monologueLong.strength = 1.0;
+      state.activeEffects.monologueLong.pulseCount = 0;
+      state.currentEvent = event;
+      break;
+    case "OverlapBurst":
+      state.activeEffects.overlapBurst.strength = 1.0;
+      state.currentEvent = event;
+      break;
+    case "StableCalm":
+      state.activeEffects.stableCalm.strength = 1.0;
+      state.currentEvent = event;
+      break;
+  }
+  
+  // 音声再生（実装後）
+  if (config.sound.enabled && state.soundPlayer) {
+    state.soundPlayer.playEvent(event);
+  }
+}
+
+// アクティブエフェクトの更新（減衰処理）
+function updateActiveEffects(dt) {
+  // SilenceLong
+  if (state.activeEffects.silenceLong.strength > 0.01) {
+    state.activeEffects.silenceLong.strength *= Math.exp(-dt / state.activeEffects.silenceLong.decay);
+  } else {
+    state.activeEffects.silenceLong.strength = 0;
+  }
+  
+  // MonologueLong
+  if (state.activeEffects.monologueLong.strength > 0.01) {
+    state.activeEffects.monologueLong.strength *= Math.exp(-dt / state.activeEffects.monologueLong.decay);
+  } else {
+    state.activeEffects.monologueLong.strength = 0;
+  }
+  
+  // OverlapBurst
+  if (state.activeEffects.overlapBurst.strength > 0.01) {
+    state.activeEffects.overlapBurst.strength *= Math.exp(-dt / state.activeEffects.overlapBurst.decay);
+  } else {
+    state.activeEffects.overlapBurst.strength = 0;
+  }
+  
+  // StableCalm
+  if (state.activeEffects.stableCalm.strength > 0.01) {
+    state.activeEffects.stableCalm.strength *= Math.exp(-dt / state.activeEffects.stableCalm.decay);
+  } else {
+    state.activeEffects.stableCalm.strength = 0;
+  }
+}
 
 // Kick off render loop
 loop();
