@@ -1,0 +1,36 @@
+{
+  "version": "45.0.0",
+  "files": {
+    "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6": {
+      "displayName": "ConcordiaStorage-dev/Custom::S3AutoDeleteObjectsCustomResourceProvider Code",
+      "source": {
+        "path": "asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "384504716192-ap-northeast-1-3ba994c9": {
+          "bucketName": "cdk-hnb659fds-assets-384504716192-ap-northeast-1",
+          "objectKey": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip",
+          "region": "ap-northeast-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-file-publishing-role-384504716192-ap-northeast-1"
+        }
+      }
+    },
+    "fa23d29e3c809d3dc802678d64a4e9515cd28206cf542bce033a89fb6cf81512": {
+      "displayName": "ConcordiaStorage-dev Template",
+      "source": {
+        "path": "ConcordiaStorage-dev.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "384504716192-ap-northeast-1-26c916b0": {
+          "bucketName": "cdk-hnb659fds-assets-384504716192-ap-northeast-1",
+          "objectKey": "fa23d29e3c809d3dc802678d64a4e9515cd28206cf542bce033a89fb6cf81512.json",
+          "region": "ap-northeast-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-file-publishing-role-384504716192-ap-northeast-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

@@ -1,0 +1,201 @@
+{
+ "Description": "API Gateway for Concordia Pipeline",
+ "Resources": {
+  "ConcordiaApi32A03326": {
+   "Type": "AWS::ApiGatewayV2::Api",
+   "Properties": {
+    "CorsConfiguration": {
+     "AllowHeaders": [
+      "Content-Type",
+      "Authorization"
+     ],
+     "AllowMethods": [
+      "POST",
+      "OPTIONS"
+     ],
+     "AllowOrigins": [
+      "http://localhost:5173"
+     ],
+     "MaxAge": 86400
+    },
+    "Description": "API for Concordia Real-time Transcription",
+    "Name": "concordia-api-dev",
+    "ProtocolType": "HTTP"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/Resource"
+   }
+  },
+  "ConcordiaApiDefaultStage9F32FA11": {
+   "Type": "AWS::ApiGatewayV2::Stage",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ConcordiaApi32A03326"
+    },
+    "AutoDeploy": true,
+    "StageName": "$default"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/DefaultStage/Resource"
+   }
+  },
+  "ConcordiaApiPOSTtranscribeTranscribeIntegrationE6FD093D": {
+   "Type": "AWS::ApiGatewayV2::Integration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ConcordiaApi32A03326"
+    },
+    "IntegrationType": "AWS_PROXY",
+    "IntegrationUri": {
+     "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttRealtimeTranscribeFnAFA09307Arn98D1D587"
+    },
+    "PayloadFormatVersion": "2.0"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/POST--transcribe/TranscribeIntegration/Resource"
+   }
+  },
+  "ConcordiaApiPOSTtranscribeTranscribeIntegrationPermission6890AFA8": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttRealtimeTranscribeFnAFA09307Arn98D1D587"
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:ap-northeast-1:384504716192:",
+       {
+        "Ref": "ConcordiaApi32A03326"
+       },
+       "/*/*/transcribe"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/POST--transcribe/TranscribeIntegration-Permission"
+   }
+  },
+  "ConcordiaApiPOSTtranscribe0D247BF8": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ConcordiaApi32A03326"
+    },
+    "AuthorizationType": "JWT",
+    "AuthorizerId": {
+     "Ref": "ConcordiaApiConcordiaAuthorizer8E042A29"
+    },
+    "RouteKey": "POST /transcribe",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "ConcordiaApiPOSTtranscribeTranscribeIntegrationE6FD093D"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/POST--transcribe/Resource"
+   }
+  },
+  "ConcordiaApiConcordiaAuthorizer8E042A29": {
+   "Type": "AWS::ApiGatewayV2::Authorizer",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ConcordiaApi32A03326"
+    },
+    "AuthorizerType": "JWT",
+    "IdentitySource": [
+     "$request.header.Authorization"
+    ],
+    "JwtConfiguration": {
+     "Audience": [
+      {
+       "Fn::ImportValue": "ConcordiaAuth-dev:ExportsOutputRefConcordiaUserPoolConcordiaClient31E6FD532CA55E85"
+      }
+     ],
+     "Issuer": {
+      "Fn::Join": [
+       "",
+       [
+        "https://cognito-idp.ap-northeast-1.amazonaws.com/",
+        {
+         "Fn::ImportValue": "ConcordiaAuth-dev:ExportsOutputRefConcordiaUserPool63C8C77FF9B8BABF"
+        }
+       ]
+      ]
+     }
+    },
+    "Name": "ConcordiaAuthorizer"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/ConcordiaAuthorizer/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/12PQQ6CMBBFz+K+jNjoAYgbXWnwAGaAigNSmnYKUcLdbSXRxNX8//JmkpEg0x2kKxxdUlZt8qACpgtj2YqArhMaqpHViM9BwnRgNpkhsb/pOGINbq0iWEJEee95SUfNqrbI1Ouo/NWfl3m+95Zeyn5Of9ssHtgVFUKgZ2U7ci7szlE6eTaeZ6H7SkHj1oPcwiYNnzSOKLFeM3UK8mW+AWAFrM3mAAAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "ApiEndpoint": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ConcordiaApi32A03326",
+     "ApiEndpoint"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaApi-dev-ApiEndpoint"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

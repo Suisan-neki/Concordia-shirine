@@ -1,0 +1,848 @@
+{
+ "Description": "Lambda functions for Concordia Pipeline",
+ "Resources": {
+  "LambdaExecutionRoleD5C26073": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/LambdaExecutionRole/Resource"
+   }
+  },
+  "LambdaExecutionRoleDefaultPolicy6D69732F": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputFnGetAttInputBucket3BF8630AArnB4CC1184"
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputFnGetAttInputBucket3BF8630AArnB4CC1184"
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "s3:Abort*",
+        "s3:DeleteObject*",
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputFnGetAttOutputBucket7114EB27Arn67D5716D"
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputFnGetAttOutputBucket7114EB27Arn67D5716D"
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:BatchWriteItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputFnGetAttInterviewsTable10041BFEArn2AE0A367"
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputFnGetAttInterviewsTable10041BFEArn2AE0A367"
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefHuggingFaceSecretB9D081C60C9066EA"
+        },
+        {
+         "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOpenAISecretAD3AE700A6118850"
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "Roles": [
+     {
+      "Ref": "LambdaExecutionRoleD5C26073"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/LambdaExecutionRole/DefaultPolicy/Resource"
+   }
+  },
+  "ExtractAudioFn7C677709": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "ImageUri": {
+      "Fn::Sub": "384504716192.dkr.ecr.ap-northeast-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-384504716192-ap-northeast-1:e28d4ba01388c734fc5cfd75de9b0470c65bb99a82f7b90c8eb42aa324f83e9a"
+     }
+    },
+    "Environment": {
+     "Variables": {
+      "INPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInputBucket3BF8630A70BB6653"
+      },
+      "OUTPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOutputBucket7114EB279FD7F7F1"
+      },
+      "TABLE_NAME": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInterviewsTable10041BFEE82DC708"
+      },
+      "ENVIRONMENT": "dev"
+     }
+    },
+    "EphemeralStorage": {
+     "Size": 10240
+    },
+    "FunctionName": "concordia-extract-audio-dev",
+    "MemorySize": 3008,
+    "PackageType": "Image",
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Timeout": 900
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/ExtractAudioFn/Resource",
+    "aws:asset:path": "asset.e28d4ba01388c734fc5cfd75de9b0470c65bb99a82f7b90c8eb42aa324f83e9a",
+    "aws:asset:dockerfile-path": "Dockerfile",
+    "aws:asset:property": "Code.ImageUri"
+   }
+  },
+  "ChunkAudioFn3E7170F2": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "ImageUri": {
+      "Fn::Sub": "384504716192.dkr.ecr.ap-northeast-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-384504716192-ap-northeast-1:f322e45be6f1987e5b865f1da57c726456264d520cc5056ab484984b1374a802"
+     }
+    },
+    "Environment": {
+     "Variables": {
+      "INPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInputBucket3BF8630A70BB6653"
+      },
+      "OUTPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOutputBucket7114EB279FD7F7F1"
+      },
+      "TABLE_NAME": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInterviewsTable10041BFEE82DC708"
+      },
+      "CHUNK_DURATION": "480",
+      "OVERLAP_DURATION": "30",
+      "MIN_CHUNK_DURATION": "60",
+      "ENVIRONMENT": "dev"
+     }
+    },
+    "EphemeralStorage": {
+     "Size": 10240
+    },
+    "FunctionName": "concordia-chunk-audio-dev",
+    "MemorySize": 3008,
+    "PackageType": "Image",
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Timeout": 900
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/ChunkAudioFn/Resource",
+    "aws:asset:path": "asset.f322e45be6f1987e5b865f1da57c726456264d520cc5056ab484984b1374a802",
+    "aws:asset:dockerfile-path": "Dockerfile",
+    "aws:asset:property": "Code.ImageUri"
+   }
+  },
+  "DiarizeFn406EEB3E": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "ImageUri": {
+      "Fn::Sub": "384504716192.dkr.ecr.ap-northeast-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-384504716192-ap-northeast-1:1a0518fb74dc936228dc2a3a07d33030aa3f60399c48cb803c505e2e5b9cac6d"
+     }
+    },
+    "Environment": {
+     "Variables": {
+      "INPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInputBucket3BF8630A70BB6653"
+      },
+      "OUTPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOutputBucket7114EB279FD7F7F1"
+      },
+      "TABLE_NAME": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInterviewsTable10041BFEE82DC708"
+      },
+      "HF_TOKEN_SECRET_ARN": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefHuggingFaceSecretB9D081C60C9066EA"
+      },
+      "HF_HOME": "/opt/huggingface",
+      "ENVIRONMENT": "dev"
+     }
+    },
+    "EphemeralStorage": {
+     "Size": 10240
+    },
+    "FunctionName": "concordia-diarize-dev",
+    "MemorySize": 10240,
+    "PackageType": "Image",
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Timeout": 900
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/DiarizeFn/Resource",
+    "aws:asset:path": "asset.1a0518fb74dc936228dc2a3a07d33030aa3f60399c48cb803c505e2e5b9cac6d",
+    "aws:asset:dockerfile-path": "Dockerfile",
+    "aws:asset:docker-build-args": {
+     "HF_TOKEN": ""
+    },
+    "aws:asset:property": "Code.ImageUri"
+   }
+  },
+  "MergeSpeakersFn982261D1": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "ImageUri": {
+      "Fn::Sub": "384504716192.dkr.ecr.ap-northeast-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-384504716192-ap-northeast-1:6acceb9dc09d88c3a428f62a5420c768a87342a3ba4f3e650cd5d9bd118892ca"
+     }
+    },
+    "Environment": {
+     "Variables": {
+      "INPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInputBucket3BF8630A70BB6653"
+      },
+      "OUTPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOutputBucket7114EB279FD7F7F1"
+      },
+      "TABLE_NAME": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInterviewsTable10041BFEE82DC708"
+      },
+      "SIMILARITY_THRESHOLD": "0.75",
+      "ENVIRONMENT": "dev"
+     }
+    },
+    "FunctionName": "concordia-merge-speakers-dev",
+    "MemorySize": 3008,
+    "PackageType": "Image",
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Timeout": 300
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/MergeSpeakersFn/Resource",
+    "aws:asset:path": "asset.6acceb9dc09d88c3a428f62a5420c768a87342a3ba4f3e650cd5d9bd118892ca",
+    "aws:asset:dockerfile-path": "Dockerfile",
+    "aws:asset:property": "Code.ImageUri"
+   }
+  },
+  "SplitBySpeakerFn1632DBAA": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "ImageUri": {
+      "Fn::Sub": "384504716192.dkr.ecr.ap-northeast-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-384504716192-ap-northeast-1:f53d68e4eb8d43f1b3d335581dd43b67d5e580ab3d16b9a425057045d788866b"
+     }
+    },
+    "Environment": {
+     "Variables": {
+      "INPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInputBucket3BF8630A70BB6653"
+      },
+      "OUTPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOutputBucket7114EB279FD7F7F1"
+      },
+      "TABLE_NAME": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInterviewsTable10041BFEE82DC708"
+      },
+      "ENVIRONMENT": "dev"
+     }
+    },
+    "EphemeralStorage": {
+     "Size": 10240
+    },
+    "FunctionName": "concordia-split-by-speaker-dev",
+    "MemorySize": 3008,
+    "PackageType": "Image",
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Timeout": 900
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/SplitBySpeakerFn/Resource",
+    "aws:asset:path": "asset.f53d68e4eb8d43f1b3d335581dd43b67d5e580ab3d16b9a425057045d788866b",
+    "aws:asset:dockerfile-path": "Dockerfile",
+    "aws:asset:property": "Code.ImageUri"
+   }
+  },
+  "TranscribeFnE12B4E78": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "ImageUri": {
+      "Fn::Sub": "384504716192.dkr.ecr.ap-northeast-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-384504716192-ap-northeast-1:7964207785fd3bb7893d4ecd172e4fb8467e5cb19dad8676103fc2eaae2c77c9"
+     }
+    },
+    "Environment": {
+     "Variables": {
+      "INPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInputBucket3BF8630A70BB6653"
+      },
+      "OUTPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOutputBucket7114EB279FD7F7F1"
+      },
+      "TABLE_NAME": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInterviewsTable10041BFEE82DC708"
+      },
+      "WHISPER_MODEL": "base",
+      "WHISPER_MODEL_DIR": "/opt/whisper-models",
+      "ENVIRONMENT": "dev"
+     }
+    },
+    "FunctionName": "concordia-transcribe-dev",
+    "MemorySize": 6144,
+    "PackageType": "Image",
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Timeout": 900
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/TranscribeFn/Resource",
+    "aws:asset:path": "asset.7964207785fd3bb7893d4ecd172e4fb8467e5cb19dad8676103fc2eaae2c77c9",
+    "aws:asset:dockerfile-path": "Dockerfile",
+    "aws:asset:docker-build-args": {
+     "WHISPER_MODEL": "base"
+    },
+    "aws:asset:property": "Code.ImageUri"
+   }
+  },
+  "AggregateResultsFn217C1739": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "ImageUri": {
+      "Fn::Sub": "384504716192.dkr.ecr.ap-northeast-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-384504716192-ap-northeast-1:02ace7eecf929b272f7e014a4b6e31dbf315182f4feccaeef1b0f868723cdb5a"
+     }
+    },
+    "Environment": {
+     "Variables": {
+      "INPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInputBucket3BF8630A70BB6653"
+      },
+      "OUTPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOutputBucket7114EB279FD7F7F1"
+      },
+      "TABLE_NAME": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInterviewsTable10041BFEE82DC708"
+      },
+      "ENVIRONMENT": "dev"
+     }
+    },
+    "FunctionName": "concordia-aggregate-results-dev",
+    "MemorySize": 1024,
+    "PackageType": "Image",
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Timeout": 300
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/AggregateResultsFn/Resource",
+    "aws:asset:path": "asset.02ace7eecf929b272f7e014a4b6e31dbf315182f4feccaeef1b0f868723cdb5a",
+    "aws:asset:dockerfile-path": "Dockerfile",
+    "aws:asset:property": "Code.ImageUri"
+   }
+  },
+  "LLMAnalysisFnC6232355": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "ImageUri": {
+      "Fn::Sub": "384504716192.dkr.ecr.ap-northeast-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-384504716192-ap-northeast-1:7b7d258bf1878663a9055e314e64a93bff07161ad18980ca26be24748d99d8b1"
+     }
+    },
+    "Environment": {
+     "Variables": {
+      "INPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInputBucket3BF8630A70BB6653"
+      },
+      "OUTPUT_BUCKET": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOutputBucket7114EB279FD7F7F1"
+      },
+      "TABLE_NAME": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInterviewsTable10041BFEE82DC708"
+      },
+      "OPENAI_SECRET_ARN": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOpenAISecretAD3AE700A6118850"
+      },
+      "OPENAI_MODEL": "gpt-4o-mini",
+      "ENVIRONMENT": "dev"
+     }
+    },
+    "FunctionName": "concordia-llm-analysis-dev",
+    "MemorySize": 1024,
+    "PackageType": "Image",
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Timeout": 600
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/LLMAnalysisFn/Resource",
+    "aws:asset:path": "asset.7b7d258bf1878663a9055e314e64a93bff07161ad18980ca26be24748d99d8b1",
+    "aws:asset:dockerfile-path": "Dockerfile",
+    "aws:asset:property": "Code.ImageUri"
+   }
+  },
+  "RealtimeTranscribeFnAFA09307": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "ImageUri": {
+      "Fn::Sub": "384504716192.dkr.ecr.ap-northeast-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-384504716192-ap-northeast-1:bb04ed7fa541c120ccab1fc7ee7c116a8e4e2e87c6b11822ddb93836f4f10ce9"
+     }
+    },
+    "Environment": {
+     "Variables": {
+      "WHISPER_MODEL": "base",
+      "WHISPER_MODEL_DIR": "/opt/whisper-models",
+      "ENVIRONMENT": "dev"
+     }
+    },
+    "FunctionName": "concordia-realtime-transcribe-dev",
+    "MemorySize": 4096,
+    "PackageType": "Image",
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/RealtimeTranscribeFn/Resource",
+    "aws:asset:path": "asset.bb04ed7fa541c120ccab1fc7ee7c116a8e4e2e87c6b11822ddb93836f4f10ce9",
+    "aws:asset:dockerfile-path": "Dockerfile",
+    "aws:asset:docker-build-args": {
+     "WHISPER_MODEL": "base"
+    },
+    "aws:asset:property": "Code.ImageUri"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02PXQ6CMBCEz+J7WZHoAfyJiU8aPAApZSULtCXdVkMId5dCTHya2dkvm9kMsvQA6UZ+OFFVm3RUwvj0UrVijoqRpIYxtx2K88ss+rAdqSGOq5tEJ3VZSRgvVrXoblrWeA1GebImYj8/CVSukMzoGf7YY0ziDnLsLZO3bjhJxknkyDY4hWJB5lY1mTqevAffBz8JYyuEhrfvbA+7dH6jYaLEBeNJI+SrfgH7i1fE4wAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "ExtractAudioFnArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ExtractAudioFn7C677709",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev-ExtractAudioFnArn"
+   }
+  },
+  "ChunkAudioFnArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ChunkAudioFn3E7170F2",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev-ChunkAudioFnArn"
+   }
+  },
+  "DiarizeFnArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "DiarizeFn406EEB3E",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev-DiarizeFnArn"
+   }
+  },
+  "MergeSpeakersFnArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "MergeSpeakersFn982261D1",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev-MergeSpeakersFnArn"
+   }
+  },
+  "SplitBySpeakerFnArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "SplitBySpeakerFn1632DBAA",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev-SplitBySpeakerFnArn"
+   }
+  },
+  "TranscribeFnArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "TranscribeFnE12B4E78",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev-TranscribeFnArn"
+   }
+  },
+  "AggregateResultsFnArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "AggregateResultsFn217C1739",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev-AggregateResultsFnArn"
+   }
+  },
+  "LLMAnalysisFnArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "LLMAnalysisFnC6232355",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev-LLMAnalysisFnArn"
+   }
+  },
+  "RealtimeTranscribeFnArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "RealtimeTranscribeFnAFA09307",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev-RealtimeTranscribeFnArn"
+   }
+  },
+  "ExportsOutputFnGetAttExtractAudioFn7C677709ArnA48558EF": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ExtractAudioFn7C677709",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttExtractAudioFn7C677709ArnA48558EF"
+   }
+  },
+  "ExportsOutputFnGetAttChunkAudioFn3E7170F2Arn55BBB4E5": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ChunkAudioFn3E7170F2",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttChunkAudioFn3E7170F2Arn55BBB4E5"
+   }
+  },
+  "ExportsOutputFnGetAttDiarizeFn406EEB3EArnC90AD17E": {
+   "Value": {
+    "Fn::GetAtt": [
+     "DiarizeFn406EEB3E",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttDiarizeFn406EEB3EArnC90AD17E"
+   }
+  },
+  "ExportsOutputFnGetAttMergeSpeakersFn982261D1ArnA9950B77": {
+   "Value": {
+    "Fn::GetAtt": [
+     "MergeSpeakersFn982261D1",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttMergeSpeakersFn982261D1ArnA9950B77"
+   }
+  },
+  "ExportsOutputFnGetAttSplitBySpeakerFn1632DBAAArnEB2166FC": {
+   "Value": {
+    "Fn::GetAtt": [
+     "SplitBySpeakerFn1632DBAA",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttSplitBySpeakerFn1632DBAAArnEB2166FC"
+   }
+  },
+  "ExportsOutputFnGetAttTranscribeFnE12B4E78Arn29CAFEF1": {
+   "Value": {
+    "Fn::GetAtt": [
+     "TranscribeFnE12B4E78",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttTranscribeFnE12B4E78Arn29CAFEF1"
+   }
+  },
+  "ExportsOutputFnGetAttAggregateResultsFn217C1739ArnD6E2459D": {
+   "Value": {
+    "Fn::GetAtt": [
+     "AggregateResultsFn217C1739",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttAggregateResultsFn217C1739ArnD6E2459D"
+   }
+  },
+  "ExportsOutputFnGetAttLLMAnalysisFnC6232355Arn5AD51C25": {
+   "Value": {
+    "Fn::GetAtt": [
+     "LLMAnalysisFnC6232355",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttLLMAnalysisFnC6232355Arn5AD51C25"
+   }
+  },
+  "ExportsOutputFnGetAttRealtimeTranscribeFnAFA09307Arn98D1D587": {
+   "Value": {
+    "Fn::GetAtt": [
+     "RealtimeTranscribeFnAFA09307",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttRealtimeTranscribeFnAFA09307Arn98D1D587"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

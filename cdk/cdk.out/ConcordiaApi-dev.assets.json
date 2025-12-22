@@ -1,0 +1,21 @@
+{
+  "version": "45.0.0",
+  "files": {
+    "fb4abaf036fb79671e87cf47182544faae44db6090ddfc5dc1495d6b6797238a": {
+      "displayName": "ConcordiaApi-dev Template",
+      "source": {
+        "path": "ConcordiaApi-dev.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "384504716192-ap-northeast-1-491ac251": {
+          "bucketName": "cdk-hnb659fds-assets-384504716192-ap-northeast-1",
+          "objectKey": "fb4abaf036fb79671e87cf47182544faae44db6090ddfc5dc1495d6b6797238a.json",
+          "region": "ap-northeast-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-file-publishing-role-384504716192-ap-northeast-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

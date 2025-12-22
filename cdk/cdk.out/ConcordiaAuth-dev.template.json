@@ -1,0 +1,186 @@
+{
+ "Description": "Cognito User Pool for Concordia Pipeline",
+ "Resources": {
+  "ConcordiaUserPool63C8C77F": {
+   "Type": "AWS::Cognito::UserPool",
+   "Properties": {
+    "AccountRecoverySetting": {
+     "RecoveryMechanisms": [
+      {
+       "Name": "verified_phone_number",
+       "Priority": 1
+      },
+      {
+       "Name": "verified_email",
+       "Priority": 2
+      }
+     ]
+    },
+    "AdminCreateUserConfig": {
+     "AllowAdminCreateUserOnly": false
+    },
+    "AliasAttributes": [
+     "email"
+    ],
+    "AutoVerifiedAttributes": [
+     "email"
+    ],
+    "EmailVerificationMessage": "The verification code to your new account is {####}",
+    "EmailVerificationSubject": "Verify your new account",
+    "Policies": {
+     "PasswordPolicy": {
+      "MinimumLength": 8,
+      "RequireLowercase": true,
+      "RequireNumbers": true,
+      "RequireUppercase": true
+     }
+    },
+    "SmsVerificationMessage": "The verification code to your new account is {####}",
+    "UserPoolName": "concordia-users-dev",
+    "VerificationMessageTemplate": {
+     "DefaultEmailOption": "CONFIRM_WITH_CODE",
+     "EmailMessage": "The verification code to your new account is {####}",
+     "EmailSubject": "Verify your new account",
+     "SmsMessage": "The verification code to your new account is {####}"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaAuth-dev/ConcordiaUserPool/Resource"
+   }
+  },
+  "ConcordiaUserPoolConcordiaClient31E6FD53": {
+   "Type": "AWS::Cognito::UserPoolClient",
+   "Properties": {
+    "AllowedOAuthFlows": [
+     "implicit"
+    ],
+    "AllowedOAuthFlowsUserPoolClient": true,
+    "AllowedOAuthScopes": [
+     "openid",
+     "email"
+    ],
+    "CallbackURLs": [
+     "http://localhost:5173",
+     "http://localhost:5173/"
+    ],
+    "ClientName": "concordia-client-dev",
+    "GenerateSecret": false,
+    "LogoutURLs": [
+     "http://localhost:5173"
+    ],
+    "SupportedIdentityProviders": [
+     "COGNITO"
+    ],
+    "UserPoolId": {
+     "Ref": "ConcordiaUserPool63C8C77F"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaAuth-dev/ConcordiaUserPool/ConcordiaClient/Resource"
+   }
+  },
+  "ConcordiaUserPoolConcordiaAuthDomainF0524044": {
+   "Type": "AWS::Cognito::UserPoolDomain",
+   "Properties": {
+    "Domain": "concordia-auth-384504716192-dev",
+    "UserPoolId": {
+     "Ref": "ConcordiaUserPool63C8C77F"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaAuth-dev/ConcordiaUserPool/ConcordiaAuthDomain/Resource"
+   }
+  },
+  "UiCustomization": {
+   "Type": "AWS::Cognito::UserPoolUICustomizationAttachment",
+   "Properties": {
+    "CSS": "\n            .background-customizable {\n                background-color: #0c1020;\n                background-image: \n                    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.06), transparent 40%),\n                    radial-gradient(circle at 80% 10%, rgba(255,255,255,0.05), transparent 45%),\n                    linear-gradient(135deg, #0b1326, #0c1b2f 50%, #0c1020);\n                font-family: \"Segoe UI\", sans-serif;\n            }\n            .banner-customizable {\n                background-color: transparent;\n            }\n            .submitButton-customizable {\n                background: linear-gradient(135deg, #667eea, #764ba2);\n                border: none;\n                border-radius: 4px;\n                font-weight: bold;\n                transition: transform 0.1s ease;\n            }\n            .submitButton-customizable:hover {\n                background: linear-gradient(135deg, #764ba2, #667eea);\n                transform: translateY(-1px);\n            }\n            .label-customizable {\n                color: #e6f2ff;\n                font-weight: 400;\n            }\n            .textDescription-customizable {\n                color: #b0c4de;\n            }\n            .inputField-customizable {\n                background-color: rgba(255, 255, 255, 0.08);\n                border: 1px solid rgba(255, 255, 255, 0.15);\n                color: #ffffff;\n                border-radius: 4px;\n            }\n            .inputField-customizable:focus {\n                border-color: #7bd6ff;\n                box-shadow: 0 0 0 1px #7bd6ff;\n            }\n            .redirect-customizable {\n                color: #7bd6ff;\n            }\n            .legalText-customizable {\n                color: #7bd6ff;\n            }\n        ",
+    "ClientId": {
+     "Ref": "ConcordiaUserPoolConcordiaClient31E6FD53"
+    },
+    "UserPoolId": {
+     "Ref": "ConcordiaUserPool63C8C77F"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaAuth-dev/UiCustomization"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/2WOwQrCMAyGn8X7FuvQB5B68aQoO0vdqmZrE1lTBYfvbkUnA0/58uUn/AUUagFqYu4hr+o2d3iEfi+marOkDhWfCYWhL4Pttswu0yf68QDaoSUZn75mWFfsDdI48G/KtY5B2OPDCDItJZW4+PTl+U5tolxjQuLaQhOmt2IOM5WKNwEx7yIJegu7z3wBmztJedUAAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaAuth-dev/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "UserPoolId": {
+   "Value": {
+    "Ref": "ConcordiaUserPool63C8C77F"
+   }
+  },
+  "UserPoolClientId": {
+   "Value": {
+    "Ref": "ConcordiaUserPoolConcordiaClient31E6FD53"
+   }
+  },
+  "AuthDomain": {
+   "Value": "https://concordia-auth-384504716192-dev.auth.ap-northeast-1.amazoncognito.com"
+  },
+  "ExportsOutputRefConcordiaUserPoolConcordiaClient31E6FD532CA55E85": {
+   "Value": {
+    "Ref": "ConcordiaUserPoolConcordiaClient31E6FD53"
+   },
+   "Export": {
+    "Name": "ConcordiaAuth-dev:ExportsOutputRefConcordiaUserPoolConcordiaClient31E6FD532CA55E85"
+   }
+  },
+  "ExportsOutputRefConcordiaUserPool63C8C77FF9B8BABF": {
+   "Value": {
+    "Ref": "ConcordiaUserPool63C8C77F"
+   },
+   "Export": {
+    "Name": "ConcordiaAuth-dev:ExportsOutputRefConcordiaUserPool63C8C77FF9B8BABF"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

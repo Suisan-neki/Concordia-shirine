@@ -1,0 +1,763 @@
+{
+ "Description": "Step Functions state machine for Concordia Pipeline",
+ "Resources": {
+  "StateMachineLogGroup15B91BCB": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": "/aws/stepfunctions/concordia-transcript-dev",
+    "RetentionInDays": 30
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/StateMachineLogGroup/Resource"
+   }
+  },
+  "TranscriptPipelineRole22A89848": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "states.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/TranscriptPipeline/Role/Resource"
+   }
+  },
+  "TranscriptPipelineRoleDefaultPolicyF18E6376": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "lambda:InvokeFunction",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttAggregateResultsFn217C1739ArnD6E2459D"
+        },
+        {
+         "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttChunkAudioFn3E7170F2Arn55BBB4E5"
+        },
+        {
+         "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttDiarizeFn406EEB3EArnC90AD17E"
+        },
+        {
+         "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttExtractAudioFn7C677709ArnA48558EF"
+        },
+        {
+         "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttLLMAnalysisFnC6232355Arn5AD51C25"
+        },
+        {
+         "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttMergeSpeakersFn982261D1ArnA9950B77"
+        },
+        {
+         "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttSplitBySpeakerFn1632DBAAArnEB2166FC"
+        },
+        {
+         "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttTranscribeFnE12B4E78Arn29CAFEF1"
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttAggregateResultsFn217C1739ArnD6E2459D"
+           },
+           ":*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttChunkAudioFn3E7170F2Arn55BBB4E5"
+           },
+           ":*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttDiarizeFn406EEB3EArnC90AD17E"
+           },
+           ":*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttExtractAudioFn7C677709ArnA48558EF"
+           },
+           ":*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttLLMAnalysisFnC6232355Arn5AD51C25"
+           },
+           ":*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttMergeSpeakersFn982261D1ArnA9950B77"
+           },
+           ":*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttSplitBySpeakerFn1632DBAAArnEB2166FC"
+           },
+           ":*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttTranscribeFnE12B4E78Arn29CAFEF1"
+           },
+           ":*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "logs:CreateLogDelivery",
+        "logs:DeleteLogDelivery",
+        "logs:DescribeLogGroups",
+        "logs:DescribeResourcePolicies",
+        "logs:GetLogDelivery",
+        "logs:ListLogDeliveries",
+        "logs:PutResourcePolicy",
+        "logs:UpdateLogDelivery",
+        "xray:GetSamplingRules",
+        "xray:GetSamplingTargets",
+        "xray:PutTelemetryRecords",
+        "xray:PutTraceSegments"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "TranscriptPipelineRoleDefaultPolicyF18E6376",
+    "Roles": [
+     {
+      "Ref": "TranscriptPipelineRole22A89848"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/TranscriptPipeline/Role/DefaultPolicy/Resource"
+   }
+  },
+  "TranscriptPipelineF1526230": {
+   "Type": "AWS::StepFunctions::StateMachine",
+   "Properties": {
+    "DefinitionString": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"StartAt\":\"ExtractAudio\",\"States\":{\"ExtractAudio\":{\"Next\":\"ChunkAudio\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"States.ALL\"],\"IntervalSeconds\":5,\"MaxAttempts\":2,\"BackoffRate\":2}],\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"ResultPath\":\"$.error\",\"Next\":\"HandleError\"}],\"Type\":\"Task\",\"OutputPath\":\"$.Payload\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttExtractAudioFn7C677709ArnA48558EF"
+       },
+       "\",\"Payload.$\":\"$\"}},\"ChunkAudio\":{\"Next\":\"DiarizeChunks\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"States.ALL\"],\"IntervalSeconds\":5,\"MaxAttempts\":2,\"BackoffRate\":2}],\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"ResultPath\":\"$.error\",\"Next\":\"HandleError\"}],\"Type\":\"Task\",\"OutputPath\":\"$.Payload\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttChunkAudioFn3E7170F2Arn55BBB4E5"
+       },
+       "\",\"Payload.$\":\"$\"}},\"DiarizeChunks\":{\"Type\":\"Map\",\"ResultPath\":\"$.chunk_results\",\"Next\":\"MergeSpeakers\",\"Parameters\":{\"bucket.$\":\"$.bucket\",\"audio_key.$\":\"$.audio_key\",\"chunk.$\":\"$$.Map.Item.Value\"},\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"ResultPath\":\"$.error\",\"Next\":\"HandleError\"}],\"ItemsPath\":\"$.chunks\",\"ItemProcessor\":{\"ProcessorConfig\":{\"Mode\":\"INLINE\"},\"StartAt\":\"DiarizeChunk\",\"States\":{\"DiarizeChunk\":{\"End\":true,\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"States.ALL\"],\"IntervalSeconds\":10,\"MaxAttempts\":2,\"BackoffRate\":2}],\"Type\":\"Task\",\"OutputPath\":\"$.Payload\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttDiarizeFn406EEB3EArnC90AD17E"
+       },
+       "\",\"Payload.$\":\"$\"}}}},\"MaxConcurrency\":5},\"MergeSpeakers\":{\"Next\":\"SplitBySpeaker\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"States.ALL\"],\"IntervalSeconds\":5,\"MaxAttempts\":2,\"BackoffRate\":2}],\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"ResultPath\":\"$.error\",\"Next\":\"HandleError\"}],\"Type\":\"Task\",\"OutputPath\":\"$.Payload\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttMergeSpeakersFn982261D1ArnA9950B77"
+       },
+       "\",\"Payload\":{\"bucket.$\":\"$.bucket\",\"audio_key.$\":\"$.audio_key\",\"chunk_results.$\":\"$.chunk_results\",\"chunk_config.$\":\"$.chunk_config\"}}},\"SplitBySpeaker\":{\"Next\":\"TranscribeSegments\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"States.ALL\"],\"IntervalSeconds\":5,\"MaxAttempts\":2,\"BackoffRate\":2}],\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"ResultPath\":\"$.error\",\"Next\":\"HandleError\"}],\"Type\":\"Task\",\"OutputPath\":\"$.Payload\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttSplitBySpeakerFn1632DBAAArnEB2166FC"
+       },
+       "\",\"Payload.$\":\"$\"}},\"TranscribeSegments\":{\"Type\":\"Map\",\"ResultPath\":null,\"Next\":\"AggregateResults\",\"Parameters\":{\"bucket.$\":\"$.bucket\",\"segment_file.$\":\"$$.Map.Item.Value\"},\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"ResultPath\":\"$.error\",\"Next\":\"HandleError\"}],\"ItemsPath\":\"$.segment_files\",\"ItemProcessor\":{\"ProcessorConfig\":{\"Mode\":\"INLINE\"},\"StartAt\":\"Transcribe\",\"States\":{\"Transcribe\":{\"End\":true,\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"States.ALL\"],\"IntervalSeconds\":5,\"MaxAttempts\":3,\"BackoffRate\":2}],\"Type\":\"Task\",\"OutputPath\":\"$.Payload\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttTranscribeFnE12B4E78Arn29CAFEF1"
+       },
+       "\",\"Payload.$\":\"$\"}}}},\"MaxConcurrency\":10},\"AggregateResults\":{\"Next\":\"LLMAnalysis\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"States.ALL\"],\"IntervalSeconds\":5,\"MaxAttempts\":2,\"BackoffRate\":2}],\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"ResultPath\":\"$.error\",\"Next\":\"HandleError\"}],\"Type\":\"Task\",\"OutputPath\":\"$.Payload\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttAggregateResultsFn217C1739ArnD6E2459D"
+       },
+       "\",\"Payload.$\":\"$\"}},\"LLMAnalysis\":{\"Next\":\"ProcessingComplete\",\"Retry\":[{\"ErrorEquals\":[\"Lambda.ClientExecutionTimeoutException\",\"Lambda.ServiceException\",\"Lambda.AWSLambdaException\",\"Lambda.SdkClientException\"],\"IntervalSeconds\":2,\"MaxAttempts\":6,\"BackoffRate\":2},{\"ErrorEquals\":[\"States.ALL\"],\"IntervalSeconds\":10,\"MaxAttempts\":3,\"BackoffRate\":2}],\"Catch\":[{\"ErrorEquals\":[\"States.ALL\"],\"ResultPath\":\"$.error\",\"Next\":\"HandleError\"}],\"Type\":\"Task\",\"OutputPath\":\"$.Payload\",\"Resource\":\"arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":states:::lambda:invoke\",\"Parameters\":{\"FunctionName\":\"",
+       {
+        "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttLLMAnalysisFnC6232355Arn5AD51C25"
+       },
+       "\",\"Payload.$\":\"$\"}},\"ProcessingComplete\":{\"Type\":\"Succeed\",\"Comment\":\"Transcription pipeline completed successfully\"},\"HandleError\":{\"Type\":\"Pass\",\"Parameters\":{\"error.$\":\"$.error\",\"cause.$\":\"$.cause\",\"status\":\"FAILED\"},\"End\":true}},\"TimeoutSeconds\":43200}"
+      ]
+     ]
+    },
+    "LoggingConfiguration": {
+     "Destinations": [
+      {
+       "CloudWatchLogsLogGroup": {
+        "LogGroupArn": {
+         "Fn::GetAtt": [
+          "StateMachineLogGroup15B91BCB",
+          "Arn"
+         ]
+        }
+       }
+      }
+     ],
+     "IncludeExecutionData": true,
+     "Level": "ALL"
+    },
+    "RoleArn": {
+     "Fn::GetAtt": [
+      "TranscriptPipelineRole22A89848",
+      "Arn"
+     ]
+    },
+    "StateMachineName": "concordia-transcript-pipeline-dev",
+    "TracingConfiguration": {
+     "Enabled": true
+    }
+   },
+   "DependsOn": [
+    "TranscriptPipelineRoleDefaultPolicyF18E6376",
+    "TranscriptPipelineRole22A89848"
+   ],
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/TranscriptPipeline/Resource"
+   }
+  },
+  "StartPipelineLambdaServiceRole41F747E2": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/StartPipelineLambda/ServiceRole/Resource"
+   }
+  },
+  "StartPipelineLambdaServiceRoleDefaultPolicy8D0527E3": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "states:StartExecution",
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "TranscriptPipelineF1526230"
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputFnGetAttInterviewsTable10041BFEArn2AE0A367"
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputFnGetAttInterviewsTable10041BFEArn2AE0A367"
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "StartPipelineLambdaServiceRoleDefaultPolicy8D0527E3",
+    "Roles": [
+     {
+      "Ref": "StartPipelineLambdaServiceRole41F747E2"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/StartPipelineLambda/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "StartPipelineLambdaA7B35A25": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-384504716192-ap-northeast-1",
+     "S3Key": "4d729081f52de0916d7c95a22a69d5139026f0e7296ccf2eee960caad646b9b0.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "STATE_MACHINE_ARN": {
+       "Ref": "TranscriptPipelineF1526230"
+      },
+      "TABLE_NAME": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInterviewsTable10041BFEE82DC708"
+      }
+     }
+    },
+    "FunctionName": "concordia-start-pipeline-dev",
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "StartPipelineLambdaServiceRole41F747E2",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs20.x",
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "StartPipelineLambdaServiceRoleDefaultPolicy8D0527E3",
+    "StartPipelineLambdaServiceRole41F747E2"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/StartPipelineLambda/Resource",
+    "aws:asset:path": "asset.4d729081f52de0916d7c95a22a69d5139026f0e7296ccf2eee960caad646b9b0",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "S3UploadRule78870954": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "EventPattern": {
+     "source": [
+      "aws.s3"
+     ],
+     "detail-type": [
+      "Object Created"
+     ],
+     "detail": {
+      "bucket": {
+       "name": [
+        {
+         "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInputBucket3BF8630A70BB6653"
+        }
+       ]
+      },
+      "object": {
+       "key": [
+        {
+         "prefix": "uploads/"
+        }
+       ]
+      }
+     }
+    },
+    "Name": "concordia-s3-upload-dev",
+    "State": "ENABLED",
+    "Targets": [
+     {
+      "Arn": {
+       "Fn::GetAtt": [
+        "StartPipelineLambdaA7B35A25",
+        "Arn"
+       ]
+      },
+      "Id": "Target0"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/S3UploadRule/Resource"
+   }
+  },
+  "S3UploadRuleAllowEventRuleConcordiaStepFunctionsdevStartPipelineLambdaAB5863C1A2FCAAC4": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "StartPipelineLambdaA7B35A25",
+      "Arn"
+     ]
+    },
+    "Principal": "events.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "S3UploadRule78870954",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/S3UploadRule/AllowEventRuleConcordiaStepFunctionsdevStartPipelineLambdaAB5863C1"
+   }
+  },
+  "CompletionHandlerLambdaServiceRoleA0DCA779": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/CompletionHandlerLambda/ServiceRole/Resource"
+   }
+  },
+  "CompletionHandlerLambdaServiceRoleDefaultPolicyDEB0AEB7": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:BatchWriteItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputFnGetAttInterviewsTable10041BFEArn2AE0A367"
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputFnGetAttInterviewsTable10041BFEArn2AE0A367"
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "states:GetExecutionHistory",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Ref": "TranscriptPipelineF1526230"
+          },
+          ":*"
+         ]
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "CompletionHandlerLambdaServiceRoleDefaultPolicyDEB0AEB7",
+    "Roles": [
+     {
+      "Ref": "CompletionHandlerLambdaServiceRoleA0DCA779"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/CompletionHandlerLambda/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "CompletionHandlerLambda65040E82": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-384504716192-ap-northeast-1",
+     "S3Key": "b1bda14a49420afd50c5b8d4c17f7ec25170ad8f6f6001614a4bd04006fd94eb.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "TABLE_NAME": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefInterviewsTable10041BFEE82DC708"
+      }
+     }
+    },
+    "FunctionName": "concordia-completion-handler-dev",
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "CompletionHandlerLambdaServiceRoleA0DCA779",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs20.x",
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "CompletionHandlerLambdaServiceRoleDefaultPolicyDEB0AEB7",
+    "CompletionHandlerLambdaServiceRoleA0DCA779"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/CompletionHandlerLambda/Resource",
+    "aws:asset:path": "asset.b1bda14a49420afd50c5b8d4c17f7ec25170ad8f6f6001614a4bd04006fd94eb",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "CompletionRuleC6CCE3BA": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "EventPattern": {
+     "source": [
+      "aws.states"
+     ],
+     "detail-type": [
+      "Step Functions Execution Status Change"
+     ],
+     "detail": {
+      "stateMachineArn": [
+       {
+        "Ref": "TranscriptPipelineF1526230"
+       }
+      ],
+      "status": [
+       "SUCCEEDED",
+       "FAILED",
+       "TIMED_OUT",
+       "ABORTED"
+      ]
+     }
+    },
+    "Name": "concordia-completion-dev",
+    "State": "ENABLED",
+    "Targets": [
+     {
+      "Arn": {
+       "Fn::GetAtt": [
+        "CompletionHandlerLambda65040E82",
+        "Arn"
+       ]
+      },
+      "Id": "Target0"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/CompletionRule/Resource"
+   }
+  },
+  "CompletionRuleAllowEventRuleConcordiaStepFunctionsdevCompletionHandlerLambda2934B2C2C912A4B7": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "CompletionHandlerLambda65040E82",
+      "Arn"
+     ]
+    },
+    "Principal": "events.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "CompletionRuleC6CCE3BA",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/CompletionRule/AllowEventRuleConcordiaStepFunctionsdevCompletionHandlerLambda2934B2C2"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/12QXU7DMBCEz8L7ZgmhHIAigZBaWqUHiFxnmzo/dpS1g5Dlu2OnASGeZmftbzR2gUX+hPmd+ORM1l3WqzP6kxWyg7iqfG8aRr8zzdtk3AgvF/0zB2BL48VpaZXR8dJRMMNejHByUhLVEGMs7YW8Kk2J/Ov/0ZUV3DHuxHCuxbueTUegxIC+NP3CLno0vZJfyd6mAP0CVNrU1DJ+LPK6hgI/VrESWcbnJNHj1smO7FYwrSj6mPZLpGSaBsUcXQCaSUfal24tETUEKImNmyTBEhtf1SjdpPODs6OzAVIdbPl+Ljb4kMffbVmpbHLaqoGwvOk3yyryvXoBAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaStepFunctions-dev/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "StateMachineArn": {
+   "Value": {
+    "Ref": "TranscriptPipelineF1526230"
+   },
+   "Export": {
+    "Name": "ConcordiaStepFunctions-dev-StateMachineArn"
+   }
+  },
+  "StateMachineName": {
+   "Value": {
+    "Fn::GetAtt": [
+     "TranscriptPipelineF1526230",
+     "Name"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaStepFunctions-dev-StateMachineName"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

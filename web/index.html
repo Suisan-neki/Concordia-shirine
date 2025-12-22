@@ -1,19 +1,30 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Concordia Shrine — Browser Prototype</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <main>
     <section class="panel">
       <div class="title">Concordia Shrine</div>
       <div class="subtitle">空気だけを聴くブラウザ版プロトタイプ</div>
       <div class="controls">
-        <button id="start-btn">マイクを許可して開始</button>
-        <span id="status">待機中</span>
+        <div style="display: flex; gap: 8px; width: 100%;">
+          <button id="login-btn" style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2);">ログイン</button>
+          <button id="guest-btn"
+            style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2);">ゲストとして体験</button>
+        </div>
+        <button id="logout-btn" style="width: 100%; display: none; background: #4a5568;">ログアウト</button>
+        <div id="app-controls" style="display: none; width: 100%;">
+          <button id="start-btn" style="margin-top: 8px;">マイクを許可して開始</button>
+          <button id="stop-btn" style="margin-top: 8px; width: 100%; display: none;">終了して文字起こしを保存</button>
+        </div>
+        <span id="status" style="margin-top: 8px; display: block;">未ログイン</span>
       </div>
       <div class="divider"></div>
       <div style="margin-top: 12px;">
@@ -35,4 +46,5 @@
   </main>
   <script src="app.js?v=2"></script>
 </body>
+
 </html>

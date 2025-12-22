@@ -110,8 +110,8 @@ class EventDetector {
     if (events.length === 0 && now >= this.params.stable_min_duration_sec) {
       const threshold_half = Math.floor(this.params.overlap_switch_threshold / 2);
       if (this.switch_count_recent >= 1 && this.switch_count_recent <= threshold_half) {
-        if (this.speech_run_length < this.params.monologue_long_sec && 
-            this.silence_run_length < this.params.silence_long_sec) {
+        if (this.speech_run_length < this.params.monologue_long_sec &&
+          this.silence_run_length < this.params.silence_long_sec) {
           events.push(new ConcordiaEvent("StableCalm", now, {}));
         }
       }
@@ -152,7 +152,7 @@ class SoundPlayer {
   async init() {
     try {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      
+
       // 音声ファイルのプリロード
       const soundFiles = {
         "SilenceLong": { file: "wind_soft.ogg", volume: 0.7 },
@@ -207,15 +207,15 @@ class SoundPlayer {
     try {
       const source = this.audioContext.createBufferSource();
       const gainNode = this.audioContext.createGain();
-      
+
       source.buffer = soundConfig.buffer;
       gainNode.gain.value = soundConfig.volume;
-      
+
       source.connect(gainNode);
       gainNode.connect(this.audioContext.destination);
-      
+
       source.start(0);
-      
+
       // 音声再生完了後にクリーンアップ
       source.onended = () => {
         source.disconnect();
@@ -258,8 +258,99 @@ const state = {
     overlapBurst: { strength: 0, decay: 0.8 },
     stableCalm: { strength: 0, decay: 2.0 }
   },
-  soundPlayer: null
+  soundPlayer: null,
+  transcriber: null
 };
+
+// Transcriber Class for Real-time API
+class Transcriber {
+  constructor(apiUrl) {
+    this.apiUrl = apiUrl;
+    this.mediaRecorder = null;
+    this.chunks = [];
+    this.isRecording = false;
+    this.sessionTranscript = []; // Accumulate transcript lines
+  }
+
+  async start(stream) {
+    if (this.isRecording) return;
+    this.sessionTranscript = []; // Reset on start
+
+    // Create MediaRecorder with standard mimeType
+    let mimeType = 'audio/webm;codecs=opus';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'audio/mp4';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = ''; // Let browser choose default
+      }
+    }
+
+    try {
+      this.mediaRecorder = new MediaRecorder(stream, { mimeType });
+      this.isRecording = true;
+      console.log(`Transcriber started with mimeType: ${this.mediaRecorder.mimeType}`);
+
+      this.mediaRecorder.ondataavailable = async (e) => {
+        if (e.data.size > 0) {
+          await this.sendAudio(e.data);
+        }
+      };
+
+      // Send chunk every 3-5 seconds (randomized slightly to avoid sync issues if multiple clients)
+      // For single user, 3000ms is fine.
+      this.mediaRecorder.start(3000);
+
+    } catch (e) {
+      console.error("Transcriber init failed:", e);
+    }
+  }
+
+  stop() {
+    if (this.mediaRecorder && this.isRecording) {
+      this.mediaRecorder.stop();
+      this.isRecording = false;
+    }
+  }
+
+  async sendAudio(blob) {
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+
+    reader.onloadend = async () => {
+      const base64Audio = reader.result.split(',')[1];
+
+      try {
+        console.log("Transmitting audio chunk...");
+        const response = await fetch(this.apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${authToken}` // Attach Auth Token
+          },
+          body: JSON.stringify({ audio_data: base64Audio })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.segments && data.segments.length > 0) {
+            const text = data.segments.map(s => s.text).join(" ");
+            console.log("【Transcription】:", text);
+            this.sessionTranscript.push({
+              timestamp: new Date().toISOString(),
+              text: text
+            });
+          } else {
+            console.log("【Transcription】: (silence/no speech)");
+          }
+        } else {
+          console.warn("API Error:", response.status, response.statusText);
+        }
+      } catch (e) {
+        console.error("API Fetch Error:", e);
+      }
+    };
+  }
+}
 
 function setStatus(text) {
   statusEl.textContent = text;
@@ -360,7 +451,7 @@ function draw(nowSec) {
   // Slow global rhythm.
   const timeSlow = nowSec * 0.2;
   const breath = (Math.sin(timeSlow * 0.6) + 1) / 2;
-  
+
   // waveLevel = 波の大きさの指標（0.0-1.0）
   // デモモード時は各シーンの波の大きさを直接指定
   let waveLevel;
@@ -384,38 +475,38 @@ function draw(nowSec) {
     const audioEnergy = Math.min(1, state.windowEnergy * 0.8);
     waveLevel = audioEnergy; // 音声エネルギーレベルを波の大きさの基準として使用
   }
-  
+
   const drift = state.driftPhase || 0; // slow horizontal drift
   const baseLine = h * 0.66 + 10 * (breath - 0.5);
-  
+
   // 調和シーンは「波の機嫌を伺っている」良い状態なので、波は穏やかになる
   const isRippled = state.scene === "調和";
   const isOneSided = state.scene === "一方的"; // 一方的（悪い状態：直接的な同調圧）
   const isHushed = state.scene === "沈黙"; // 沈黙（悪い状態：間接的な圧力）
-  
+
   // デモモード時は各シーンの特徴を強調
   const demoMultiplier = state.demoMode ? 1.3 : 1.0; // デモモード時は1.3倍に強調
-  
+
   // rippled時は波が落ち着いていく（良い状態：みんなが波の機嫌を伺っている）
   const rippleBoost = isRippled ? (0.7 * (state.demoMode ? 0.6 : 1.0)) : 1.0; // デモモード時はさらに小さく（0.8→0.6）
   const rippleSpeed = isRippled ? (0.5 * (state.demoMode ? 0.7 : 1.0)) : 1.0; // デモモード時はさらに遅く
   const rippleNoise = isRippled ? (0.6 * (state.demoMode ? 0.7 : 1.0)) : 1.0; // デモモード時はさらに滑らかに
-  
+
   // 一方的はより激しく荒れる（直接的な同調圧 - より悪い）
   const oneSidedBoost = isOneSided ? (1.8 * demoMultiplier) : 1.0; // より大きく
   const oneSidedSpeed = isOneSided ? (2.2 * demoMultiplier) : 1.0; // より速く
   const oneSidedNoise = isOneSided ? (2.5 * demoMultiplier) : 1.0; // より不規則に
-  
+
   // 沈黙は重く暗く荒れる（間接的な圧力）
   const hushedBoost = isHushed ? (1.5 * demoMultiplier) : 1.0; // 大きく（1.3→1.5に増加）
   const hushedSpeed = isHushed ? (1.2 * demoMultiplier) : 1.0; // 遅く（重い感じ）
   const hushedNoise = isHushed ? (2.2 * demoMultiplier) : 1.0; // 不規則に
-  
+
   // 統合
   const negativeBoost = isOneSided ? oneSidedBoost : (isHushed ? hushedBoost : 1.0);
   const negativeSpeed = isOneSided ? oneSidedSpeed : (isHushed ? hushedSpeed : 1.0);
   const negativeNoise = isOneSided ? oneSidedNoise : (isHushed ? hushedNoise : 1.0);
-  
+
   // デモモード時は波の振幅を強調
   const baseAmpMain = 10 + 24 * waveLevel;
   const baseAmpSub = 6 + 16 * waveLevel;
@@ -434,7 +525,7 @@ function draw(nowSec) {
     const freqMain = isRippled ? 0.012 : 0.008;
     const freqSub = isRippled ? 0.020 : 0.014;
     const freqTertiary = isRippled ? 0.005 : 0.003;
-    
+
     const y =
       baseLine + swell +
       Math.sin(x * freqMain + t + drift * 0.6) * ampMain +
@@ -476,7 +567,7 @@ function draw(nowSec) {
     };
   }
   const currentShift = colorShiftMap[state.scene] || { r: 0, g: 0, b: 0 };
-  
+
   // デモモード時は色の変化を強調
   let waterTone;
   if (state.demoMode) {
@@ -492,7 +583,7 @@ function draw(nowSec) {
   } else {
     waterTone = Math.min(1, state.windowEnergy * 0.7 + (toneBoostMap[state.scene] || 0));
     waterTone = Math.max(0, Math.min(1, waterTone));
-    
+
     // rippled時は穏やかで明るく、one-sided/hushed時は荒れて暗く
     if (isRippled) {
       waterTone = Math.min(1, waterTone * 1.05); // 穏やかに明るく
@@ -524,7 +615,7 @@ function draw(nowSec) {
     const freqMainCrest = isRippled ? 0.015 : 0.010;
     const freqSubCrest = isRippled ? 0.025 : 0.020;
     const freqTertiaryCrest = isRippled ? 0.006 : 0.004;
-    
+
     const y =
       baseLine +
       Math.sin(x * freqMainCrest + t * 0.8 + drift * 0.6) * (ampMain * 0.55) +
@@ -573,7 +664,7 @@ function draw(nowSec) {
     pulseSurface.addColorStop(1, `rgba(180, 120, 220, 0)`);
     ctx.fillStyle = pulseSurface;
     ctx.fillRect(0, 0, w, h);
-    
+
     // 二連脈動の2回目
     const pulsePhase2 = Math.sin(nowSec * 4 + Math.PI) * 0.5 + 0.5;
     const alpha2 = 0.3 * state.activeEffects.monologueLong.strength * pulsePhase2;
@@ -589,7 +680,7 @@ function draw(nowSec) {
     const flashAlpha = 0.5 * state.activeEffects.overlapBurst.strength;
     ctx.fillStyle = `rgba(255, 200, 120, ${flashAlpha})`;
     ctx.fillRect(0, 0, w, h);
-    
+
     // ライン効果
     ctx.strokeStyle = `rgba(255, 180, 100, ${flashAlpha * 0.8})`;
     ctx.lineWidth = 3;
@@ -610,7 +701,7 @@ function draw(nowSec) {
   ctx.font = "14px 'Segoe UI', sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(`scene — ${state.scene}`, w / 2, h - 24);
-  
+
   // イベント表示
   if (state.currentEvent && state.activeEffects[state.currentEvent.type.toLowerCase()].strength > 0.1) {
     const eventTypeNames = {
@@ -630,7 +721,7 @@ function loop() {
   const dt = state.lastNowSec ? now - state.lastNowSec : 0;
   state.lastNowSec = now;
   state.driftPhase += dt * 0.08; // very slow drift
-  
+
   // デバッグ情報を常に更新（要素を再取得して確実に更新）
   const debugEl = document.getElementById("debug-info");
   if (debugEl) {
@@ -660,7 +751,7 @@ function loop() {
     const prevSpeech = state.isSpeech;
     detectSpeech(energy);
     const curSpeech = state.isSpeech;
-    
+
     // update run lengths (既存のロジック)
     if (dt > 0) {
       if (curSpeech) {
@@ -678,12 +769,12 @@ function loop() {
       state.switchTimestamps.shift();
     }
     updateWindowEnergy(energy, now);
-    
+
     // イベント検出（新しいロジック）
     if (state.eventDetector) {
       const relativeTime = now - state.eventStartTime;
       const events = state.eventDetector.process(curSpeech, relativeTime);
-      
+
       // イベントが検出された場合
       for (const event of events) {
         if (state.stateManager && state.stateManager.allow(relativeTime)) {
@@ -693,10 +784,10 @@ function loop() {
       }
     }
   }
-  
+
   // アクティブなエフェクトの減衰処理
   updateActiveEffects(dt);
-  
+
   classifyScene(now);
   draw(now);
   requestAnimationFrame(loop);
@@ -711,7 +802,7 @@ async function initEventSystem() {
   state.eventDetector = new EventDetector(eventParams);
   state.stateManager = new StateManager(config.effects.cooldown_sec);
   state.eventStartTime = performance.now() / 1000;
-  
+
   // 音声再生システムの初期化
   if (config.sound.enabled) {
     state.soundPlayer = new SoundPlayer(config.sound.base_dir);
@@ -730,11 +821,26 @@ async function startAudio() {
       setStatus("このブラウザはマイク取得に対応していません");
       return;
     }
-    
+
     // イベント検出システムの初期化
     await initEventSystem();
-    
+
+    // API Endpoint (Deployed)
+    // Only init transcriber if Logged In
+    if (!isGuest && authToken) {
+      const API_URL = "https://2o259ru5i9.execute-api.ap-northeast-1.amazonaws.com/transcribe";
+      state.transcriber = new Transcriber(API_URL);
+    } else {
+      console.log("Guest Mode: Transcription disabled");
+      state.transcriber = null;
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    // Start Transcription (if enabled)
+    if (state.transcriber) {
+      state.transcriber.start(stream);
+    }
     const audioCtx = new AudioContext();
     if (audioCtx.state === "suspended") {
       await audioCtx.resume();
@@ -761,9 +867,38 @@ if (startBtn) {
   startBtn.addEventListener("click", () => {
     setStatus("マイク許可をリクエスト中...");
     startAudio();
+    startBtn.style.display = "none";
+    const stopBtn = document.getElementById("stop-btn");
+    if (stopBtn) stopBtn.style.display = "block";
   });
-} else {
-  console.warn("start button not found in DOM");
+}
+
+const stopBtn = document.getElementById("stop-btn");
+if (stopBtn) {
+  stopBtn.addEventListener("click", () => {
+    if (state.running && state.transcriber) {
+      state.transcriber.stop();
+      // Download transcript
+      const lines = state.transcriber.sessionTranscript.map(i => `[${i.timestamp}] ${i.text}`);
+      const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transcript_${new Date().getTime()}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Reset UI
+    if (state.running && state.micSource) {
+      state.micSource.mediaStream.getTracks().forEach(track => track.stop());
+      state.running = false;
+    }
+    setStatus("終了しました。文字起こしをダウンロードしました。");
+    stopBtn.style.display = "none";
+    if (startBtn) startBtn.style.display = "block";
+    startBtn.disabled = false;
+  });
 }
 
 // デモモードのボタン
@@ -774,7 +909,7 @@ const demoSceneBtns = document.querySelectorAll(".demo-scene-btn");
 if (demoBtn && demoControls) {
   demoBtn.addEventListener("click", () => {
     state.demoMode = !state.demoMode;
-    
+
     if (state.demoMode) {
       demoBtn.textContent = "デモモード終了";
       demoBtn.style.background = "linear-gradient(135deg, #ff7b7b, #ff9b7b)";
@@ -783,6 +918,7 @@ if (demoBtn && demoControls) {
       // デモモード時は音声入力を停止
       if (state.running && state.micSource) {
         state.micSource.mediaStream.getTracks().forEach(track => track.stop());
+        if (state.transcriber) state.transcriber.stop();
         state.running = false;
       }
     } else {
@@ -801,7 +937,7 @@ demoSceneBtns.forEach(btn => {
       const scene = btn.getAttribute("data-scene");
       state.demoScene = scene;
       state.scene = scene;
-      
+
       // ボタンのスタイルを更新
       demoSceneBtns.forEach(b => {
         b.style.opacity = "0.6";
@@ -809,7 +945,7 @@ demoSceneBtns.forEach(btn => {
       });
       btn.style.opacity = "1";
       btn.style.transform = "scale(1.05)";
-      
+
       setStatus(`デモモード: ${scene}シーンを表示中`);
     }
   });
@@ -856,7 +992,7 @@ setInterval(() => {
 // イベントハンドラー
 function handleEvent(event, now) {
   console.log(`Event detected: ${event.type} at ${now.toFixed(2)}s`, event.metadata);
-  
+
   // アクティブエフェクトをトリガー
   switch (event.type) {
     case "SilenceLong":
@@ -877,7 +1013,7 @@ function handleEvent(event, now) {
       state.currentEvent = event;
       break;
   }
-  
+
   // 音声再生（実装後）
   if (config.sound.enabled && state.soundPlayer) {
     state.soundPlayer.playEvent(event);
@@ -892,21 +1028,21 @@ function updateActiveEffects(dt) {
   } else {
     state.activeEffects.silenceLong.strength = 0;
   }
-  
+
   // MonologueLong
   if (state.activeEffects.monologueLong.strength > 0.01) {
     state.activeEffects.monologueLong.strength *= Math.exp(-dt / state.activeEffects.monologueLong.decay);
   } else {
     state.activeEffects.monologueLong.strength = 0;
   }
-  
+
   // OverlapBurst
   if (state.activeEffects.overlapBurst.strength > 0.01) {
     state.activeEffects.overlapBurst.strength *= Math.exp(-dt / state.activeEffects.overlapBurst.decay);
   } else {
     state.activeEffects.overlapBurst.strength = 0;
   }
-  
+
   // StableCalm
   if (state.activeEffects.stableCalm.strength > 0.01) {
     state.activeEffects.stableCalm.strength *= Math.exp(-dt / state.activeEffects.stableCalm.decay);
@@ -937,7 +1073,7 @@ function classifyScene(nowSec) {
     }
     state.scene = label;
   }
-  
+
   const descMap = {
     "静寂": "声と静けさが、ゆっくり行き来しています。",
     "調和": "声の出入りが頻繁で、波が穏やかになっています。",
@@ -947,3 +1083,105 @@ function classifyScene(nowSec) {
   if (sceneLabelEl) sceneLabelEl.textContent = `scene: ${state.scene}${state.demoMode ? " (デモ)" : ""}`;
   if (sceneDescEl) sceneDescEl.textContent = descMap[state.scene] || "";
 }
+// Auth Configuration
+const AUTH_CONFIG = {
+  domain: "https://concordia-auth-384504716192-dev.auth.ap-northeast-1.amazoncognito.com",
+  clientId: "7kkgc14odhojor0o2c4qpc6l6d",
+  redirectUri: "http://localhost:5173",
+  responseType: "token", // Implicit Grant
+  scope: "email+openid"
+};
+
+// Auth Initialization Wrapper
+document.addEventListener('DOMContentLoaded', () => {
+  console.log("DOM loaded, initializing Auth...");
+
+  // UI Elements (Re-query to be safe)
+  const loginBtn = document.getElementById("login-btn");
+  const guestBtn = document.getElementById("guest-btn");
+  const logoutBtn = document.getElementById("logout-btn");
+  const appControls = document.getElementById("app-controls");
+
+  // Auth State
+  let authToken = localStorage.getItem("concordia_id_token");
+  let isGuest = false;
+
+  // Login Handler
+  if (loginBtn) {
+    console.log("Login button found, attaching listener");
+    loginBtn.addEventListener("click", () => {
+      console.log("Login button clicked");
+      const url = `${AUTH_CONFIG.domain}/login?client_id=${AUTH_CONFIG.clientId}&response_type=${AUTH_CONFIG.responseType}&scope=${AUTH_CONFIG.scope}&redirect_uri=${encodeURIComponent(AUTH_CONFIG.redirectUri)}&ui_locales=ja`;
+      console.log("Redirecting to:", url);
+      window.location.href = url;
+    });
+  } else {
+    console.error("Login button NOT found in DOM");
+  }
+
+  // Guest Handler
+  if (guestBtn) {
+    guestBtn.addEventListener("click", () => {
+      isGuest = true;
+      updateAuthUI();
+    });
+  }
+
+  // Logout Handler
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("concordia_id_token");
+      authToken = null;
+      isGuest = false;
+      window.location.href = AUTH_CONFIG.redirectUri;
+    });
+  }
+
+  // Parse Hash for Token
+  function checkAuthCallback() {
+    const hash = window.location.hash;
+    if (hash && hash.includes("id_token")) {
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get("id_token");
+      if (token) {
+        localStorage.setItem("concordia_id_token", token);
+        authToken = token;
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+    updateAuthUI();
+  }
+
+  function updateAuthUI() {
+    // Re-query statusEl inside scope or check global
+    const statusEl = document.getElementById("status");
+
+    if (authToken) {
+      if (loginBtn) loginBtn.parentElement.style.display = "none";
+      if (guestBtn) guestBtn.style.display = "none";
+      if (logoutBtn) logoutBtn.style.display = "block";
+      if (appControls) appControls.style.display = "block";
+      if (statusEl) statusEl.textContent = "ログイン済み: マイクを開始できます";
+    } else if (isGuest) {
+      if (loginBtn) loginBtn.parentElement.style.display = "none";
+      if (logoutBtn) {
+        logoutBtn.style.display = "block";
+        logoutBtn.textContent = "ゲスト終了";
+      }
+      if (appControls) appControls.style.display = "block";
+      if (statusEl) statusEl.textContent = "ゲストモード: 文字起こし機能は制限されています";
+    } else {
+      if (loginBtn) loginBtn.parentElement.style.display = "flex";
+      if (guestBtn) guestBtn.style.display = "block";
+      if (logoutBtn) logoutBtn.style.display = "none";
+      if (appControls) appControls.style.display = "none";
+      if (statusEl) statusEl.textContent = "ログイン または ゲスト体験を選択";
+    }
+  }
+
+  // Start
+  checkAuthCallback();
+});
+
+// Create global variables for external access if needed (optional)
+// window.isGuest = isGuest; 
