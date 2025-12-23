@@ -57,55 +57,37 @@ export class AuthStack extends cdk.Stack {
         });
 
         // 4. UI Customization
-        // Match the app's dark blue/purple theme (using CSS gradients only, no Data URI to avoid issues)
+        // Match the app's dark blue/purple theme (Simplified for debugging)
         const css = `
             .background-customizable {
-                background-color: #0c1020;
-                background-image: 
-                    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.06), transparent 40%),
-                    radial-gradient(circle at 80% 10%, rgba(255,255,255,0.05), transparent 45%),
-                    linear-gradient(135deg, #0b1326, #0c1b2f 50%, #0c1020);
+                background-color: #0c1020 !important;
                 font-family: "Segoe UI", sans-serif;
             }
-            .banner-customizable {
-                background-color: transparent;
-            }
             .submitButton-customizable {
-                background: linear-gradient(135deg, #667eea, #764ba2);
-                border: none;
+                background-color: #667eea !important;
                 border-radius: 4px;
                 font-weight: bold;
-                transition: transform 0.1s ease;
-            }
-            .submitButton-customizable:hover {
-                background: linear-gradient(135deg, #764ba2, #667eea);
-                transform: translateY(-1px);
             }
             .label-customizable {
-                color: #e6f2ff;
-                font-weight: 400;
+                color: #e6f2ff !important;
             }
             .textDescription-customizable {
-                color: #b0c4de;
+                color: #b0c4de !important;
             }
             .inputField-customizable {
-                background-color: rgba(255, 255, 255, 0.08);
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                color: #ffffff;
-                border-radius: 4px;
-            }
-            .inputField-customizable:focus {
-                border-color: #7bd6ff;
-                box-shadow: 0 0 0 1px #7bd6ff;
+                background-color: #2a3b55 !important;
+                color: #ffffff !important;
+                border: 1px solid #777;
             }
             .redirect-customizable {
-                color: #7bd6ff;
+                color: #7bd6ff !important;
             }
             .legalText-customizable {
-                color: #7bd6ff;
+                color: #7bd6ff !important;
             }
         `;
 
+        // Renamed to Force-Recreate because the previous one might be stuck
         new cognito.CfnUserPoolUICustomizationAttachment(this, "UiCustomization", {
             userPoolId: this.userPool.userPoolId,
             clientId: this.userPoolClient.userPoolClientId,

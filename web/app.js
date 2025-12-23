@@ -227,6 +227,24 @@ class SoundPlayer {
   }
 }
 
+// 簡易感情/文脈分析用のキーワード定義
+const CONTENT_ANALYSIS_CONFIG = {
+  // 調和: ポジティブ、共感、相槌
+  "調和": [
+    "そうですね", "なるほど", "わかります", "いいですね", "賛成", "楽しい", "嬉しい", "ありがとう",
+    "確かに", "その通り", "すごい", "面白い", "大丈夫", "協力", "一緒", "うんうん"
+  ],
+  // 一方的: ネガティブ、強い言葉、拒絶、命令
+  "一方的": [
+    "でも", "いや", "違う", "駄目", "無理", "絶対", "しなさい", "やめて", "嫌だ", "最悪",
+    "関係ない", "うるさい", "勝手", "当然", "義務", "命令"
+  ],
+  // 沈黙: 不安、迷い、停止 (テキストには出にくいが、「...」や言い淀みなど)
+  "沈黙": [
+    "えーと", "あの", "その", "うーん", "...", "えっと", "自信ない", "わからない", "微妙"
+  ]
+};
+
 const state = {
   audioCtx: null,
   analyser: null,
@@ -259,7 +277,11 @@ const state = {
     stableCalm: { strength: 0, decay: 2.0 }
   },
   soundPlayer: null,
-  transcriber: null
+  transcriber: null,
+  // テキスト分析用
+  lastTranscriptText: "",
+  lastTranscriptTime: 0,
+  lastAnalysisResult: null // { label: "調和", score: 0.8 }
 };
 
 // Transcriber Class for Real-time API
@@ -339,6 +361,15 @@ class Transcriber {
               timestamp: new Date().toISOString(),
               text: text
             });
+
+            // Update State with Analysis
+            state.lastTranscriptText = text;
+            state.lastTranscriptTime = performance.now() / 1000; // Use app time
+            const analysis = analyzeSentiment(text);
+            if (analysis) {
+              state.lastAnalysisResult = analysis;
+              console.log(`【Analysis】: Detected '${analysis}' from text.`);
+            }
           } else {
             console.log("【Transcription】: (silence/no speech)");
           }
@@ -1053,11 +1084,43 @@ function updateActiveEffects(dt) {
 
 // Kick off render loop
 loop();
+
+function analyzeSentiment(text) {
+  if (!text) return null;
+
+  let scores = { "調和": 0, "一方的": 0, "沈黙": 0 };
+  let found = false;
+
+  for (const [label, keywords] of Object.entries(CONTENT_ANALYSIS_CONFIG)) {
+    for (const keyword of keywords) {
+      if (text.includes(keyword)) {
+        scores[label] += 1;
+        found = true;
+      }
+    }
+  }
+
+  if (!found) return null;
+
+  // 最大スコアのラベルを返す
+  let maxLabel = null;
+  let maxScore = -1;
+  for (const [label, score] of Object.entries(scores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      maxLabel = label;
+    }
+  }
+
+  return maxScore > 0 ? maxLabel : null;
+}
+
 function classifyScene(nowSec) {
   // デモモードの場合は手動で設定したシーンを使用
   if (state.demoMode) {
     state.scene = state.demoScene;
   } else {
+    // 1. 基本はエネルギーベースの判定
     const energy = state.windowEnergy;
     const switchCount = state.switchTimestamps ? state.switchTimestamps.length : 0;
     const speechRun = state.speechRun || 0;
@@ -1071,6 +1134,17 @@ function classifyScene(nowSec) {
     } else if (switchCount >= 6 || energy > 0.45) {
       label = "調和";
     }
+
+    // 2. テキスト分析によるオーバーライド（直近5秒以内の発言のみ有効）
+    if (state.lastAnalysisResult && (nowSec - state.lastTranscriptTime < 5.0)) {
+      // 分析結果が「沈黙」以外なら、それを優先して適用する
+      // （「沈黙」はVADベースの方が正確なことが多いため）
+      if (state.lastAnalysisResult !== "沈黙") {
+        label = state.lastAnalysisResult;
+        // 分析でシーンが変わった場合、少しだけイベントっぽく強調してもいいかも
+      }
+    }
+
     state.scene = label;
   }
 
@@ -1110,9 +1184,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loginBtn) {
     console.log("Login button found, attaching listener");
     loginBtn.addEventListener("click", () => {
-      console.log("Login button clicked");
       const url = `${AUTH_CONFIG.domain}/login?client_id=${AUTH_CONFIG.clientId}&response_type=${AUTH_CONFIG.responseType}&scope=${AUTH_CONFIG.scope}&redirect_uri=${encodeURIComponent(AUTH_CONFIG.redirectUri)}&ui_locales=ja`;
-      console.log("Redirecting to:", url);
       window.location.href = url;
     });
   } else {
@@ -1184,4 +1256,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Create global variables for external access if needed (optional)
-// window.isGuest = isGuest; 
+// window.isGuest = isGuest;

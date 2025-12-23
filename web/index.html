@@ -15,9 +15,10 @@
       <div class="subtitle">空気だけを聴くブラウザ版プロトタイプ</div>
       <div class="controls">
         <div style="display: flex; gap: 8px; width: 100%;">
-          <button id="login-btn" style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2);">ログイン</button>
+          <button id="login-btn"
+            style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2); z-index: 10000; position: relative;">ログイン</button>
           <button id="guest-btn"
-            style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2);">ゲストとして体験</button>
+            style="flex: 1; background: linear-gradient(135deg, #667eea, #764ba2); z-index: 10000; position: relative;">ゲストとして体験</button>
         </div>
         <button id="logout-btn" style="width: 100%; display: none; background: #4a5568;">ログアウト</button>
         <div id="app-controls" style="display: none; width: 100%;">
@@ -44,7 +45,7 @@
     </section>
     <canvas id="scene" width="960" height="600" aria-hidden="true"></canvas>
   </main>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 
 </html>
