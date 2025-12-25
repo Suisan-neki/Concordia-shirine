@@ -25,7 +25,7 @@ export class StorageStack extends cdk.Stack {
             bucketName: `concordia-input-${environment}-${this.account}`, // Renamed for project
             encryption: s3.BucketEncryption.S3_MANAGED,
             blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-            versioned: false,
+            versioned: true, // Enable Versioning for Data Protection
             eventBridgeEnabled: true, // Enable EventBridge for S3 events
             removalPolicy:
                 environment === "prod"
@@ -61,7 +61,7 @@ export class StorageStack extends cdk.Stack {
             bucketName: `concordia-output-${environment}-${this.account}`, // Renamed for project
             encryption: s3.BucketEncryption.S3_MANAGED,
             blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-            versioned: false,
+            versioned: true, // Enable Versioning for Data Protection
             removalPolicy:
                 environment === "prod"
                     ? cdk.RemovalPolicy.RETAIN

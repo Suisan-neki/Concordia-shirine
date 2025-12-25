@@ -62,7 +62,10 @@
       "Key": "aws-cdk:auto-delete-objects",
       "Value": "true"
      }
-    ]
+    ],
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    }
    },
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
@@ -371,7 +374,10 @@
       "Key": "aws-cdk:auto-delete-objects",
       "Value": "true"
      }
-    ]
+    ],
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    }
    },
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
