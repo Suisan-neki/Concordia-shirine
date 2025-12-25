@@ -6,6 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Concordia Shrine — Browser Prototype</title>
   <link rel="stylesheet" href="style.css">
+  <script>
+    if (typeof global === 'undefined') {
+      window.global = window;
+    }
+  </script>
 </head>
 
 <body>
@@ -44,8 +49,26 @@
       <div class="scene-desc" id="debug-info" style="font-size: 11px; color: rgba(230,242,255,0.6);">デバッグ: 待機中</div>
     </section>
     <canvas id="scene" width="960" height="600" aria-hidden="true"></canvas>
+
+    <!-- Login Modal -->
+    <div id="login-modal"
+      style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 20000; align-items: center; justify-content: center;">
+      <div
+        style="background: #1a202c; padding: 2rem; border-radius: 8px; width: 320px; text-align: center; border: 1px solid #4a5568; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+        <h2 style="color: #fff; margin-bottom: 1.5rem; margin-top: 0;">ログイン</h2>
+        <input type="text" id="username-input" placeholder="ユーザー名"
+          style="width: 100%; padding: 10px; margin-bottom: 1rem; border-radius: 4px; border: 1px solid #4a5568; background: #2d3748; color: #fff;">
+        <input type="password" id="password-input" placeholder="パスワード"
+          style="width: 100%; padding: 10px; margin-bottom: 1rem; border-radius: 4px; border: 1px solid #4a5568; background: #2d3748; color: #fff;">
+        <div id="login-error" style="color: #ff6b6b; font-size: 0.9rem; margin-bottom: 1rem; display: none;"></div>
+        <button id="modal-login-btn"
+          style="width: 100%; padding: 10px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-bottom: 1rem;">サインイン</button>
+        <button id="modal-close-btn"
+          style="background: transparent; color: #a0aec0; border: none; cursor: pointer; text-decoration: underline;">閉じる</button>
+      </div>
+    </div>
   </main>
-  <script src="app.js?v=3"></script>
+  <script type="module" src="app.js"></script>
 </body>
 
 </html>

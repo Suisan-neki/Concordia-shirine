@@ -1,3 +1,5 @@
+import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
+
 const scene = document.getElementById("scene");
 const ctx = scene.getContext("2d");
 const startBtn = document.getElementById("start-btn");
@@ -1157,38 +1159,150 @@ function classifyScene(nowSec) {
   if (sceneLabelEl) sceneLabelEl.textContent = `scene: ${state.scene}${state.demoMode ? " (デモ)" : ""}`;
   if (sceneDescEl) sceneDescEl.textContent = descMap[state.scene] || "";
 }
-// Auth Configuration
-const AUTH_CONFIG = {
-  domain: "https://concordia-auth-384504716192-dev.auth.ap-northeast-1.amazoncognito.com",
-  clientId: "7kkgc14odhojor0o2c4qpc6l6d",
-  redirectUri: "http://localhost:5173",
-  responseType: "token", // Implicit Grant
-  scope: "email+openid"
+// Auth Configuration (Custom UI)
+const POOL_DATA = {
+  UserPoolId: "ap-northeast-1_D4mSyU7BM",
+  ClientId: "7kkgc14odhojor0o2c4qpc6l6d"
 };
+const userPool = new CognitoUserPool(POOL_DATA);
 
 // Auth Initialization Wrapper
 document.addEventListener('DOMContentLoaded', () => {
-  console.log("DOM loaded, initializing Auth...");
+  console.log("DOM loaded, initializing Custom Auth...");
 
-  // UI Elements (Re-query to be safe)
+  // UI Elements
   const loginBtn = document.getElementById("login-btn");
   const guestBtn = document.getElementById("guest-btn");
   const logoutBtn = document.getElementById("logout-btn");
   const appControls = document.getElementById("app-controls");
+  const statusEl = document.getElementById("status");
+  const startBtn = document.getElementById("start-btn");
+
+  // Modal Elements
+  const loginModal = document.getElementById("login-modal");
+  const modalLoginBtn = document.getElementById("modal-login-btn");
+  const modalCloseBtn = document.getElementById("modal-close-btn");
+  const usernameInput = document.getElementById("username-input");
+  const passwordInput = document.getElementById("password-input");
+  const loginError = document.getElementById("login-error");
 
   // Auth State
   let authToken = localStorage.getItem("concordia_id_token");
   let isGuest = false;
 
-  // Login Handler
-  if (loginBtn) {
-    console.log("Login button found, attaching listener");
-    loginBtn.addEventListener("click", () => {
-      const url = `${AUTH_CONFIG.domain}/login?client_id=${AUTH_CONFIG.clientId}&response_type=${AUTH_CONFIG.responseType}&scope=${AUTH_CONFIG.scope}&redirect_uri=${encodeURIComponent(AUTH_CONFIG.redirectUri)}&ui_locales=ja`;
-      window.location.href = url;
+  // --- Helper Functions ---
+
+  function updateAuthUI() {
+    if (authToken || isGuest) {
+      // Logged in or Guest
+      loginBtn.style.display = "none";
+      guestBtn.style.display = "none";
+      logoutBtn.style.display = "block";
+      appControls.style.display = "block";
+
+      const userType = isGuest ? "ゲスト" : "ユーザー";
+      statusEl.textContent = `ログイン中: ${userType}`;
+      statusEl.style.color = "#4fd1c5";
+
+      // Enable Start Button
+      startBtn.disabled = false;
+      startBtn.style.opacity = "1";
+    } else {
+      // Logged out
+      loginBtn.style.display = "block"; // Changed from flex to block/inline via CSS usually, but here buttons are used
+      loginBtn.parentElement.style.display = "flex"; // Ensure container is visible
+      guestBtn.style.display = "block";
+      logoutBtn.style.display = "none";
+      appControls.style.display = "none";
+      statusEl.textContent = "未ログイン";
+      statusEl.style.color = "#a0aec0";
+    }
+  }
+
+  function handleLogout() {
+    const cognitoUser = userPool.getCurrentUser();
+    if (cognitoUser) {
+      cognitoUser.signOut();
+    }
+    localStorage.removeItem("concordia_id_token");
+    authToken = null;
+    isGuest = false;
+    updateAuthUI();
+  }
+
+  function performLogin(username, password) {
+    loginError.style.display = "none";
+    loginError.textContent = "";
+    modalLoginBtn.disabled = true;
+    modalLoginBtn.textContent = "認証中...";
+
+    const authData = {
+      Username: username,
+      Password: password,
+    };
+    const authDetails = new AuthenticationDetails(authData);
+    const userData = {
+      Username: username,
+      Pool: userPool,
+    };
+    const cognitoUser = new CognitoUser(userData);
+
+    cognitoUser.authenticateUser(authDetails, {
+      onSuccess: (result) => {
+        console.log("Login Successful!");
+        const idToken = result.getIdToken().getJwtToken();
+        localStorage.setItem("concordia_id_token", idToken);
+        authToken = idToken;
+        isGuest = false;
+
+        loginModal.style.display = "none";
+        updateAuthUI();
+
+        // Reset Modal
+        usernameInput.value = "";
+        passwordInput.value = "";
+        modalLoginBtn.disabled = false;
+        modalLoginBtn.textContent = "サインイン";
+      },
+      onFailure: (err) => {
+        console.error("Login Failed:", err);
+        loginError.textContent = err.message || "ログインに失敗しました。";
+        loginError.style.display = "block";
+        modalLoginBtn.disabled = false;
+        modalLoginBtn.textContent = "サインイン";
+      },
     });
-  } else {
-    console.error("Login button NOT found in DOM");
+  }
+
+  // --- Event Listeners ---
+
+  // Show Modal
+  if (loginBtn) {
+    loginBtn.addEventListener("click", () => {
+      loginModal.style.display = "flex";
+    });
+  }
+
+  // Close Modal
+  if (modalCloseBtn) {
+    modalCloseBtn.addEventListener("click", () => {
+      loginModal.style.display = "none";
+      loginError.style.display = "none";
+    });
+  }
+
+  // Modal Login Action
+  if (modalLoginBtn) {
+    modalLoginBtn.addEventListener("click", () => {
+      const username = usernameInput.value;
+      const password = passwordInput.value;
+      if (!username || !password) {
+        loginError.textContent = "ユーザー名とパスワードを入力してください。";
+        loginError.style.display = "block";
+        return;
+      }
+      performLogin(username, password);
+    });
   }
 
   // Guest Handler
@@ -1201,58 +1315,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Logout Handler
   if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      localStorage.removeItem("concordia_id_token");
-      authToken = null;
-      isGuest = false;
-      window.location.href = AUTH_CONFIG.redirectUri;
-    });
+    logoutBtn.addEventListener("click", handleLogout);
   }
 
-  // Parse Hash for Token
-  function checkAuthCallback() {
-    const hash = window.location.hash;
-    if (hash && hash.includes("id_token")) {
-      const params = new URLSearchParams(hash.substring(1));
-      const token = params.get("id_token");
-      if (token) {
-        localStorage.setItem("concordia_id_token", token);
-        authToken = token;
-        window.history.replaceState({}, document.title, window.location.pathname);
+  // Initial Check (for persistent sessions)
+  const currentUser = userPool.getCurrentUser();
+  if (currentUser) {
+    currentUser.getSession((err, session) => {
+      if (err) {
+        authToken = null;
+      } else if (session.isValid()) {
+        authToken = session.getIdToken().getJwtToken();
+        localStorage.setItem("concordia_id_token", authToken);
       }
+      updateAuthUI();
+    });
+  } else {
+    // Check localStorage fallback (or clear it if no user)
+    if (localStorage.getItem("concordia_id_token")) {
+      // Ideally we verify validity, but simple presence check for now
     }
     updateAuthUI();
   }
-
-  function updateAuthUI() {
-    // Re-query statusEl inside scope or check global
-    const statusEl = document.getElementById("status");
-
-    if (authToken) {
-      if (loginBtn) loginBtn.parentElement.style.display = "none";
-      if (guestBtn) guestBtn.style.display = "none";
-      if (logoutBtn) logoutBtn.style.display = "block";
-      if (appControls) appControls.style.display = "block";
-      if (statusEl) statusEl.textContent = "ログイン済み: マイクを開始できます";
-    } else if (isGuest) {
-      if (loginBtn) loginBtn.parentElement.style.display = "none";
-      if (logoutBtn) {
-        logoutBtn.style.display = "block";
-        logoutBtn.textContent = "ゲスト終了";
-      }
-      if (appControls) appControls.style.display = "block";
-      if (statusEl) statusEl.textContent = "ゲストモード: 文字起こし機能は制限されています";
-    } else {
-      if (loginBtn) loginBtn.parentElement.style.display = "flex";
-      if (guestBtn) guestBtn.style.display = "block";
-      if (logoutBtn) logoutBtn.style.display = "none";
-      if (appControls) appControls.style.display = "none";
-      if (statusEl) statusEl.textContent = "ログイン または ゲスト体験を選択";
-    }
-  }
-
-  // Start
-  checkAuthCallback();
 });
 
 // Create global variables for external access if needed (optional)
