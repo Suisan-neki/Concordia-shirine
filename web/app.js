@@ -11,6 +11,10 @@ const sceneLabelEl = document.getElementById("scene-label");
 const sceneDescEl = document.getElementById("scene-desc");
 const debugInfoEl = document.getElementById("debug-info");
 
+// Auth State
+let authToken = localStorage.getItem("concordia_id_token");
+let isGuest = false;
+
 // デバッグ情報の初期化
 if (debugInfoEl) {
   debugInfoEl.textContent = "デバッグ: 初期化中...";
@@ -1219,8 +1223,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginError = document.getElementById("login-error");
 
   // Auth State
-  let authToken = localStorage.getItem("concordia_id_token");
-  let isGuest = false;
+  // authToken & isGuest are now global
+  authToken = localStorage.getItem("concordia_id_token");
+  // isGuest default is false, set locally below if needed
 
   // --- Helper Functions ---
 
