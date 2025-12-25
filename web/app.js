@@ -959,7 +959,6 @@ if (stopBtn) {
     if (startBtn) startBtn.style.display = "block";
     startBtn.disabled = false;
   });
-});
 }
 
 // デモモードのボタン
