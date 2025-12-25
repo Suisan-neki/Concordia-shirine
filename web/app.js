@@ -1,5 +1,8 @@
 import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
 
+// API Endpoint (Deployed)
+const API_ENDPOINT = "https://vs23lo9ehj.execute-api.ap-northeast-1.amazonaws.com/transcribe";
+
 const scene = document.getElementById("scene");
 const ctx = scene.getContext("2d");
 const startBtn = document.getElementById("start-btn");
@@ -863,8 +866,6 @@ async function startAudio() {
     if (!isGuest && authToken) {
       const CONFIG_URL = "config.json";
 
-      // API Endpoint (Deployed)
-      const API_ENDPOINT = "https://vs23lo9ehj.execute-api.ap-northeast-1.amazonaws.com/transcribe";
       state.transcriber = new Transcriber(API_ENDPOINT);
     } else {
       console.log("Guest Mode: Transcription disabled");
