@@ -1192,30 +1192,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Helper Functions ---
 
+  // Sanctuary Logic
+  function activateSanctuary() {
+    document.body.classList.add("sanctuary-active");
+    const guardianBadge = document.querySelector(".guardian-badge span");
+    if (guardianBadge) guardianBadge.textContent = "Sanctuary Active";
+  }
+
+  function deactivateSanctuary() {
+    document.body.classList.remove("sanctuary-active");
+  }
+
   function updateAuthUI() {
-    if (authToken || isGuest) {
-      // Logged in or Guest
+    // Helper to set status text and color
+    const setStatus = (message, color = "#4fd1c5") => {
+      statusEl.textContent = message;
+      statusEl.style.color = color;
+    };
+
+    // Get current user for display name if available
+    const cognitoUser = userPool.getCurrentUser();
+    let userProfile = null; // Placeholder for user profile data if fetched
+
+    if (authToken) {
+      // Logged In
       loginBtn.style.display = "none";
       guestBtn.style.display = "none";
       logoutBtn.style.display = "block";
       appControls.style.display = "block";
 
-      const userType = isGuest ? "ゲスト" : "ユーザー";
-      statusEl.textContent = `ログイン中: ${userType}`;
-      statusEl.style.color = "#4fd1c5";
+      // Determine User Display Name
+      let displayName = "User";
+      if (userProfile && userProfile.email) {
+        displayName = userProfile.email.split("@")[0]; // Use part before @
+      } else if (cognitoUser) {
+        displayName = cognitoUser.getUsername();
+      }
 
-      // Enable Start Button
-      startBtn.disabled = false;
-      startBtn.style.opacity = "1";
+      setStatus(`ログイン中: ${displayName}`);
+      activateSanctuary(); // Activate Security Halo
+    } else if (isGuest) {
+      // Guest Mode
+      loginBtn.style.display = "none";
+      guestBtn.style.display = "none";
+      logoutBtn.style.display = "block";
+      appControls.style.display = "block"; // Allow starting app (viz only)
+      setStatus("ゲストモード (保存機能なし)", "#a0aec0");
+      deactivateSanctuary(); // Guest is NOT secure
     } else {
-      // Logged out
-      loginBtn.style.display = "block"; // Changed from flex to block/inline via CSS usually, but here buttons are used
-      loginBtn.parentElement.style.display = "flex"; // Ensure container is visible
+      // Logged Out
+      loginBtn.style.display = "block";
       guestBtn.style.display = "block";
       logoutBtn.style.display = "none";
       appControls.style.display = "none";
-      statusEl.textContent = "未ログイン";
-      statusEl.style.color = "#a0aec0";
+      setStatus("未ログイン", "#a0aec0");
+      deactivateSanctuary();
+    }
+
+    // Enable Start Button if logged in or guest
+    if (authToken || isGuest) {
+      startBtn.disabled = false;
+      startBtn.style.opacity = "1";
+    } else {
+      startBtn.disabled = true;
+      startBtn.style.opacity = "0.5";
     }
   }
 
