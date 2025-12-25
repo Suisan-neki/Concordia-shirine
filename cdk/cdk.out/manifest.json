@@ -368,7 +368,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-deploy-role-384504716192-ap-northeast-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-cfn-exec-role-384504716192-ap-northeast-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-384504716192-ap-northeast-1/9cd7890ceb66dbe5d00ad117cbed8779bac0b647f92434fb03766de327247a19.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-384504716192-ap-northeast-1/012e876b3d562942324003ae72a7d44fb36dcba89837dce885d455548a87251c.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -451,6 +451,12 @@
             "data": "RealtimeTranscribeFnAFA09307"
           }
         ],
+        "/ConcordiaLambda-dev/CoachFn/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CoachFn396BAB2D"
+          }
+        ],
         "/ConcordiaLambda-dev/ExtractAudioFnArn": [
           {
             "type": "aws:cdk:logicalId",
@@ -503,6 +509,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "RealtimeTranscribeFnArn"
+          }
+        ],
+        "/ConcordiaLambda-dev/CoachFnArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CoachFnArn"
           }
         ],
         "/ConcordiaLambda-dev/CDKMetadata/Default": [
@@ -563,6 +575,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "ExportsOutputFnGetAttRealtimeTranscribeFnAFA09307Arn98D1D587"
+          }
+        ],
+        "/ConcordiaLambda-dev/Exports/Output{\"Fn::GetAtt\":[\"CoachFn396BAB2D\",\"Arn\"]}": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ExportsOutputFnGetAttCoachFn396BAB2DArn9C31BE55"
           }
         ],
         "/ConcordiaLambda-dev/BootstrapVersion": [
@@ -749,7 +767,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-deploy-role-384504716192-ap-northeast-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-cfn-exec-role-384504716192-ap-northeast-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-384504716192-ap-northeast-1/1d17e0da8f7d85a406c2a411b8cdb58416f7d10d0532df95c64cbb26d7752fab.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-384504716192-ap-northeast-1/7dfce8bf947056929502ef2b7e1d0b1e2bfa033fc3b7dccb2b600dd9feee5d00.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -795,6 +813,24 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "ConcordiaApiConcordiaAuthorizer8E042A29"
+          }
+        ],
+        "/ConcordiaApi-dev/ConcordiaApi/POST--coach/CoachIntegration/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ConcordiaApiPOSTcoachCoachIntegration39E08099"
+          }
+        ],
+        "/ConcordiaApi-dev/ConcordiaApi/POST--coach/CoachIntegration-Permission": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ConcordiaApiPOSTcoachCoachIntegrationPermission3F6EF946"
+          }
+        ],
+        "/ConcordiaApi-dev/ConcordiaApi/POST--coach/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ConcordiaApiPOSTcoachE5F10E93"
           }
         ],
         "/ConcordiaApi-dev/ApiAccessLogs/Resource": [

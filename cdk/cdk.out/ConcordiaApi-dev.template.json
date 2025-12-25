@@ -1,5 +1,4 @@
 {
- "Description": "API Gateway for Concordia Pipeline",
  "Resources": {
   "ConcordiaApi32A03326": {
    "Type": "AWS::ApiGatewayV2::Api",
@@ -126,6 +125,74 @@
    },
    "Metadata": {
     "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/ConcordiaAuthorizer/Resource"
+   }
+  },
+  "ConcordiaApiPOSTcoachCoachIntegration39E08099": {
+   "Type": "AWS::ApiGatewayV2::Integration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ConcordiaApi32A03326"
+    },
+    "IntegrationType": "AWS_PROXY",
+    "IntegrationUri": {
+     "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttCoachFn396BAB2DArn9C31BE55"
+    },
+    "PayloadFormatVersion": "2.0"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/POST--coach/CoachIntegration/Resource"
+   }
+  },
+  "ConcordiaApiPOSTcoachCoachIntegrationPermission3F6EF946": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::ImportValue": "ConcordiaLambda-dev:ExportsOutputFnGetAttCoachFn396BAB2DArn9C31BE55"
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:ap-northeast-1:384504716192:",
+       {
+        "Ref": "ConcordiaApi32A03326"
+       },
+       "/*/*/coach"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/POST--coach/CoachIntegration-Permission"
+   }
+  },
+  "ConcordiaApiPOSTcoachE5F10E93": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ConcordiaApi32A03326"
+    },
+    "AuthorizationType": "JWT",
+    "AuthorizerId": {
+     "Ref": "ConcordiaApiConcordiaAuthorizer8E042A29"
+    },
+    "RouteKey": "POST /coach",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "ConcordiaApiPOSTcoachCoachIntegration39E08099"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/POST--coach/Resource"
    }
   },
   "ApiAccessLogsE9DF007D": {

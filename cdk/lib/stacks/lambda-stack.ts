@@ -26,6 +26,7 @@ export class LambdaStack extends cdk.Stack {
     public readonly aggregateResultsFn: lambda.Function;
     public readonly llmAnalysisFn: lambda.Function;
     public readonly realtimeTranscribeFn: lambda.Function;
+    public readonly coachFn: lambda.Function;
 
     constructor(scope: Construct, id: string, props: LambdaStackProps) {
         super(scope, id, props);
@@ -268,8 +269,8 @@ export class LambdaStack extends cdk.Stack {
                         },
                     }
                 ),
-                memorySize: 4096, // Reduced from 6GB to 4GB for cost, still enough for medium int8? Medium needs ~3-4GB.
-                timeout: cdk.Duration.seconds(60), // Increased to 60s to measure cold start
+                memorySize: 4096,
+                timeout: cdk.Duration.seconds(60),
                 environment: {
                     WHISPER_MODEL: whisperModel,
                     WHISPER_MODEL_DIR: "/opt/whisper-models",
@@ -279,6 +280,23 @@ export class LambdaStack extends cdk.Stack {
                 architecture: lambda.Architecture.X86_64,
             }
         );
+
+        // Coach Lambda (Real-time AI Coaching)
+        this.coachFn = new lambda.DockerImageFunction(this, "CoachFn", {
+            functionName: `concordia-coach-${environment}`,
+            code: lambda.DockerImageCode.fromImageAsset(
+                path.join(lambdasPath, "coach")
+            ),
+            memorySize: 1024,
+            timeout: cdk.Duration.seconds(30),
+            environment: {
+                OPENAI_SECRET_ARN: openaiSecret.secretArn,
+                ENVIRONMENT: environment,
+            },
+            role: lambdaRole,
+            architecture: lambda.Architecture.X86_64,
+        });
+        openaiSecret.grantRead(this.coachFn);
 
         // Outputs
         new cdk.CfnOutput(this, "ExtractAudioFnArn", {
@@ -324,6 +342,11 @@ export class LambdaStack extends cdk.Stack {
         new cdk.CfnOutput(this, "RealtimeTranscribeFnArn", {
             value: this.realtimeTranscribeFn.functionArn,
             exportName: `${id}-RealtimeTranscribeFnArn`,
+        });
+
+        new cdk.CfnOutput(this, "CoachFnArn", {
+            value: this.coachFn.functionArn,
+            exportName: `${id}-CoachFnArn`,
         });
     }
 }

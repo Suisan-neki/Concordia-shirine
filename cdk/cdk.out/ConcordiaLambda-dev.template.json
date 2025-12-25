@@ -601,6 +601,47 @@
     "aws:asset:property": "Code.ImageUri"
    }
   },
+  "CoachFn396BAB2D": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "ImageUri": {
+      "Fn::Sub": "384504716192.dkr.ecr.ap-northeast-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-384504716192-ap-northeast-1:72f1db3fd894814ee243495094f0c3c55cfccab5c74bab5efc45f3b2048f3109"
+     }
+    },
+    "Environment": {
+     "Variables": {
+      "OPENAI_SECRET_ARN": {
+       "Fn::ImportValue": "ConcordiaStorage-dev:ExportsOutputRefOpenAISecretAD3AE700A6118850"
+      },
+      "ENVIRONMENT": "dev"
+     }
+    },
+    "FunctionName": "concordia-coach-dev",
+    "MemorySize": 1024,
+    "PackageType": "Image",
+    "Role": {
+     "Fn::GetAtt": [
+      "LambdaExecutionRoleD5C26073",
+      "Arn"
+     ]
+    },
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "LambdaExecutionRoleDefaultPolicy6D69732F",
+    "LambdaExecutionRoleD5C26073"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaLambda-dev/CoachFn/Resource",
+    "aws:asset:path": "asset.72f1db3fd894814ee243495094f0c3c55cfccab5c74bab5efc45f3b2048f3109",
+    "aws:asset:dockerfile-path": "Dockerfile",
+    "aws:asset:property": "Code.ImageUri"
+   }
+  },
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
@@ -711,6 +752,17 @@
     "Name": "ConcordiaLambda-dev-RealtimeTranscribeFnArn"
    }
   },
+  "CoachFnArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "CoachFn396BAB2D",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev-CoachFnArn"
+   }
+  },
   "ExportsOutputFnGetAttExtractAudioFn7C677709ArnA48558EF": {
    "Value": {
     "Fn::GetAtt": [
@@ -808,6 +860,17 @@
    },
    "Export": {
     "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttRealtimeTranscribeFnAFA09307Arn98D1D587"
+   }
+  },
+  "ExportsOutputFnGetAttCoachFn396BAB2DArn9C31BE55": {
+   "Value": {
+    "Fn::GetAtt": [
+     "CoachFn396BAB2D",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ConcordiaLambda-dev:ExportsOutputFnGetAttCoachFn396BAB2DArn9C31BE55"
    }
   }
  },

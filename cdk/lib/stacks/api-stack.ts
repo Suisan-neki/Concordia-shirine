@@ -10,6 +10,7 @@ import { Construct } from "constructs";
 export interface ApiStackProps extends cdk.StackProps {
     environment: string;
     realtimeTranscribeFn: lambda.IFunction;
+    coachFn: lambda.IFunction;
     userPool: cognito.IUserPool;
     userPoolClient: cognito.IUserPoolClient;
 }
@@ -20,7 +21,7 @@ export class ApiStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props: ApiStackProps) {
         super(scope, id, props);
 
-        const { environment, realtimeTranscribeFn, userPool, userPoolClient } = props;
+        const { environment, realtimeTranscribeFn, coachFn, userPool, userPoolClient } = props;
 
         // Define Authorizer
         const authorizer = new apigwv2_authorizers.HttpUserPoolAuthorizer(
@@ -93,6 +94,19 @@ export class ApiStack extends cdk.Stack {
             path: "/transcribe",
             methods: [apigwv2.HttpMethod.POST],
             integration: transcribeIntegration,
+            authorizer: authorizer,
+        });
+
+        // Add Route for Coach (Protected)
+        const coachIntegration = new apigwv2_integrations.HttpLambdaIntegration(
+            "CoachIntegration",
+            coachFn
+        );
+
+        this.httpApi.addRoutes({
+            path: "/coach",
+            methods: [apigwv2.HttpMethod.POST],
+            integration: coachIntegration,
             authorizer: authorizer,
         });
 

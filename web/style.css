@@ -289,4 +289,63 @@ button:active:not(:disabled) {
     opacity: 1;
     box-shadow: 0 0 15px #7bd6ff;
   }
+}/* Guardian Message UI */
+#guardian-message {
+    position: absolute;
+    top: 100px;
+    right: 40px;
+    z-index: 100;
+    max-width: 280px;
+    background: rgba(10, 20, 40, 0.85);
+    border: 1px solid rgba(120, 220, 255, 0.4);
+    backdrop-filter: blur(8px);
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+    /* Let clicks pass through unless interactive */
+}
+
+#guardian-message.fade-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+#guardian-message.fade-out {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.guardian-icon-small {
+    width: 12px;
+    height: 12px;
+    background: #7bd6ff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #7bd6ff;
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.message-content {
+    flex: 1;
+}
+
+.message-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #e6f2ff;
+    font-weight: 500;
+}
+
+.message-label {
+    margin-top: 6px;
+    font-size: 11px;
+    color: rgba(120, 220, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
 }

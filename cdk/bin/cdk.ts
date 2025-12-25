@@ -70,12 +70,16 @@ stepFunctionsStack.addDependency(storageStack);
 
 // API Stack
 const apiStack = new ApiStack(app, `ConcordiaApi-${environment}`, {
-    env,
     environment,
     realtimeTranscribeFn: lambdaStack.realtimeTranscribeFn,
+    coachFn: lambdaStack.coachFn,
     userPool: authStack.userPool,
     userPoolClient: authStack.userPoolClient,
-    description: "API Gateway for Concordia Pipeline",
+    env: {
+        account: process.env.CDK_DEFAULT_ACCOUNT,
+        region: process.env.CDK_DEFAULT_REGION,
+    },
+    crossRegionReferences: true,
 });
 apiStack.addDependency(lambdaStack);
 apiStack.addDependency(authStack);

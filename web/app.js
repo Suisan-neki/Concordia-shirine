@@ -861,8 +861,11 @@ async function startAudio() {
     // API Endpoint (Deployed)
     // Only init transcriber if Logged In
     if (!isGuest && authToken) {
-      const API_URL = "https://vs23lo9ehj.execute-api.ap-northeast-1.amazonaws.com/transcribe";
-      state.transcriber = new Transcriber(API_URL);
+      const CONFIG_URL = "config.json";
+
+      // API Endpoint (Deployed)
+      const API_ENDPOINT = "https://vs23lo9ehj.execute-api.ap-northeast-1.amazonaws.com/transcribe";
+      state.transcriber = new Transcriber(API_ENDPOINT);
     } else {
       console.log("Guest Mode: Transcription disabled");
       state.transcriber = null;
@@ -1203,6 +1206,104 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.remove("sanctuary-active");
   }
 
+  // Coaching Manager Class
+  class CoachingManager {
+    constructor(apiUrl) {
+      this.apiUrl = apiUrl;
+      this.intervalId = null;
+      this.lastProcessedTime = 0;
+    }
+
+    start() {
+      if (this.intervalId) return;
+      console.log("CoachingManager started");
+      // Check every 20 seconds
+      this.intervalId = setInterval(() => this.poll(), 20000);
+    }
+
+    stop() {
+      if (this.intervalId) {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+      }
+    }
+
+    async poll() {
+      if (!state.lastTranscriptText || state.lastTranscriptTime <= this.lastProcessedTime) {
+        return; // No new content
+      }
+
+      this.lastProcessedTime = state.lastTranscriptTime;
+      const payload = {
+        transcript_recent: state.lastTranscriptText,
+        conversation_state: state.scene
+      };
+
+      try {
+        // Use the same auth token as transcription
+        if (!authToken) return;
+
+        const response = await fetch(this.apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${authToken}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("【Coach】:", data);
+          if (data.advice) {
+            this.showAdvice(data);
+          }
+        }
+      } catch (e) {
+        console.error("Coaching API Error:", e);
+      }
+    }
+
+    showAdvice(data) {
+      const container = document.getElementById("guardian-message");
+      const textEl = container.querySelector(".message-text");
+      const labelEl = container.querySelector(".message-label");
+
+      if (container && textEl) {
+        textEl.textContent = data.advice;
+        labelEl.textContent = `${data.analysis_label || "Analysis"} • Guardian AI`;
+
+        // Update icon color based on urgency
+        const icon = container.querySelector(".guardian-icon-small");
+        if (icon) {
+          icon.style.background = data.urgency === "high" ? "#ff6b6b" : "#7bd6ff";
+          icon.style.boxShadow = data.urgency === "high" ? "0 0 10px #ff6b6b" : "0 0 10px #7bd6ff";
+        }
+
+        container.style.display = "flex";
+        // Force reflow for transition
+        void container.offsetWidth;
+        container.classList.add("fade-in");
+        container.classList.remove("fade-out");
+
+        // Auto hide after 10 seconds
+        setTimeout(() => {
+          container.classList.remove("fade-in");
+          container.classList.add("fade-out");
+          setTimeout(() => {
+            container.style.display = "none";
+          }, 500);
+        }, 10000);
+      }
+    }
+  }
+
+  // Global instances
+  let coachingManager = null;
+
+  // Initialize when API URL is known (updated in init)
+  // ...
+
   function updateAuthUI() {
     // Helper to set status text and color
     const setStatus = (message, color = "#4fd1c5") => {
@@ -1231,6 +1332,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
       setStatus(`ログイン中: ${displayName}`);
       activateSanctuary(); // Activate Security Halo
+
+      // Start Coaching
+      if (!coachingManager) {
+        // Infer Coach URL from Transcribe URL 
+        // (e.g. /transcribe -> /coach)
+        const coachUrl = API_ENDPOINT.replace("/transcribe", "/coach");
+        coachingManager = new CoachingManager(coachUrl);
+      }
+      coachingManager.start();
+
     } else if (isGuest) {
       // Guest Mode
       loginBtn.style.display = "none";
@@ -1239,6 +1350,9 @@ document.addEventListener('DOMContentLoaded', () => {
       appControls.style.display = "block"; // Allow starting app (viz only)
       setStatus("ゲストモード (保存機能なし)", "#a0aec0");
       deactivateSanctuary(); // Guest is NOT secure
+
+      if (coachingManager) coachingManager.stop();
+
     } else {
       // Logged Out
       loginBtn.style.display = "block";
@@ -1247,6 +1361,8 @@ document.addEventListener('DOMContentLoaded', () => {
       appControls.style.display = "none";
       setStatus("未ログイン", "#a0aec0");
       deactivateSanctuary();
+
+      if (coachingManager) coachingManager.stop();
     }
 
     // Enable Start Button if logged in or guest
@@ -1267,6 +1383,13 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem("concordia_id_token");
     authToken = null;
     isGuest = false;
+    state.transcriber = null;
+
+    if (coachingManager) {
+      coachingManager.stop();
+      coachingManager = null;
+    }
+
     updateAuthUI();
   }
 
