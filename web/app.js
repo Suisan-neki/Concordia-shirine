@@ -317,29 +317,44 @@ class Transcriber {
     }
 
     try {
-      this.mediaRecorder = new MediaRecorder(stream, { mimeType });
-      this.isRecording = true;
-      console.log(`Transcriber started with mimeType: ${this.mediaRecorder.mimeType}`);
-
-      this.mediaRecorder.ondataavailable = async (e) => {
-        if (e.data.size > 0) {
-          await this.sendAudio(e.data);
-        }
-      };
-
-      // Send chunk every 10 seconds to improve context for Whisper
-      // 3s is too short for accurate sentence detection
-      this.mediaRecorder.start(10000);
-
+      this.stream = stream;
+      this.mimeType = mimeType;
+      this.startLoop();
     } catch (e) {
       console.error("Transcriber init failed:", e);
     }
   }
 
+  startLoop() {
+    if (!this.isRecording) return;
+
+    this.mediaRecorder = new MediaRecorder(this.stream, { mimeType: this.mimeType });
+    console.log(`Transcriber loop started with mimeType: ${this.mediaRecorder.mimeType}`);
+
+    this.mediaRecorder.ondataavailable = async (e) => {
+      if (e.data.size > 0) {
+        await this.sendAudio(e.data);
+      }
+    };
+
+    this.mediaRecorder.start();
+
+    // Stop and restart after 10 seconds (creates a valid file with header)
+    this.loopTimer = setTimeout(() => {
+      if (this.isRecording && this.mediaRecorder.state === 'recording') {
+        this.mediaRecorder.stop(); // triggers ondataavailable
+        // Loop continues in onstop or just request next start?
+        // Actually, just restart loop after a micro delay to ensure cleanup
+        this.startLoop();
+      }
+    }, 10000);
+  }
+
   stop() {
-    if (this.mediaRecorder && this.isRecording) {
+    this.isRecording = false;
+    clearTimeout(this.loopTimer);
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();
-      this.isRecording = false;
     }
   }
 
