@@ -910,7 +910,12 @@ async function startAudio() {
     startBtn.disabled = true;
   } catch (err) {
     console.error(err);
-    setStatus("マイク許可が必要です / もしくはブラウザが拒否しました");
+    // 詳細なエラー情報を表示
+    let errorMsg = "マイク許可が必要です / もしくはブラウザが拒否しました";
+    if (err.name) errorMsg += ` (${err.name}: ${err.message})`;
+    else if (err.message) errorMsg += ` (${err.message})`;
+
+    setStatus(errorMsg);
   }
 }
 
