@@ -880,7 +880,14 @@ async function startAudio() {
     }
     const audioCtx = new AudioContext();
     if (audioCtx.state === "suspended") {
-      await audioCtx.resume();
+      try {
+        await audioCtx.resume();
+        console.log("AudioContext resumed successfully.");
+      } catch (resumeErr) {
+        console.error("Failed to resume AudioContext:", resumeErr);
+        setStatus("マイク初期化エラー: AudioContext resume failed");
+        return;
+      }
     }
     const analyser = audioCtx.createAnalyser();
     analyser.fftSize = 2048;
@@ -892,7 +899,14 @@ async function startAudio() {
     state.analyser = analyser;
     state.micSource = source;
     state.running = true;
-    setStatus("マイク取得中 → リアクティブ表示中");
+
+    // Check if transcriber is active for status message
+    if (state.transcriber) {
+      setStatus("マイク取得中 → 録音・分析中 (ログアウトで停止)");
+    } else {
+      setStatus("ゲストモード: マイク取得中 (文字起こし・AIコーチング無効)");
+    }
+
     startBtn.disabled = true;
   } catch (err) {
     console.error(err);
@@ -913,29 +927,39 @@ if (startBtn) {
 const stopBtn = document.getElementById("stop-btn");
 if (stopBtn) {
   stopBtn.addEventListener("click", () => {
-    if (state.running && state.transcriber) {
-      state.transcriber.stop();
-      // Download transcript
-      const lines = state.transcriber.sessionTranscript.map(i => `[${i.timestamp}] ${i.text}`);
-      const blob = new Blob([lines.join("\n")], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `transcript_${new Date().getTime()}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
     // Reset UI
     if (state.running && state.micSource) {
+      state.transcriber?.stop(); // Ensure transcriber stops if it exists
+
+      // Download transcript only if transcriber exists and has content
+      if (state.transcriber && state.transcriber.sessionTranscript.length > 0) {
+        const lines = state.transcriber.sessionTranscript.map(i => `[${i.timestamp}] ${i.text}`);
+        const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `transcript_${new Date().getTime()}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus("終了しました。文字起こしをダウンロードしました。");
+      } else if (state.transcriber) {
+        setStatus("終了しました。（文字起こしデータなし）");
+      } else {
+        setStatus("終了しました。（ゲストモード/文字起こし無効）");
+      }
+
       state.micSource.mediaStream.getTracks().forEach(track => track.stop());
       state.running = false;
+    } else {
+      // Loop wasn't running or check failed
+      setStatus("停止中");
     }
-    setStatus("終了しました。文字起こしをダウンロードしました。");
+
     stopBtn.style.display = "none";
     if (startBtn) startBtn.style.display = "block";
     startBtn.disabled = false;
   });
+});
 }
 
 // デモモードのボタン
