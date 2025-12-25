@@ -26,19 +26,6 @@
     "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/Resource"
    }
   },
-  "ConcordiaApiDefaultStage9F32FA11": {
-   "Type": "AWS::ApiGatewayV2::Stage",
-   "Properties": {
-    "ApiId": {
-     "Ref": "ConcordiaApi32A03326"
-    },
-    "AutoDeploy": true,
-    "StageName": "$default"
-   },
-   "Metadata": {
-    "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/DefaultStage/Resource"
-   }
-  },
   "ConcordiaApiPOSTtranscribeTranscribeIntegrationE6FD093D": {
    "Type": "AWS::ApiGatewayV2::Integration",
    "Properties": {
@@ -141,10 +128,48 @@
     "aws:cdk:path": "ConcordiaApi-dev/ConcordiaApi/ConcordiaAuthorizer/Resource"
    }
   },
+  "ApiAccessLogsE9DF007D": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": "/aws/vendedlogs/http-api/dev-384504716192",
+    "RetentionInDays": 7
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/ApiAccessLogs/Resource"
+   }
+  },
+  "DefaultStageEE28A986": {
+   "Type": "AWS::ApiGatewayV2::Stage",
+   "Properties": {
+    "AccessLogSettings": {
+     "DestinationArn": {
+      "Fn::GetAtt": [
+       "ApiAccessLogsE9DF007D",
+       "Arn"
+      ]
+     },
+     "Format": "{\"requestId\":\"$context.requestId\",\"ip\":\"$context.identity.sourceIp\",\"requestTime\":\"$context.requestTime\",\"httpMethod\":\"$context.httpMethod\",\"routeKey\":\"$context.routeKey\",\"status\":\"$context.status\",\"protocol\":\"$context.protocol\",\"responseLength\":\"$context.responseLength\",\"errorMessage\":\"$context.error.message\",\"user\":\"$context.authorizer.claims.email\"}"
+    },
+    "ApiId": {
+     "Ref": "ConcordiaApi32A03326"
+    },
+    "AutoDeploy": true,
+    "DefaultRouteSettings": {
+     "ThrottlingBurstLimit": 200,
+     "ThrottlingRateLimit": 100
+    },
+    "StageName": "$default"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ConcordiaApi-dev/DefaultStage/Resource"
+   }
+  },
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/12PQQ6CMBBFz+K+jNjoAYgbXWnwAGaAigNSmnYKUcLdbSXRxNX8//JmkpEg0x2kKxxdUlZt8qACpgtj2YqArhMaqpHViM9BwnRgNpkhsb/pOGINbq0iWEJEee95SUfNqrbI1Ouo/NWfl3m+95Zeyn5Of9ssHtgVFUKgZ2U7ci7szlE6eTaeZ6H7SkHj1oPcwiYNnzSOKLFeM3UK8mW+AWAFrM3mAAAA"
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/12PXQrCMBCEz+J7u9aiByg+qCAo9QCStjFuf5KQbFo09O42FSn4NPPNDrtsCmmyg2TFBhuXVRO3WIC/ESubaIrunmkUjPjAXn0K/kikM43R/iGDBMyVIz67kyQuDCNUMhT+cOlljp7K4Jubec9CYTidFjzksxmjlnVFxWAKrtx0aG1Y1yphwZ+VOBjldGj//DgGujjSjsZIqopDbdd9uoVNMn1ZW8TYOEnYcci/+gHC+EVGAgEAAA=="
    },
    "Metadata": {
     "aws:cdk:path": "ConcordiaApi-dev/CDKMetadata/Default"

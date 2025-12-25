@@ -126,7 +126,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-deploy-role-384504716192-ap-northeast-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-cfn-exec-role-384504716192-ap-northeast-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-384504716192-ap-northeast-1/fa23d29e3c809d3dc802678d64a4e9515cd28206cf542bce033a89fb6cf81512.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-384504716192-ap-northeast-1/1206e66f2515eec5ceaeab32439421225846e744a90957193876d81ae1935f85.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -749,7 +749,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-deploy-role-384504716192-ap-northeast-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::384504716192:role/cdk-hnb659fds-cfn-exec-role-384504716192-ap-northeast-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-384504716192-ap-northeast-1/fb4abaf036fb79671e87cf47182544faae44db6090ddfc5dc1495d6b6797238a.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-384504716192-ap-northeast-1/1d17e0da8f7d85a406c2a411b8cdb58416f7d10d0532df95c64cbb26d7752fab.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -771,12 +771,6 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "ConcordiaApi32A03326"
-          }
-        ],
-        "/ConcordiaApi-dev/ConcordiaApi/DefaultStage/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "ConcordiaApiDefaultStage9F32FA11"
           }
         ],
         "/ConcordiaApi-dev/ConcordiaApi/POST--transcribe/TranscribeIntegration/Resource": [
@@ -801,6 +795,18 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "ConcordiaApiConcordiaAuthorizer8E042A29"
+          }
+        ],
+        "/ConcordiaApi-dev/ApiAccessLogs/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ApiAccessLogsE9DF007D"
+          }
+        ],
+        "/ConcordiaApi-dev/DefaultStage/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DefaultStageEE28A986"
           }
         ],
         "/ConcordiaApi-dev/ApiEndpoint": [

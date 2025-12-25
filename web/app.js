@@ -861,7 +861,7 @@ async function startAudio() {
     // API Endpoint (Deployed)
     // Only init transcriber if Logged In
     if (!isGuest && authToken) {
-      const API_URL = "https://2o259ru5i9.execute-api.ap-northeast-1.amazonaws.com/transcribe";
+      const API_URL = "https://vs23lo9ehj.execute-api.ap-northeast-1.amazonaws.com/transcribe";
       state.transcriber = new Transcriber(API_URL);
     } else {
       console.log("Guest Mode: Transcription disabled");

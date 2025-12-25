@@ -35,7 +35,7 @@ export class StorageStack extends cdk.Stack {
             cors: [
                 {
                     allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.POST],
-                    allowedOrigins: ["*"],
+                    allowedOrigins: ["http://localhost:5173"],
                     allowedHeaders: ["*"],
                 },
             ],
@@ -70,7 +70,7 @@ export class StorageStack extends cdk.Stack {
             cors: [
                 {
                     allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.HEAD],
-                    allowedOrigins: ["*"],
+                    allowedOrigins: ["http://localhost:5173"],
                     allowedHeaders: ["*"],
                     exposedHeaders: ["ETag"],
                 },

@@ -25,7 +25,7 @@
         "POST"
        ],
        "AllowedOrigins": [
-        "*"
+        "http://localhost:5173"
        ]
       }
      ]
@@ -343,7 +343,7 @@
         "HEAD"
        ],
        "AllowedOrigins": [
-        "*"
+        "http://localhost:5173"
        ],
        "ExposedHeaders": [
         "ETag"
