@@ -327,9 +327,9 @@ class Transcriber {
         }
       };
 
-      // Send chunk every 3-5 seconds (randomized slightly to avoid sync issues if multiple clients)
-      // For single user, 3000ms is fine.
-      this.mediaRecorder.start(3000);
+      // Send chunk every 10 seconds to improve context for Whisper
+      // 3s is too short for accurate sentence detection
+      this.mediaRecorder.start(10000);
 
     } catch (e) {
       console.error("Transcriber init failed:", e);
