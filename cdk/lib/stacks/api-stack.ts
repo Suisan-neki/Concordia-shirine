@@ -4,7 +4,9 @@ import * as apigwv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as apigwv2_integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as apigwv2_authorizers from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as lambda_nodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as path from "path";
 import { Construct } from "constructs";
 
 export interface ApiStackProps extends cdk.StackProps {
@@ -13,15 +15,33 @@ export interface ApiStackProps extends cdk.StackProps {
     coachFn: lambda.IFunction;
     userPool: cognito.IUserPool;
     userPoolClient: cognito.IUserPoolClient;
+    // Env vars for tRPC
+    databaseUrl: string;
+    jwtSecret: string;
+    appId: string;
+    oauthServerUrl: string;
+    ownerOpenId: string;
 }
 
 export class ApiStack extends cdk.Stack {
     public readonly httpApi: apigwv2.HttpApi;
+    public readonly trpcFn: lambda_nodejs.NodejsFunction;
 
     constructor(scope: Construct, id: string, props: ApiStackProps) {
         super(scope, id, props);
 
-        const { environment, realtimeTranscribeFn, coachFn, userPool, userPoolClient } = props;
+        const {
+            environment,
+            realtimeTranscribeFn,
+            coachFn,
+            userPool,
+            userPoolClient,
+            databaseUrl,
+            jwtSecret,
+            appId,
+            oauthServerUrl,
+            ownerOpenId
+        } = props;
 
         // Define Authorizer
         const authorizer = new apigwv2_authorizers.HttpUserPoolAuthorizer(
@@ -110,6 +130,46 @@ export class ApiStack extends cdk.Stack {
             integration: coachIntegration,
             authorizer: authorizer,
         });
+
+        // tRPC Lambda
+        this.trpcFn = new lambda_nodejs.NodejsFunction(this, "TrpcFn", {
+            entry: path.join(__dirname, "../../../server/aws-lambda.ts"),
+            handler: "handler",
+            runtime: lambda.Runtime.NODEJS_20_X,
+            architecture: lambda.Architecture.ARM_64,
+            memorySize: 512,
+            timeout: cdk.Duration.seconds(10),
+            environment: {
+                DATABASE_URL: databaseUrl,
+                JWT_SECRET: jwtSecret,
+                VITE_APP_ID: appId,
+                OAUTH_SERVER_URL: oauthServerUrl,
+                OWNER_OPEN_ID: ownerOpenId,
+                NODE_ENV: "production",
+            },
+            bundling: {
+                minify: true,
+                sourceMap: true,
+                externalModules: ["@aws-sdk/client-s3"], // Available in Lambda runtime
+            },
+        });
+
+        const trpcIntegration = new apigwv2_integrations.HttpLambdaIntegration(
+            "TrpcIntegration",
+            this.trpcFn
+        );
+
+        // Add Route for tRPC (Public & Protected handled by tRPC router itself)
+        // Note: We might want Authorizer here if ALL tRPC calls need it, 
+        // but typically tRPC handles public/protected procedures.
+        // For simplicity, we open it up and let tRPC router handle auth logic via context.
+        this.httpApi.addRoutes({
+            path: "/trpc/{proxy+}",
+            methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST],
+            integration: trpcIntegration,
+            // authorizer: authorizer, // Optional: let tRPC middleware handle it
+        });
+
 
         // Outputs
         new cdk.CfnOutput(this, "ApiEndpoint", {
