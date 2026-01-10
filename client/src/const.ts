@@ -1,17 +1,19 @@
 export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 
-// Generate login URL at runtime so redirect URI reflects the current origin.
+// AWS Cognito Hosted UI URL
 export const getLoginUrl = () => {
-  const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
-  const appId = import.meta.env.VITE_APP_ID;
-  const redirectUri = `${window.location.origin}/api/oauth/callback`;
-  const state = btoa(redirectUri);
+  const domain = import.meta.env.VITE_COGNITO_DOMAIN; // e.g., https://concordia-auth-xxxx.auth.ap-northeast-1.amazoncognito.com
+  const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
+  const redirectUri = window.location.origin; // Redirect back to root
+  const responseType = "token"; // Implicit Grant (for MVP simplicity)
 
-  const url = new URL(`${oauthPortalUrl}/app-auth`);
-  url.searchParams.set("appId", appId);
-  url.searchParams.set("redirectUri", redirectUri);
-  url.searchParams.set("state", state);
-  url.searchParams.set("type", "signIn");
+  // Construct Cognito Hosted UI URL
+  // https://<domain>/login?client_id=<client_id>&response_type=token&scope=email+openid&redirect_uri=<redirect_uri>
+  const url = new URL(`${domain}/login`);
+  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("response_type", responseType);
+  url.searchParams.set("scope", "email openid");
+  url.searchParams.set("redirect_uri", redirectUri);
 
   return url.toString();
 };

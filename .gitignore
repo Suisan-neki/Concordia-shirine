@@ -6,6 +6,14 @@
 dist/
 build/
 *.dist
+src/aws-lambdas/*/dist/
+src/local_wheels/
+cdk/cdk.out/
+**/cdk.out/
+*.so
+*.bin
+
+
 
 # Environment variables
 .env
