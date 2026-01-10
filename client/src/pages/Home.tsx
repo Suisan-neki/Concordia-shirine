@@ -21,6 +21,7 @@ import { ControlPanel } from '@/components/ControlPanel';
 import { ConversationLogPanel } from '@/components/ConversationLogPanel';
 import { TranscriptDisplay } from '@/components/TranscriptDisplay';
 import { SecurityDashboard } from '@/components/SecurityDashboard';
+import { SecurityDetailPanel } from '@/components/SecurityDetailPanel';
 import { SessionHistory } from '@/components/SessionHistory';
 import { InterventionSystem } from '@/components/InterventionSystem';
 import { InterventionSettingsPanel } from '@/components/InterventionSettingsPanel';
@@ -34,6 +35,7 @@ import type { SceneType } from '@/lib/waveEngine';
 import type { SessionData } from '@/lib/reportGenerator';
 import { Button } from '@/components/ui/button';
 import { getLoginUrl } from '@/const';
+import { Link } from 'wouter';
 
 interface TranscriptItem {
   id: string;
@@ -64,6 +66,7 @@ export default function Home() {
   const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
   const [interimText, setInterimText] = useState('');
   const [isSecurityDashboardOpen, setIsSecurityDashboardOpen] = useState(false);
+  const [isSecurityDetailOpen, setIsSecurityDetailOpen] = useState(false);
   const [isSessionHistoryOpen, setIsSessionHistoryOpen] = useState(false);
   const [isInterventionSettingsOpen, setIsInterventionSettingsOpen] = useState(false);
   const [isReportPanelOpen, setIsReportPanelOpen] = useState(false);
@@ -400,6 +403,20 @@ export default function Home() {
           </svg>
           セキュリティ
         </Button>
+        {isAuthenticated && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsSecurityDetailOpen(true)}
+            className="bg-card/60 backdrop-blur-sm text-xs border-primary/30 hover:border-primary/50"
+          >
+            <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+            詳細
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -542,6 +559,12 @@ export default function Home() {
         onClose={() => setIsSecurityDashboardOpen(false)}
       />
       
+      {/* セキュリティ詳細パネル（「実は裏で動いていました」） */}
+      <SecurityDetailPanel
+        isOpen={isSecurityDetailOpen}
+        onClose={() => setIsSecurityDetailOpen(false)}
+      />
+      
       {/* セッション履歴 */}
       <SessionHistory
         isOpen={isSessionHistoryOpen}
@@ -573,9 +596,11 @@ export default function Home() {
         transition={{ delay: 1.5 }}
         className="absolute bottom-4 left-1/2 -translate-x-1/2 text-center z-10"
       >
-        <p className="text-[10px] text-muted-foreground/50">
-          Concordia Shrine v2 — Human Decision Security
-        </p>
+        <Link href="/about">
+          <span className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground cursor-pointer transition-colors">
+            Concordia Shrine v2 — Human Decision Security
+          </span>
+        </Link>
       </motion.div>
     </div>
   );

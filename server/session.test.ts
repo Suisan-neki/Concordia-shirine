@@ -56,6 +56,33 @@ vi.mock("./db", () => ({
     updatedAt: new Date(),
   }),
   updateInterventionSettings: vi.fn().mockResolvedValue(undefined),
+  getDb: vi.fn().mockResolvedValue(null),
+}));
+
+// Mock the security service
+vi.mock("./security", () => ({
+  securityService: {
+    protectSession: vi.fn().mockResolvedValue(undefined),
+    generateSecuritySummary: vi.fn().mockResolvedValue({
+      totalProtectionCount: 5,
+      details: [
+        { type: "encryption_applied", count: 3, description: "データを暗号化して保護" },
+        { type: "session_protected", count: 2, description: "セッションを保護" },
+      ],
+    }),
+    verifyAccess: vi.fn().mockResolvedValue(true),
+    logSecurityEvent: vi.fn().mockResolvedValue(undefined),
+    sanitizeInput: vi.fn().mockImplementation((input: string) => 
+      Promise.resolve({ sanitized: input, wasModified: false })
+    ),
+    preservePrivacy: vi.fn().mockResolvedValue(undefined),
+    protectConsent: vi.fn().mockResolvedValue(undefined),
+    getUserSecurityStats: vi.fn().mockResolvedValue({
+      totalEvents: 10,
+      eventsByType: { encryption_applied: 5, session_protected: 5 },
+      recentEvents: [],
+    }),
+  },
 }));
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
@@ -140,7 +167,7 @@ describe("session router", () => {
   });
 
   describe("session.end", () => {
-    it("updates session with summary data", async () => {
+    it("updates session with summary data and returns security summary", async () => {
       const ctx = createAuthContext();
       const caller = appRouter.createCaller(ctx);
 
@@ -154,7 +181,10 @@ describe("session router", () => {
         insights: ["Good session"],
       });
 
-      expect(result).toEqual({ success: true });
+      expect(result.success).toBe(true);
+      expect(result).toHaveProperty("securitySummary");
+      expect(result.securitySummary).toHaveProperty("totalProtectionCount");
+      expect(result.securitySummary?.totalProtectionCount).toBe(5);
     });
   });
 
@@ -212,6 +242,47 @@ describe("intervention router", () => {
       });
 
       expect(result).toEqual({ success: true });
+    });
+  });
+});
+
+describe("security router", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("security.getStats", () => {
+    it("returns user security statistics", async () => {
+      const ctx = createAuthContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const result = await caller.security.getStats();
+
+      expect(result).toHaveProperty("totalEvents");
+      expect(result).toHaveProperty("eventsByType");
+      expect(result).toHaveProperty("recentEvents");
+      expect(result.totalEvents).toBe(10);
+    });
+  });
+
+  describe("security.getSessionSummary", () => {
+    it("returns security summary for valid session", async () => {
+      const ctx = createAuthContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const result = await caller.security.getSessionSummary({ sessionId: "test-session-1" });
+
+      expect(result).not.toBeNull();
+      expect(result?.totalProtectionCount).toBe(5);
+    });
+
+    it("returns null for non-existent session", async () => {
+      const ctx = createAuthContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const result = await caller.security.getSessionSummary({ sessionId: "non-existent" });
+
+      expect(result).toBeNull();
     });
   });
 });

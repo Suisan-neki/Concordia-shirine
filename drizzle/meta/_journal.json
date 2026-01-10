@@ -15,6 +15,13 @@
       "when": 1768057365988,
       "tag": "0001_redundant_moondragon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1768058793443,
+      "tag": "0002_gorgeous_captain_flint",
+      "breakpoints": true
     }
   ]
 }
