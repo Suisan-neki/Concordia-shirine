@@ -1,20 +1,19 @@
 /**
- * Concordia Shrine - セキュリティサービス
+ * Concordia Shrine - セキュリティサービス（コスト最適化版）
  * 
  * 「気づかないうちに守られている」を実現するためのセキュリティ機能
  * 
- * このモジュールは以下の機能を提供します：
- * - データ暗号化（AES-256-GCM）
- * - レート制限
- * - 監査ログ
- * - 入力サニタイズ
- * - セキュリティサマリー生成
+ * コスト最適化:
+ * - ログのバッチ書き込み（メモリバッファリング）
+ * - 重要度に基づくサンプリング
+ * - キャッシュの活用
+ * - 古いデータの自動削除
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
 import { getDb } from './db';
 import { securityAuditLogs, securitySummaries, InsertSecurityAuditLog } from '../drizzle/schema';
-import { eq, and, gte, sql } from 'drizzle-orm';
+import { eq, and, lt, sql } from 'drizzle-orm';
 import { ENV } from './_core/env';
 
 // 暗号化キー（JWT_SECRETから派生）
@@ -26,19 +25,145 @@ const getEncryptionKey = (): Buffer => {
 // レート制限のストレージ（メモリベース）
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
+// ===== コスト最適化: ログバッファリング =====
+interface LogBuffer {
+  events: Omit<InsertSecurityAuditLog, 'id' | 'createdAt'>[];
+  lastFlush: number;
+}
+
+const LOG_BUFFER_SIZE = 50; // バッファサイズ
+const LOG_FLUSH_INTERVAL = 30000; // 30秒ごとにフラッシュ
+const LOG_SAMPLING_RATE = 0.1; // infoレベルは10%のみ記録
+
+// ===== コスト最適化: キャッシュ =====
+interface CacheEntry<T> {
+  data: T;
+  expiry: number;
+}
+
+const CACHE_TTL = 300000; // 5分
+
 /**
- * セキュリティサービスクラス
+ * セキュリティサービスクラス（コスト最適化版）
  */
 export class SecurityService {
   private static instance: SecurityService;
+  private logBuffer: LogBuffer = { events: [], lastFlush: Date.now() };
+  private cache: Map<string, CacheEntry<unknown>> = new Map();
+  private flushTimer: NodeJS.Timeout | null = null;
   
-  private constructor() {}
+  private constructor() {
+    // 定期的なログフラッシュを設定
+    this.startFlushTimer();
+    // 定期的な古いデータの削除を設定
+    this.scheduleDataCleanup();
+  }
   
   static getInstance(): SecurityService {
     if (!SecurityService.instance) {
       SecurityService.instance = new SecurityService();
     }
     return SecurityService.instance;
+  }
+  
+  /**
+   * 定期的なログフラッシュタイマーを開始
+   */
+  private startFlushTimer(): void {
+    if (this.flushTimer) return;
+    
+    this.flushTimer = setInterval(() => {
+      this.flushLogBuffer();
+    }, LOG_FLUSH_INTERVAL);
+    
+    // プロセス終了時にバッファをフラッシュ
+    process.on('beforeExit', () => this.flushLogBuffer());
+  }
+  
+  /**
+   * 古いデータの定期削除をスケジュール
+   */
+  private scheduleDataCleanup(): void {
+    // 1時間ごとに古いデータを削除
+    setInterval(() => {
+      this.cleanupOldData();
+    }, 3600000);
+  }
+  
+  /**
+   * 古いデータを削除（30日以上前）
+   * コスト最適化: ストレージコストを削減
+   */
+  async cleanupOldData(): Promise<{ deletedLogs: number }> {
+    try {
+      const db = await getDb();
+      if (!db) return { deletedLogs: 0 };
+      
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      
+      // 古い監査ログを削除
+      const result = await db.delete(securityAuditLogs)
+        .where(lt(securityAuditLogs.timestamp, thirtyDaysAgo));
+      
+      console.log(`[Security] Cleaned up old data: ${result[0]?.affectedRows || 0} logs deleted`);
+      
+      return { deletedLogs: result[0]?.affectedRows || 0 };
+    } catch (error) {
+      console.error('[Security] Failed to cleanup old data:', error);
+      return { deletedLogs: 0 };
+    }
+  }
+  
+  /**
+   * キャッシュからデータを取得
+   */
+  private getFromCache<T>(key: string): T | null {
+    const entry = this.cache.get(key) as CacheEntry<T> | undefined;
+    if (!entry) return null;
+    
+    if (Date.now() > entry.expiry) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return entry.data;
+  }
+  
+  /**
+   * キャッシュにデータを保存
+   */
+  private setCache<T>(key: string, data: T, ttl: number = CACHE_TTL): void {
+    this.cache.set(key, {
+      data,
+      expiry: Date.now() + ttl,
+    });
+  }
+  
+  /**
+   * ログバッファをフラッシュ（一括書き込み）
+   * コスト最適化: 個別INSERTを一括INSERTに変換
+   */
+  async flushLogBuffer(): Promise<void> {
+    if (this.logBuffer.events.length === 0) return;
+    
+    const eventsToFlush = [...this.logBuffer.events];
+    this.logBuffer.events = [];
+    this.logBuffer.lastFlush = Date.now();
+    
+    try {
+      const db = await getDb();
+      if (!db) return;
+      
+      // 一括INSERT
+      await db.insert(securityAuditLogs).values(eventsToFlush);
+    } catch (error) {
+      console.error('[Security] Failed to flush log buffer:', error);
+      // 失敗したイベントをバッファに戻す（最大サイズを超えない範囲で）
+      const remaining = LOG_BUFFER_SIZE - this.logBuffer.events.length;
+      if (remaining > 0) {
+        this.logBuffer.events.push(...eventsToFlush.slice(0, remaining));
+      }
+    }
   }
   
   /**
@@ -54,7 +179,7 @@ export class SecurityService {
     encrypted += cipher.final('hex');
     const authTag = cipher.getAuthTag();
     
-    // 監査ログに記録（静かに）
+    // コスト最適化: 暗号化ログはサンプリング（10%のみ記録）
     await this.logSecurityEvent({
       userId,
       sessionId,
@@ -107,7 +232,7 @@ export class SecurityService {
     }
     
     if (record.count >= limit) {
-      // レート制限を超過
+      // レート制限を超過 - これは重要なのでサンプリングなしで記録
       await this.logSecurityEvent({
         userId,
         eventType: 'rate_limit_triggered',
@@ -115,7 +240,7 @@ export class SecurityService {
         description: 'レート制限が発動しました。異常なアクセスパターンを検知。',
         metadata: { identifier: this.hashIdentifier(identifier), limit, windowMs },
         timestamp: now,
-      });
+      }, true); // 強制記録
       
       return { allowed: false, remaining: 0, resetTime: record.resetTime };
     }
@@ -148,6 +273,7 @@ export class SecurityService {
     
     const wasModified = original !== sanitized;
     
+    // コスト最適化: 変更があった場合のみ記録（サンプリングあり）
     if (wasModified) {
       await this.logSecurityEvent({
         userId,
@@ -165,6 +291,7 @@ export class SecurityService {
   
   /**
    * アクセス権限を検証する
+   * コスト最適化: 成功時はサンプリング、失敗時は必ず記録
    */
   async verifyAccess(
     userId: number,
@@ -172,11 +299,10 @@ export class SecurityService {
     resourceId: number,
     action: string
   ): Promise<boolean> {
-    // 基本的なアクセス制御ロジック
-    // 実際のアプリケーションではより複雑なロジックが必要
-    
     const allowed = true; // 簡略化のため常に許可
     
+    // コスト最適化: アクセス許可は頻繁なのでサンプリング
+    // アクセス拒否は重要なので必ず記録
     await this.logSecurityEvent({
       userId,
       eventType: allowed ? 'access_granted' : 'access_denied',
@@ -186,7 +312,7 @@ export class SecurityService {
         : `${resourceType}へのアクセスが拒否されました`,
       metadata: { resourceType, resourceId, action },
       timestamp: Date.now(),
-    });
+    }, !allowed); // 拒否時は強制記録
     
     return allowed;
   }
@@ -196,6 +322,7 @@ export class SecurityService {
    * セッション開始時に呼び出される
    */
   async protectSession(userId: number, sessionId: number): Promise<void> {
+    // セッション保護は重要なので必ず記録
     await this.logSecurityEvent({
       userId,
       sessionId,
@@ -204,12 +331,13 @@ export class SecurityService {
       description: '新しいセッションが保護されました。結界が展開されています。',
       metadata: { protectionLevel: 'standard' },
       timestamp: Date.now(),
-    });
+    }, true); // 強制記録
   }
   
   /**
    * プライバシーを保護する
    * 音声データが処理される際に呼び出される
+   * コスト最適化: 頻繁に呼ばれるのでサンプリング
    */
   async preservePrivacy(userId: number, sessionId: number, dataType: string): Promise<void> {
     await this.logSecurityEvent({
@@ -226,6 +354,7 @@ export class SecurityService {
   /**
    * 同調圧力を検知した際に呼び出される
    * ヒューマンセキュリティとサイバーセキュリティの接点
+   * コスト最適化: 重要なイベントなので必ず記録
    */
   async protectConsent(
     userId: number,
@@ -241,34 +370,60 @@ export class SecurityService {
       description: '同調圧力が検知されました。判断の自由を守るための介入が行われました。',
       metadata: { scene, durationSeconds: duration },
       timestamp: Date.now(),
-    });
+    }, true); // 強制記録
   }
   
   /**
    * セキュリティイベントをログに記録する
-   * すべてのセキュリティ機能はこの関数を通じてログを残す
+   * コスト最適化: バッファリングとサンプリングを適用
+   * 
+   * @param event イベントデータ
+   * @param forceLog サンプリングをスキップして必ず記録するか
    */
-  async logSecurityEvent(event: Omit<InsertSecurityAuditLog, 'id' | 'createdAt'>): Promise<void> {
-    try {
-      const db = await getDb();
-      if (!db) return;
-      
-      await db.insert(securityAuditLogs).values(event);
-    } catch (error) {
-      // ログの失敗はサイレントに処理（ユーザー体験を妨げない）
-      console.error('[Security] Failed to log event:', error);
+  async logSecurityEvent(
+    event: Omit<InsertSecurityAuditLog, 'id' | 'createdAt'>,
+    forceLog: boolean = false
+  ): Promise<void> {
+    // コスト最適化: サンプリング
+    // infoレベルは10%のみ記録、warning/criticalは必ず記録
+    if (!forceLog && event.severity === 'info') {
+      if (Math.random() > LOG_SAMPLING_RATE) {
+        return; // サンプリングでスキップ
+      }
+    }
+    
+    // バッファに追加
+    this.logBuffer.events.push(event);
+    
+    // バッファが満杯になったらフラッシュ
+    if (this.logBuffer.events.length >= LOG_BUFFER_SIZE) {
+      await this.flushLogBuffer();
     }
   }
   
   /**
    * セッションのセキュリティサマリーを生成する
-   * セッション終了時に「このセッション中、○○回あなたを守りました」を表示するため
+   * コスト最適化: キャッシュを使用
    */
   async generateSecuritySummary(sessionId: number): Promise<{
     totalProtectionCount: number;
     details: Array<{ type: string; count: number; description: string }>;
   }> {
+    // キャッシュをチェック
+    const cacheKey = `security_summary_${sessionId}`;
+    const cached = this.getFromCache<{
+      totalProtectionCount: number;
+      details: Array<{ type: string; count: number; description: string }>;
+    }>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+    
     try {
+      // まずバッファをフラッシュして最新データを反映
+      await this.flushLogBuffer();
+      
       const db = await getDb();
       if (!db) {
         return { totalProtectionCount: 0, details: [] };
@@ -297,11 +452,19 @@ export class SecurityService {
         consent_protected: '判断の自由を守護',
       };
       
-      const details = events.map(e => ({
-        type: e.eventType,
-        count: Number(e.count),
-        description: eventDescriptions[e.eventType] || e.eventType,
-      }));
+      // サンプリングを考慮して推定値を計算
+      const details = events.map(e => {
+        let count = Number(e.count);
+        // infoレベルのイベントはサンプリングされているので推定値を計算
+        if (['encryption_applied', 'access_granted', 'privacy_preserved', 'input_sanitized'].includes(e.eventType)) {
+          count = Math.round(count / LOG_SAMPLING_RATE);
+        }
+        return {
+          type: e.eventType,
+          count,
+          description: eventDescriptions[e.eventType] || e.eventType,
+        };
+      });
       
       const totalProtectionCount = details.reduce((sum, d) => sum + d.count, 0);
       
@@ -328,7 +491,12 @@ export class SecurityService {
         },
       });
       
-      return { totalProtectionCount, details };
+      const result = { totalProtectionCount, details };
+      
+      // キャッシュに保存
+      this.setCache(cacheKey, result);
+      
+      return result;
     } catch (error) {
       console.error('[Security] Failed to generate summary:', error);
       return { totalProtectionCount: 0, details: [] };
@@ -337,7 +505,7 @@ export class SecurityService {
   
   /**
    * ユーザーのセキュリティ統計を取得する
-   * 詳細モードで表示される「実は裏でこれだけ動いていました」の情報
+   * コスト最適化: キャッシュを使用
    */
   async getUserSecurityStats(userId: number): Promise<{
     totalEvents: number;
@@ -348,6 +516,22 @@ export class SecurityService {
       timestamp: number;
     }>;
   }> {
+    // キャッシュをチェック（短いTTL: 1分）
+    const cacheKey = `user_security_stats_${userId}`;
+    const cached = this.getFromCache<{
+      totalEvents: number;
+      eventsByType: Record<string, number>;
+      recentEvents: Array<{
+        eventType: string;
+        description: string;
+        timestamp: number;
+      }>;
+    }>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+    
     try {
       const db = await getDb();
       if (!db) {
@@ -376,12 +560,21 @@ export class SecurityService {
         .orderBy(sql`${securityAuditLogs.timestamp} DESC`)
         .limit(10);
       
-      const totalEvents = eventsByType.reduce((sum, e) => sum + Number(e.count), 0);
-      const eventsByTypeMap = Object.fromEntries(
-        eventsByType.map(e => [e.eventType, Number(e.count)])
-      );
+      // サンプリングを考慮して推定値を計算
+      const eventsByTypeMap: Record<string, number> = {};
+      let totalEvents = 0;
       
-      return {
+      for (const e of eventsByType) {
+        let count = Number(e.count);
+        // infoレベルのイベントはサンプリングされているので推定値を計算
+        if (['encryption_applied', 'access_granted', 'privacy_preserved', 'input_sanitized'].includes(e.eventType)) {
+          count = Math.round(count / LOG_SAMPLING_RATE);
+        }
+        eventsByTypeMap[e.eventType] = count;
+        totalEvents += count;
+      }
+      
+      const result = {
         totalEvents,
         eventsByType: eventsByTypeMap,
         recentEvents: recentEvents.map(e => ({
@@ -390,6 +583,11 @@ export class SecurityService {
           timestamp: Number(e.timestamp),
         })),
       };
+      
+      // キャッシュに保存（1分）
+      this.setCache(cacheKey, result, 60000);
+      
+      return result;
     } catch (error) {
       console.error('[Security] Failed to get user stats:', error);
       return { totalEvents: 0, eventsByType: {}, recentEvents: [] };
@@ -401,6 +599,20 @@ export class SecurityService {
    */
   private hashIdentifier(identifier: string): string {
     return createHash('sha256').update(identifier).digest('hex').substring(0, 16);
+  }
+  
+  /**
+   * 手動でログバッファをフラッシュする（テスト用）
+   */
+  async forceFlush(): Promise<void> {
+    await this.flushLogBuffer();
+  }
+  
+  /**
+   * キャッシュをクリアする（テスト用）
+   */
+  clearCache(): void {
+    this.cache.clear();
   }
 }
 
