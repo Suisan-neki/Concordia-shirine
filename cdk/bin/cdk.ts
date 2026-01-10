@@ -80,6 +80,12 @@ const apiStack = new ApiStack(app, `ConcordiaApi-${environment}`, {
     userPoolClient: authStack.userPoolClient,
     realtimeTranscribeFn: lambdaStack.realtimeTranscribeFn,
     coachFn: lambdaStack.coachFn,
+    // Env vars for tRPC & Auth
+    databaseUrl: process.env.DATABASE_URL || "",
+    jwtSecret: process.env.JWT_SECRET || "",
+    appId: process.env.VITE_APP_ID || "",
+    oauthServerUrl: process.env.OAUTH_SERVER_URL || "",
+    ownerOpenId: process.env.OWNER_OPEN_ID || "",
 });
 apiStack.addDependency(lambdaStack);
 apiStack.addDependency(authStack);
