@@ -18,13 +18,15 @@ export default defineConfig({
         },
     ],
     webServer: {
-        command: 'npm run dev',
+        command: 'npx vite',
         url: 'http://localhost:5173',
         reuseExistingServer: !process.env.CI,
         cwd: '..',
         env: {
             OAUTH_SERVER_URL: 'http://localhost:3000', // Dummy URL for E2E
             DATABASE_URL: 'file:./test.db', // Dummy DB if needed
+            VITE_COGNITO_DOMAIN: 'https://mock-auth.example.com',
+            VITE_COGNITO_CLIENT_ID: 'mock-client-id',
         },
     },
 });
