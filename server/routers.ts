@@ -3,10 +3,10 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { 
-  createSession, 
-  updateSession, 
-  getUserSessions, 
+import {
+  createSession,
+  updateSession,
+  getUserSessions,
   deleteSession,
   getSessionBySessionId,
   addLogEntry,
@@ -40,18 +40,18 @@ export const appRouter = router({
       .mutation(async ({ ctx }) => {
         const sessionId = nanoid();
         const startTime = Date.now();
-        
+
         const insertId = await createSession({
           sessionId,
           userId: ctx.user.id,
           startTime,
         });
-        
+
         // 静かにセッションを保護（ユーザーには見えない）
         if (insertId) {
           await securityService.protectSession(ctx.user.id, insertId);
         }
-        
+
         return { sessionId, startTime };
       }),
 
@@ -71,7 +71,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const session = await getSessionBySessionId(input.sessionId);
-        
+
         await updateSession(input.sessionId, {
           endTime: input.endTime,
           duration: input.duration,
@@ -80,14 +80,14 @@ export const appRouter = router({
           eventCounts: input.eventCounts,
           insights: input.insights,
         });
-        
+
         // セキュリティサマリーを生成（静かに）
         let securitySummary = null;
         if (session) {
           securitySummary = await securityService.generateSecuritySummary(session.id);
         }
-        
-        return { 
+
+        return {
           success: true,
           securitySummary,
         };
@@ -115,7 +115,7 @@ export const appRouter = router({
       }))
       .query(async ({ ctx, input }) => {
         const session = await getSessionBySessionId(input.sessionId);
-        
+
         if (!session || session.userId !== ctx.user.id) {
           // アクセス拒否をログに記録（静かに）
           await securityService.logSecurityEvent({
@@ -128,12 +128,12 @@ export const appRouter = router({
           });
           return null;
         }
-        
+
         // アクセス許可をログに記録（静かに）
         await securityService.verifyAccess(ctx.user.id, 'session', session.id, 'read');
-        
+
         const logs = await getSessionLogEntries(session.id);
-        
+
         return {
           ...session,
           logs,
@@ -149,11 +149,11 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const session = await getSessionBySessionId(input.sessionId);
-        
+
         if (!session || session.userId !== ctx.user.id) {
           throw new Error("Session not found or access denied");
         }
-        
+
         await deleteSession(input.sessionId);
         return { success: true };
       }),
@@ -172,11 +172,11 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const session = await getSessionBySessionId(input.sessionId);
-        
+
         if (!session || session.userId !== ctx.user.id) {
           throw new Error("Session not found or access denied");
         }
-        
+
         // 入力をサニタイズ（静かに）
         let sanitizedContent = input.content;
         if (input.content) {
@@ -187,12 +187,12 @@ export const appRouter = router({
           );
           sanitizedContent = sanitized;
         }
-        
+
         // プライバシーを保護（静かに）
         if (input.type === 'speech') {
           await securityService.preservePrivacy(ctx.user.id, session.id, 'speech_data');
         }
-        
+
         // 同調圧力検知時の保護
         if (input.type === 'intervention' && input.metadata) {
           const scene = input.metadata.scene as string;
@@ -201,7 +201,7 @@ export const appRouter = router({
             await securityService.protectConsent(ctx.user.id, session.id, scene, duration);
           }
         }
-        
+
         await addLogEntry({
           sessionId: session.id,
           type: input.type,
@@ -209,12 +209,12 @@ export const appRouter = router({
           content: sanitizedContent,
           metadata: input.metadata,
         });
-        
+
         return { success: true };
       }),
   }),
 
-  // ===== Intervention Settings =====
+  // ===== 介入設定 =====
   intervention: router({
     /**
      * 介入設定を取得
@@ -244,7 +244,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const updateData: Record<string, unknown> = {};
-        
+
         if (input.enabled !== undefined) {
           updateData.enabled = input.enabled ? 1 : 0;
         }
@@ -260,13 +260,13 @@ export const appRouter = router({
         if (input.visualHintEnabled !== undefined) {
           updateData.visualHintEnabled = input.visualHintEnabled ? 1 : 0;
         }
-        
+
         await updateInterventionSettings(ctx.user.id, updateData);
         return { success: true };
       }),
   }),
 
-  // ===== Security (詳細モード用) =====
+  // ===== セキュリティ (詳細モード用) =====
   security: router({
     /**
      * ユーザーのセキュリティ統計を取得
@@ -286,11 +286,11 @@ export const appRouter = router({
       }))
       .query(async ({ ctx, input }) => {
         const session = await getSessionBySessionId(input.sessionId);
-        
+
         if (!session || session.userId !== ctx.user.id) {
           return null;
         }
-        
+
         return await securityService.generateSecuritySummary(session.id);
       }),
   }),

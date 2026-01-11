@@ -9,7 +9,7 @@ const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 const VIDEO_EXTENSIONS = [".mp4", ".mov", ".avi", ".webm", ".mkv"];
 
-// S3 Event Notification format
+// S3 イベント通知フォーマット
 interface S3Event {
     Records: Array<{
         s3: {
@@ -24,7 +24,7 @@ interface S3Event {
     }>;
 }
 
-// EventBridge S3 event format
+// EventBridge S3 イベントフォーマット
 interface EventBridgeS3Event {
     source: string;
     "detail-type": string;
@@ -64,7 +64,7 @@ function parseS3Key(key: string): ParsedS3Key {
     const parts = key.split("/");
     const prefix = parts[0];
 
-    // Format: recordings/{userId}/{meetingId}/{fileName}
+    // フォーマット: recordings/{userId}/{meetingId}/{fileName}
     if (prefix === "recordings" && parts.length >= 4) {
         return {
             userId: parts[1],
@@ -76,7 +76,7 @@ function parseS3Key(key: string): ParsedS3Key {
         };
     }
 
-    // Format: uploads/{userId}/{date}/{segment}/{fileName}
+    // フォーマット: uploads/{userId}/{date}/{segment}/{fileName}
     if (parts.length >= 5) {
         return {
             userId: parts[1],
@@ -102,14 +102,14 @@ function isEventBridgeEvent(event: PipelineEvent): event is EventBridgeS3Event {
 
 function extractS3Info(event: PipelineEvent): Array<{ bucket: string; key: string; size: number }> {
     if (isEventBridgeEvent(event)) {
-        // EventBridge format
+        // EventBridge フォーマット
         return [{
             bucket: event.detail.bucket.name,
             key: event.detail.object.key,
             size: event.detail.object.size,
         }];
     } else {
-        // S3 Event Notification format
+        // S3 イベント通知フォーマット
         return event.Records.map((record) => ({
             bucket: record.s3.bucket.name,
             key: decodeURIComponent(record.s3.object.key.replace(/\+/g, " ")),
@@ -135,7 +135,7 @@ export async function handler(event: PipelineEvent): Promise<StartPipelineRespon
 
     for (const { bucket, key, size } of s3Objects) {
 
-        // Skip non-video files
+        // ビデオファイル以外はスキップ
         if (!isVideoFile(key)) {
             results.push(`Skipped non-video file: ${key}`);
             continue;
@@ -145,7 +145,7 @@ export async function handler(event: PipelineEvent): Promise<StartPipelineRespon
         const interviewId = randomUUID();
         const createdAt = new Date().toISOString();
 
-        // Get original filename from DynamoDB upload metadata
+        // DynamoDBのアップロードメタデータから元のファイル名を取得
         let originalFileName = keyFileName;
         try {
             const uploadMetadataKey = `upload_${key}`;
@@ -155,14 +155,14 @@ export async function handler(event: PipelineEvent): Promise<StartPipelineRespon
             }));
             if (getResponse.Item?.original_filename) {
                 originalFileName = getResponse.Item.original_filename;
-                // Clean up the temporary upload metadata record
+                // 一時的なアップロードメタデータレコードを削除
                 await docClient.send(new DeleteCommand({
                     TableName: tableName,
                     Key: { interview_id: uploadMetadataKey },
                 }));
             }
         } catch (err) {
-            // If metadata fetch fails, use key-based filename as fallback
+            // メタデータ取得に失敗した場合は、キーベースのファイル名をフォールバックとして使用
             console.warn(`Failed to get upload metadata for ${key}:`, err);
         }
 
@@ -178,12 +178,12 @@ export async function handler(event: PipelineEvent): Promise<StartPipelineRespon
             created_at: createdAt,
         };
 
-        // Add meeting_id for recording files
+        // 録画ファイルの場合はmeeting_idを追加
         if (isRecording && meetingId) {
             input.meeting_id = meetingId;
         }
 
-        // Start Step Functions execution
+        // Step Functions の実行を開始
         const command = new StartExecutionCommand({
             stateMachineArn: stateMachineArn,
             name: `interview-${interviewId}`,
@@ -192,7 +192,7 @@ export async function handler(event: PipelineEvent): Promise<StartPipelineRespon
 
         const response = await sfnClient.send(command);
 
-        // Save interview record to DynamoDB with initial progress
+        // インタビューレコードをDynamoDBに保存（初期進捗）
         const interviewItem: Record<string, unknown> = {
             interview_id: interviewId,
             user_id: userId,
@@ -209,7 +209,7 @@ export async function handler(event: PipelineEvent): Promise<StartPipelineRespon
             updated_at: createdAt,
         };
 
-        // Add meeting_id for recording files
+        // 録画ファイルの場合はmeeting_idを追加
         if (isRecording && meetingId) {
             interviewItem.meeting_id = meetingId;
         }

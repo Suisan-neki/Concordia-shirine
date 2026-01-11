@@ -18,7 +18,7 @@ export class FrontendStack extends cdk.Stack {
 
     const { environment } = props;
 
-    // 1. S3 Bucket for Website Hosting
+    // 1. ウェブサイトホスティング用の S3 バケット
     const siteBucket = new s3.Bucket(this, "SiteBucket", {
       bucketName: `concordia-web-${environment}-${this.account}`,
       removalPolicy:
@@ -26,11 +26,11 @@ export class FrontendStack extends cdk.Stack {
           ? cdk.RemovalPolicy.RETAIN
           : cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: environment !== "prod",
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL, // Security Best Practice
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL, // セキュリティのベストプラクティス
       encryption: s3.BucketEncryption.S3_MANAGED,
     });
 
-    // 2. CloudFront Distribution
+    // 2. CloudFront ディストリビューション
     const distribution = new cloudfront.Distribution(this, "SiteDistribution", {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
@@ -42,7 +42,7 @@ export class FrontendStack extends cdk.Stack {
         {
           httpStatus: 404,
           responseHttpStatus: 200,
-          responsePagePath: "/index.html", // SPA Routing support
+          responsePagePath: "/index.html", // SPA ルーティングのサポート
         },
         {
           httpStatus: 403,
@@ -55,13 +55,13 @@ export class FrontendStack extends cdk.Stack {
 
     this.distributionDomain = `https://${distribution.distributionDomainName}`;
 
-    // 3. Deployment (Upload dist folder)
-    // Note: We assume the frontend is built before deploying
+    // 3. デプロイ (dist フォルダのアップロード)
+    // Note: フロントエンドはデプロイ前にビルドされていると想定
     new s3deploy.BucketDeployment(this, "DeployWebsite", {
       sources: [s3deploy.Source.asset(path.join(__dirname, "../../../dist/public"))],
       destinationBucket: siteBucket,
       distribution: distribution,
-      distributionPaths: ["/*"], // Invalidate cache on deploy
+      distributionPaths: ["/*"], // デプロイ時にキャッシュを無効化
     });
 
     // Outputs

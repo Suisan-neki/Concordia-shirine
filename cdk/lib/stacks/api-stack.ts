@@ -15,7 +15,7 @@ export interface ApiStackProps extends cdk.StackProps {
     coachFn: lambda.IFunction;
     userPool: cognito.IUserPool;
     userPoolClient: cognito.IUserPoolClient;
-    // Env vars for tRPC
+    // tRPC 用の環境変数
     databaseUrl: string;
     jwtSecret: string;
     appId: string;
@@ -43,7 +43,7 @@ export class ApiStack extends cdk.Stack {
             ownerOpenId
         } = props;
 
-        // Define Authorizer
+        // Authorizer の定義
         const authorizer = new apigwv2_authorizers.HttpUserPoolAuthorizer(
             "ConcordiaAuthorizer",
             userPool,
@@ -52,13 +52,13 @@ export class ApiStack extends cdk.Stack {
             }
         );
 
-        // Define HTTP API
+        // HTTP API の定義
         this.httpApi = new apigwv2.HttpApi(this, "ConcordiaApi", {
             apiName: `concordia-api-${environment}`,
             description: "API for Concordia Real-time Transcription",
-            createDefaultStage: false, // We will create a manual stage with settings
+            createDefaultStage: false, // 設定付きの手動ステージを作成するため
             corsPreflight: {
-                allowOrigins: ["*"], // Allow CloudFront origin
+                allowOrigins: ["*"], // CloudFront オリジンを許可
                 allowMethods: [
                     apigwv2.CorsHttpMethod.POST,
                     apigwv2.CorsHttpMethod.OPTIONS,
@@ -69,25 +69,25 @@ export class ApiStack extends cdk.Stack {
             },
         });
 
-        // Access Logs Group
+        // アクセスロググループ
         const logGroup = new logs.LogGroup(this, "ApiAccessLogs", {
             logGroupName: `/aws/vendedlogs/http-api/${environment}-${this.account}`,
             removalPolicy: cdk.RemovalPolicy.DESTROY,
             retention: logs.RetentionDays.ONE_WEEK,
         });
 
-        // Default Stage with Throttling
+        // スロットリング付きのデフォルトステージ
         const stage = new apigwv2.HttpStage(this, "DefaultStage", {
             httpApi: this.httpApi,
             stageName: "$default",
             autoDeploy: true,
             throttle: {
-                rateLimit: 100, // 100 requests per second
-                burstLimit: 200, // 200 requests burst
+                rateLimit: 100, // 毎秒100リクエスト
+                burstLimit: 200, // バースト200リクエスト
             },
         });
 
-        // Add Access Logs via CfnStage (Escape Hatch for flexibility/compatibility)
+        // CfnStage 経由でアクセスログを追加 (柔軟性/互換性のため)
         const cfnStage = stage.node.defaultChild as apigwv2.CfnStage;
         cfnStage.accessLogSettings = {
             destinationArn: logGroup.logGroupArn,
@@ -101,11 +101,11 @@ export class ApiStack extends cdk.Stack {
                 protocol: "$context.protocol",
                 responseLength: "$context.responseLength",
                 errorMessage: "$context.error.message",
-                user: "$context.authorizer.claims.email" // Log user email if available
+                user: "$context.authorizer.claims.email" // 利用可能な場合ユーザーのメールをログ記録
             }),
         };
 
-        // Add Route for Transcribe (Protected)
+        // Transcribe 用のルートを追加 (保護あり)
         const transcribeIntegration = new apigwv2_integrations.HttpLambdaIntegration(
             "TranscribeIntegration",
             realtimeTranscribeFn
@@ -118,7 +118,7 @@ export class ApiStack extends cdk.Stack {
             authorizer: authorizer,
         });
 
-        // Add Route for Coach (Protected)
+        // Coach 用のルートを追加 (保護あり)
         const coachIntegration = new apigwv2_integrations.HttpLambdaIntegration(
             "CoachIntegration",
             coachFn
@@ -150,7 +150,7 @@ export class ApiStack extends cdk.Stack {
             bundling: {
                 minify: true,
                 sourceMap: true,
-                externalModules: ["@aws-sdk/client-s3"], // Available in Lambda runtime
+                externalModules: ["@aws-sdk/client-s3"], // Lambda ランタイムで利用可能
             },
         });
 
@@ -159,15 +159,15 @@ export class ApiStack extends cdk.Stack {
             this.trpcFn
         );
 
-        // Add Route for tRPC (Public & Protected handled by tRPC router itself)
-        // Note: We might want Authorizer here if ALL tRPC calls need it, 
-        // but typically tRPC handles public/protected procedures.
-        // For simplicity, we open it up and let tRPC router handle auth logic via context.
+        // tRPC 用のルートを追加 (Public & Protected は tRPC ルーター自体で処理)
+        // Note: すべての tRPC 呼び出しに Authorizer が必要な場合はここで設定しますが、
+        // 通常 tRPC は public/protected プロシージャを処理します。
+        // 簡単のため、ここは開放し、tRPC ルーターにコンテキスト経由で認証ロジックを処理させます。
         this.httpApi.addRoutes({
             path: "/trpc/{proxy+}",
             methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST],
             integration: trpcIntegration,
-            // authorizer: authorizer, // Optional: let tRPC middleware handle it
+            // authorizer: authorizer, // オプション: tRPC ミドルウェアに任せる
         });
 
 

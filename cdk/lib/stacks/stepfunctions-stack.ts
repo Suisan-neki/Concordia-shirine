@@ -48,7 +48,7 @@ export class StepFunctionsStack extends cdk.Stack {
             llmAnalysisFn,
         } = props;
 
-        // Log group for state machine
+        // ステートマシンのロググループ
         const logGroup = new logs.LogGroup(this, "StateMachineLogGroup", {
             logGroupName: `/aws/stepfunctions/concordia-transcript-${environment}`,
             retention: logs.RetentionDays.ONE_MONTH,
@@ -58,7 +58,7 @@ export class StepFunctionsStack extends cdk.Stack {
                     : cdk.RemovalPolicy.DESTROY,
         });
 
-        // Error handler state
+        // エラーハンドラーステート
         const handleError = new sfn.Pass(this, "HandleError", {
             parameters: {
                 "error.$": "$.error",
@@ -67,7 +67,7 @@ export class StepFunctionsStack extends cdk.Stack {
             },
         });
 
-        // ExtractAudio Task
+        // ExtractAudio タスク
         const extractAudioTask = new tasks.LambdaInvoke(this, "ExtractAudio", {
             lambdaFunction: extractAudioFn,
             outputPath: "$.Payload",
@@ -84,7 +84,7 @@ export class StepFunctionsStack extends cdk.Stack {
             resultPath: "$.error",
         });
 
-        // ChunkAudio Task - Split audio into chunks for parallel processing
+        // ChunkAudio タスク - 並列処理のために音声をチャンクに分割
         const chunkAudioTask = new tasks.LambdaInvoke(this, "ChunkAudio", {
             lambdaFunction: chunkAudioFn,
             outputPath: "$.Payload",
@@ -101,7 +101,7 @@ export class StepFunctionsStack extends cdk.Stack {
             resultPath: "$.error",
         });
 
-        // Diarize Task (single chunk)
+        // Diarize タスク (単一チャンク)
         const diarizeTask = new tasks.LambdaInvoke(this, "DiarizeChunk", {
             lambdaFunction: diarizeFn,
             outputPath: "$.Payload",
@@ -114,10 +114,10 @@ export class StepFunctionsStack extends cdk.Stack {
             backoffRate: 2,
         });
 
-        // Map state for parallel diarization of chunks
+        // チャンクの話者分離を並列実行するための Map ステート
         const diarizeChunks = new sfn.Map(this, "DiarizeChunks", {
             itemsPath: "$.chunks",
-            maxConcurrency: 5, // Limit concurrent diarization to prevent resource exhaustion
+            maxConcurrency: 5, // リソース枯渇を防ぐため並列数を制限
             parameters: {
                 "bucket.$": "$.bucket",
                 "audio_key.$": "$.audio_key",
@@ -131,7 +131,7 @@ export class StepFunctionsStack extends cdk.Stack {
             resultPath: "$.error",
         });
 
-        // MergeSpeakers Task - Merge parallel diarization results
+        // MergeSpeakers タスク - 並列話者分離結果をマージ
         const mergeSpeakersTask = new tasks.LambdaInvoke(this, "MergeSpeakers", {
             lambdaFunction: mergeSpeakersFn,
             payload: sfn.TaskInput.fromObject({
@@ -154,7 +154,7 @@ export class StepFunctionsStack extends cdk.Stack {
             resultPath: "$.error",
         });
 
-        // SplitBySpeaker Task
+        // SplitBySpeaker タスク
         const splitBySpeakerTask = new tasks.LambdaInvoke(this, "SplitBySpeaker", {
             lambdaFunction: splitBySpeakerFn,
             outputPath: "$.Payload",
@@ -171,7 +171,7 @@ export class StepFunctionsStack extends cdk.Stack {
             resultPath: "$.error",
         });
 
-        // Transcribe Task (single segment)
+        // Transcribe タスク (単一セグメント)
         const transcribeTask = new tasks.LambdaInvoke(this, "Transcribe", {
             lambdaFunction: transcribeFn,
             outputPath: "$.Payload",
@@ -184,7 +184,7 @@ export class StepFunctionsStack extends cdk.Stack {
             backoffRate: 2,
         });
 
-        // Map state for parallel transcription
+        // 並列文字起こしのための Map ステート
         const transcribeSegments = new sfn.Map(this, "TranscribeSegments", {
             itemsPath: "$.segment_files",
             maxConcurrency: 10,
@@ -200,7 +200,7 @@ export class StepFunctionsStack extends cdk.Stack {
             resultPath: "$.error",
         });
 
-        // AggregateResults Task
+        // AggregateResults タスク
         const aggregateResultsTask = new tasks.LambdaInvoke(
             this,
             "AggregateResults",
@@ -221,7 +221,7 @@ export class StepFunctionsStack extends cdk.Stack {
             resultPath: "$.error",
         });
 
-        // LLMAnalysis Task
+        // LLMAnalysis タスク
         const llmAnalysisTask = new tasks.LambdaInvoke(this, "LLMAnalysis", {
             lambdaFunction: llmAnalysisFn,
             outputPath: "$.Payload",
@@ -238,12 +238,12 @@ export class StepFunctionsStack extends cdk.Stack {
             resultPath: "$.error",
         });
 
-        // Success state
+        // 成功ステート
         const succeed = new sfn.Succeed(this, "ProcessingComplete", {
             comment: "Transcription pipeline completed successfully",
         });
 
-        // Define workflow
+        // ワークフローの定義
         const definition = extractAudioTask
             .next(chunkAudioTask)
             .next(diarizeChunks)
@@ -254,7 +254,7 @@ export class StepFunctionsStack extends cdk.Stack {
             .next(llmAnalysisTask)
             .next(succeed);
 
-        // Create state machine
+        // ステートマシンの作成
         this.stateMachine = new sfn.StateMachine(this, "TranscriptPipeline", {
             stateMachineName: `concordia-transcript-pipeline-${environment}`,
             definitionBody: sfn.DefinitionBody.fromChainable(definition),
@@ -267,8 +267,8 @@ export class StepFunctionsStack extends cdk.Stack {
             },
         });
 
-        // S3 trigger Lambda
-        // Note: Assuming the code will be placed in cdk/lib/lambdas/start-pipeline
+        // S3 トリガー Lambda
+        // Note: コードは cdk/lib/lambdas/start-pipeline に配置されと想定
         const startPipelineLambda = new lambdaNodejs.NodejsFunction(
             this,
             "StartPipelineLambda",
@@ -291,11 +291,11 @@ export class StepFunctionsStack extends cdk.Stack {
             }
         );
 
-        // Grant Lambda permissions
+        // Lambda への権限付与
         this.stateMachine.grantStartExecution(startPipelineLambda);
         interviewsTable.grantReadWriteData(startPipelineLambda);
 
-        // EventBridge rule to trigger Lambda on S3 video upload
+        // S3 動画アップロード時に Lambda をトリガーする EventBridge ルール
         const s3UploadRule = new events.Rule(this, "S3UploadRule", {
             ruleName: `concordia-s3-upload-${environment}`,
             eventPattern: {
@@ -312,11 +312,11 @@ export class StepFunctionsStack extends cdk.Stack {
             },
         });
 
-        // Add Lambda as target for S3 upload events
+        // S3 アップロードイベントのターゲットとして Lambda を追加
         s3UploadRule.addTarget(new targets.LambdaFunction(startPipelineLambda));
 
-        // Completion handler Lambda
-        // Note: Assuming the code will be placed in cdk/lib/lambdas/completion-handler
+        // 完了ハンドラー Lambda
+        // Note: コードは cdk/lib/lambdas/completion-handler に配置されると想定
         const completionHandlerLambda = new lambdaNodejs.NodejsFunction(
             this,
             "CompletionHandlerLambda",
@@ -338,10 +338,10 @@ export class StepFunctionsStack extends cdk.Stack {
             }
         );
 
-        // Grant permissions for completion handler
+        // 完了ハンドラーへの権限付与
         interviewsTable.grantWriteData(completionHandlerLambda);
 
-        // Grant permission to read execution history
+        // 実行履歴読み取り権限の付与
         completionHandlerLambda.addToRolePolicy(
             new iam.PolicyStatement({
                 actions: ["states:GetExecutionHistory"],
@@ -349,7 +349,7 @@ export class StepFunctionsStack extends cdk.Stack {
             })
         );
 
-        // EventBridge rule for completion notification
+        // 完了通知用の EventBridge ルール
         const completionRule = new events.Rule(this, "CompletionRule", {
             ruleName: `concordia-completion-${environment}`,
             eventPattern: {
@@ -362,7 +362,7 @@ export class StepFunctionsStack extends cdk.Stack {
             },
         });
 
-        // Add completion handler as target
+        // ターゲットとして完了ハンドラーを追加
         completionRule.addTarget(new targets.LambdaFunction(completionHandlerLambda));
 
         // Outputs

@@ -41,7 +41,7 @@ export class LambdaStack extends cdk.Stack {
 
         const lambdasPath = path.join(__dirname, "../../../src/aws-lambdas");
 
-        // Common Lambda execution role
+        // 共通の Lambda 実行ロール
         const lambdaRole = new iam.Role(this, "LambdaExecutionRole", {
             assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
             managedPolicies: [
@@ -51,12 +51,12 @@ export class LambdaStack extends cdk.Stack {
             ],
         });
 
-        // Grant S3 permissions
+        // S3 権限の付与
         inputBucket.grantRead(lambdaRole);
         outputBucket.grantReadWrite(lambdaRole);
         interviewsTable.grantWriteData(lambdaRole);
 
-        // Common properties
+        // 共通プロパティ
         const commonProps = {
             runtime: lambda.Runtime.PYTHON_3_12,
             architecture: lambda.Architecture.ARM_64,
@@ -70,13 +70,13 @@ export class LambdaStack extends cdk.Stack {
             code: lambda.Code.fromAsset(path.join(lambdasPath, "extract_audio/dist")),
             memorySize: 3008,
             timeout: cdk.Duration.minutes(15),
-            ephemeralStorageSize: cdk.Size.mebibytes(2048), // Increased for ffmpeg work
+            ephemeralStorageSize: cdk.Size.mebibytes(2048), // ffmpeg 処理のために増加
             environment: {
                 INPUT_BUCKET: inputBucket.bucketName,
                 OUTPUT_BUCKET: outputBucket.bucketName,
                 TABLE_NAME: interviewsTable.tableName,
                 ENVIRONMENT: environment,
-                PATH: "/var/task:$PATH" // Ensure ffmpeg in root is found
+                PATH: "/var/task:$PATH" // ルートにある ffmpeg を確実に見つける
             },
         });
 
@@ -98,7 +98,7 @@ export class LambdaStack extends cdk.Stack {
             },
         });
 
-        // Diarize Lambda (Dummy - No Dist)
+        // Diarize Lambda (ダミー - Dist なし)
         this.diarizeFn = new lambda.Function(this, "DiarizeFn", {
             ...commonProps,
             code: lambda.Code.fromAsset(path.join(lambdasPath, "dummy_diarize")),
@@ -110,7 +110,7 @@ export class LambdaStack extends cdk.Stack {
                 OUTPUT_BUCKET: outputBucket.bucketName,
                 TABLE_NAME: interviewsTable.tableName,
                 HF_TOKEN: hfToken,
-                HF_HOME: "/tmp/huggingface", // Writable location
+                HF_HOME: "/tmp/huggingface", // 書き込み可能な場所
                 ENVIRONMENT: environment,
             },
         });
@@ -150,7 +150,7 @@ export class LambdaStack extends cdk.Stack {
         this.transcribeFn = new lambda.Function(this, "TranscribeFn", {
             ...commonProps,
             code: lambda.Code.fromAsset(path.join(lambdasPath, "transcribe/dist")),
-            memorySize: 256, // Lightweight API call
+            memorySize: 256, // 軽量APIコール
             timeout: cdk.Duration.minutes(5),
             environment: {
                 INPUT_BUCKET: inputBucket.bucketName,

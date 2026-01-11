@@ -3,7 +3,7 @@ import os
 import boto3
 from openai import OpenAI
 
-# Initialize OpenAI client (lazy load)
+# OpenAI クライアントの初期化（遅延ロード）
 client = None
 
 def get_openai_client():
@@ -17,21 +17,21 @@ def get_openai_client():
     return client
 
 SYSTEM_PROMPT = """
-You are the "Guardian AI" of a conversation sanctuary. Your goal is to ensure "Psychological Safety".
-Analyze the provided transcript and conversation state.
-Identify risks such as:
-- Dominance (Simple "One-Sided" state)
-- Disengagement (Long silence)
-- Tension/Conflict (Negative sentiment)
-- Lack of Empathy
+あなたは会話の聖域を守る「Guardian AI」です。目標は「心理的安全性」を確保することです。
+提供された文字起こしと会話の状態を分析してください。
+以下のリスクを特定してください：
+- 支配的（単純な「一方的」状態）
+- 関与不足（長い沈黙）
+- 緊張/対立（否定的な感情）
+- 共感の欠如
 
-Output a JSON object with:
-- "advice": A short, gentle, actionable coaching tip (Japanese, max 40 chars).
-- "analysis_label": A short label for the current state (e.g., "Heat Up", "Frozen", "Good Flow").
-- "urgency": "low" or "high".
+以下のJSONオブジェクトを出力してください：
+- "advice": 短く、穏やかで、実行可能なコーチングのヒント（日本語、最大40文字）。
+- "analysis_label": 現在の状態の短いラベル（例：「ヒートアップ」、「フリーズ」、「良好なフロー」）。
+- "urgency": "low" または "high"。
 
-If the flow is good, give positive reinforcement or return null advice.
-Keep the tone calm, protective, and minimalist.
+フローが良好な場合は、肯定的なフィードバックを与えるか、アドバイスをnullにしてください。
+トーンは落ち着いていて、保護的で、最小限にしてください。
 """
 
 def lambda_handler(event, context):
@@ -62,7 +62,7 @@ def lambda_handler(event, context):
         user_message = f"State: {conversation_state}\nTranscript: {transcript_recent}"
 
         response = client.chat.completions.create(
-            model="gpt-4o", # Or gpt-3.5-turbo if cost is concern, but 4o is better for nuance
+            model="gpt-4o", # コストが懸念される場合は gpt-3.5-turbo、ただしニュアンスには 4o がベター
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_message}
@@ -81,7 +81,7 @@ def lambda_handler(event, context):
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*" # CORS handled by API Gateway but good to have
+                "Access-Control-Allow-Origin": "*" # CORS は API Gateway で処理されますが、念のため
             },
             "body": json.dumps(result)
         }

@@ -50,7 +50,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
 
     const { executionArn, status, input, output } = event.detail;
 
-    // Parse execution input to get interview_id
+    // 実行入力をパースして interview_id を取得
     let executionInput: ExecutionInput = {};
     try {
         executionInput = JSON.parse(input);
@@ -58,7 +58,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
         console.warn("Failed to parse execution input:", input);
     }
 
-    // Parse execution output to get analysis_key and transcript_key
+    // 実行出力をパースして analysis_key と transcript_key を取得
     let executionOutput: ExecutionOutput = {};
     if (output) {
         try {
@@ -80,7 +80,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
     const now = new Date().toISOString();
 
     if (status === "SUCCEEDED") {
-        // Build update expression dynamically based on available output
+        // 利用可能な出力に基づいて更新式を動的に構築
         const updateParts = [
             "#status = :status",
             "#progress = :progress",
@@ -100,17 +100,17 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
             ":updated_at": now,
         };
 
-        // Add analysis_key if available from llm_analysis output
+        // llm_analysis の出力から analysis_key が利用可能な場合に追加
         if (executionOutput.analysis_key) {
             updateParts.push("analysis_key = :analysis_key");
             expressionValues[":analysis_key"] = executionOutput.analysis_key;
             console.log(`Adding analysis_key: ${executionOutput.analysis_key}`);
         }
 
-        // Add transcript_key - derive from analysis_key if not directly available
-        // llm_analysis outputs analysis_key, transcript is at transcripts/{base}_transcript.json
+        // transcript_key を追加 - 直接利用できない場合は analysis_key から導出
+        // llm_analysis は analysis_key を出力し、transcript は transcripts/{base}_transcript.json にある
         if (executionOutput.analysis_key) {
-            // Extract base name from analysis_key: analysis/xxx_structured.json -> xxx
+            // analysis_key からベース名を抽出: analysis/xxx_structured.json -> xxx
             const analysisKey = executionOutput.analysis_key;
             const baseName = analysisKey
                 .replace("analysis/", "")
@@ -122,13 +122,13 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
             console.log(`Adding transcript_key: ${transcriptKey}`);
         }
 
-        // Add total_score if available
+        // total_score が利用可能な場合に追加
         if (executionOutput.total_score !== undefined) {
             updateParts.push("total_score = :total_score");
             expressionValues[":total_score"] = executionOutput.total_score;
         }
 
-        // Update to completed status with analysis results
+        // 分析結果を含む完了ステータスに更新
         await docClient.send(
             new UpdateCommand({
                 TableName: tableName,
@@ -141,7 +141,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
 
         console.log(`Interview ${interviewId} marked as completed with analysis results`);
 
-        // Update recordings table if applicable
+        // 該当する場合は録画テーブルを更新
         if (recordingsTableName && executionInput.user_id) {
             await updateRecordingsTable(
                 recordingsTableName,
@@ -151,7 +151,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
             );
         }
     } else if (status === "FAILED" || status === "TIMED_OUT" || status === "ABORTED") {
-        // Get error details from execution history
+        // 実行履歴からエラー詳細を取得
         let errorMessage = "";
 
         if (status === "TIMED_OUT") {
@@ -168,7 +168,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
                     })
                 );
 
-                // Find the failure event
+                // 失敗イベントを探す
                 for (const historyEvent of historyResponse.events || []) {
                     if (historyEvent.type === "ExecutionFailed") {
                         const details = historyEvent.executionFailedEventDetails;
@@ -202,7 +202,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
             errorMessage = `Execution ${status.toLowerCase()}`;
         }
 
-        // Update to failed status with error message
+        // エラーメッセージとともに失敗ステータスに更新
         await docClient.send(
             new UpdateCommand({
                 TableName: tableName,
@@ -224,7 +224,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
 
         console.log(`Interview ${interviewId} marked as failed: ${errorMessage}`);
 
-        // Update recordings table if applicable
+        // 該当する場合は録画テーブルを更新
         if (recordingsTableName && executionInput.user_id) {
             await updateRecordingsTable(
                 recordingsTableName,
@@ -237,8 +237,8 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
 }
 
 /**
- * Update recordings table status based on interview_id
- * Searches for recordings with matching interview_id and updates their status
+ * interview_id に基づいて録画テーブルのステータスを更新
+ * 一致する interview_id を持つ録画を検索し、そのステータスを更新する
  */
 async function updateRecordingsTable(
     tableName: string,
@@ -247,7 +247,7 @@ async function updateRecordingsTable(
     newStatus: "ANALYZED" | "ERROR"
 ): Promise<void> {
     try {
-        // Query recordings by user_id to find the one with matching interview_id
+        // user_id で録画をクエリし、一致する interview_id を持つものを見つける
         const queryResult = await docClient.send(
             new QueryCommand({
                 TableName: tableName,
@@ -267,7 +267,7 @@ async function updateRecordingsTable(
 
         const now = new Date().toISOString();
 
-        // Update each matching recording
+        // 一致する各録画を更新
         for (const item of queryResult.Items) {
             const recordingName = item.recording_name as string;
             await docClient.send(
@@ -291,6 +291,6 @@ async function updateRecordingsTable(
         }
     } catch (err) {
         console.error(`Failed to update recordings table:`, err);
-        // Don't throw - this is a non-critical update
+        // スローしない - これは非クリティカルな更新
     }
 }
