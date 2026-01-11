@@ -74,10 +74,12 @@ export class SessionService {
             throw new Error("Session not found or access denied");
         }
 
+        const securityScore = this.calculateSecurityScore(data.sceneDistribution);
+
         await updateSession(sessionId, {
             endTime: data.endTime,
             duration: data.duration,
-            securityScore: this.calculateSecurityScore(data.sceneDistribution),
+            securityScore,
             sceneDistribution: data.sceneDistribution,
             eventCounts: data.eventCounts,
             insights: data.insights,
@@ -86,7 +88,7 @@ export class SessionService {
         // Generate security summary
         const securitySummary = await securityService.generateSecuritySummary(session.id);
 
-        return { success: true, securitySummary };
+        return { success: true, securitySummary, securityScore };
     }
 
     private calculateSecurityScore(sceneDistribution: Record<string, number>): number {

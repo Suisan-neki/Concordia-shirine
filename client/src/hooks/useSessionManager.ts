@@ -92,16 +92,11 @@ export function useSessionManager() {
     const endTime = Date.now();
     const duration = endTime - startTimeRef.current;
     
-    // セキュリティスコアを計算
     const totalScenes = Object.values(sceneCountsRef.current).reduce((a, b) => a + b, 0);
     const harmonyRatio = totalScenes > 0 ? (sceneCountsRef.current['調和'] || 0) / totalScenes : 0;
     const silenceRatio = totalScenes > 0 ? (sceneCountsRef.current['静寂'] || 0) / totalScenes : 0;
     const oneSidedRatio = totalScenes > 0 ? (sceneCountsRef.current['一方的'] || 0) / totalScenes : 0;
     
-    const securityScore = Math.round(
-      (harmonyRatio * 0.4 + silenceRatio * 0.3 + (1 - oneSidedRatio) * 0.3) * 100
-    );
-
     // インサイトを生成
     const insights: string[] = [];
     if (harmonyRatio > 0.5) {
@@ -114,31 +109,49 @@ export function useSessionManager() {
       insights.push('沈黙が多く検出されました。発言しやすい雰囲気づくりを心がけてみてください。');
     }
 
-    const summary: SessionSummary = {
-      totalDuration: duration,
-      securityScore,
-      sceneDistribution: { ...sceneCountsRef.current },
-      eventCounts: { ...eventCountsRef.current },
-      insights,
-    };
+    const sceneDistribution = { ...sceneCountsRef.current };
+    const eventCounts = { ...eventCountsRef.current };
+
+    let summary: SessionSummary | null = null;
 
     // 認証済みの場合はサーバーに保存
     if (isAuthenticated && !currentSessionId.startsWith('local_')) {
       try {
-        await endMutation.mutateAsync({
+        const result = await endMutation.mutateAsync({
           sessionId: currentSessionId,
           endTime,
           duration,
-          sceneDistribution: summary.sceneDistribution,
-          eventCounts: summary.eventCounts,
+          sceneDistribution,
+          eventCounts,
           insights,
         });
+        if (typeof result.securityScore !== 'number') {
+          throw new Error('Missing security score from server response');
+        }
+        summary = {
+          totalDuration: duration,
+          securityScore: result.securityScore,
+          sceneDistribution,
+          eventCounts,
+          insights,
+        };
         
         // セッション一覧を更新
         sessionsQuery.refetch();
       } catch (error) {
         console.error('Failed to save session:', error);
       }
+    } else {
+      const securityScore = Math.round(
+        (harmonyRatio * 0.4 + silenceRatio * 0.3 + (1 - oneSidedRatio) * 0.3) * 100
+      );
+      summary = {
+        totalDuration: duration,
+        securityScore,
+        sceneDistribution,
+        eventCounts,
+        insights,
+      };
     }
 
     setCurrentSessionId(null);

@@ -36,6 +36,7 @@ import type { SessionData } from '@/lib/reportGenerator';
 import { Button } from '@/components/ui/button';
 import { getLoginUrl } from '@/const';
 import { Link } from 'wouter';
+import { toast } from 'sonner';
 
 interface TranscriptItem {
   id: string;
@@ -230,7 +231,7 @@ export default function Home() {
     } catch (error) {
       console.error('Failed to start recording:', error);
     }
-  }, [sessionManager]);
+  }, [isAuthenticated, sessionManager]);
 
   // 録音停止
   const handleStopRecording = useCallback(async () => {
@@ -245,33 +246,45 @@ export default function Home() {
     // バックエンドセッションを終了
     const backendSummary = await sessionManager.endSession();
 
-    if (localSummary || backendSummary) {
-      // localSummaryがあればそれを使用、なければbackendSummaryから構築
-      const summary: SessionSummary = localSummary || {
-        totalDuration: backendSummary?.totalDuration || 0,
-        speechDuration: 0,
-        silenceDuration: 0,
-        securityScore: backendSummary?.securityScore || 0,
-        sceneDistribution: (backendSummary?.sceneDistribution || {}) as Record<SceneType, number>,
-        eventCounts: backendSummary?.eventCounts || {},
-        insights: backendSummary?.insights || [],
-      };
+    if (isAuthenticated) {
+      if (!backendSummary) {
+        toast.error('保存失敗しました');
+        return;
+      }
+
+      const summary: SessionSummary = localSummary
+        ? {
+            ...localSummary,
+            securityScore: backendSummary.securityScore,
+          }
+        : {
+            totalDuration: backendSummary.totalDuration,
+            speechDuration: 0,
+            silenceDuration: 0,
+            securityScore: backendSummary.securityScore,
+            sceneDistribution: (backendSummary.sceneDistribution || {}) as Record<SceneType, number>,
+            eventCounts: backendSummary.eventCounts || {},
+            insights: backendSummary.insights || [],
+          };
       setSessionSummary(summary);
       setIsLogExpanded(true);
 
-      // レポート用のセッションデータを準備
-      if (backendSummary) {
-        setReportSession({
-          sessionId: sessionManager.currentSessionId || `local_${Date.now()}`,
-          startTime: sessionStartTimeRef.current,
-          endTime: Date.now(),
-          duration: backendSummary.totalDuration,
-          securityScore: backendSummary.securityScore,
-          sceneDistribution: backendSummary.sceneDistribution,
-          eventCounts: backendSummary.eventCounts,
-          insights: backendSummary.insights,
-        });
-      }
+      setReportSession({
+        sessionId: sessionManager.currentSessionId || `local_${Date.now()}`,
+        startTime: sessionStartTimeRef.current,
+        endTime: Date.now(),
+        duration: backendSummary.totalDuration,
+        securityScore: backendSummary.securityScore,
+        sceneDistribution: backendSummary.sceneDistribution,
+        eventCounts: backendSummary.eventCounts,
+        insights: backendSummary.insights,
+      });
+      return;
+    }
+
+    if (localSummary) {
+      setSessionSummary(localSummary);
+      setIsLogExpanded(true);
     }
   }, [sessionManager]);
 
