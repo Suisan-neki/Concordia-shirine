@@ -355,6 +355,42 @@ export class ConversationLogManager {
   }
 
   /**
+   * ログエントリに応じたメトリクス変化量を計算（純粋関数）
+   */
+  private calculateMetricUpdates(entry: LogEntry): Partial<SecurityMetrics> {
+    const updates: Partial<SecurityMetrics> = {};
+    const currentBarrier = this.securityMetrics.barrierStrength;
+    const currentThreat = this.securityMetrics.threatLevel;
+
+    // シーン変化による影響
+    if (entry.type === 'scene_change' && entry.data.scene) {
+      const scene = entry.data.scene;
+      if (scene === '調和') {
+        updates.threatLevel = Math.max(0, currentThreat - 0.05);
+        updates.barrierStrength = Math.min(1, currentBarrier + 0.02);
+      } else if (scene === '一方的' || scene === '沈黙') {
+        updates.threatLevel = Math.min(1, currentThreat + 0.03);
+        updates.barrierStrength = Math.max(0, currentBarrier - 0.01);
+      }
+    }
+
+    // イベントによる影響
+    if (entry.type === 'event' && entry.data.event) {
+      const eventType = entry.data.event.type;
+
+      if (eventType === 'MonologueLong' || eventType === 'OverlapBurst') {
+        updates.threatLevel = Math.min(1, currentThreat + 0.1);
+        updates.barrierStrength = Math.max(0, currentBarrier - 0.05);
+      } else if (eventType === 'StableCalm') {
+        updates.threatLevel = Math.max(0, currentThreat - 0.15);
+        updates.barrierStrength = Math.min(1, currentBarrier + 0.1);
+      }
+    }
+
+    return updates;
+  }
+
+  /**
    * コールバックを設定
    */
   setCallbacks(callbacks: {
@@ -469,32 +505,6 @@ export class ConversationLogManager {
       type: 'event',
       data: { event }
     });
-
-    // イベントに応じてセキュリティメトリクスを更新
-    if (event.type === 'MonologueLong' || event.type === 'OverlapBurst') {
-      this.securityMetrics.threatLevel = Math.min(1, this.securityMetrics.threatLevel + 0.1);
-      this.securityMetrics.barrierStrength = Math.max(0, this.securityMetrics.barrierStrength - 0.05);
-
-      // 同意保護インジケーターを警告に
-      const consentIndicator = this.securityMetrics.indicators.find(i => i.type === 'consent');
-      if (consentIndicator) {
-        consentIndicator.status = 'warning';
-        consentIndicator.description = '同調圧力が検出されています';
-      }
-    } else if (event.type === 'StableCalm') {
-      this.securityMetrics.threatLevel = Math.max(0, this.securityMetrics.threatLevel - 0.15);
-      this.securityMetrics.barrierStrength = Math.min(1, this.securityMetrics.barrierStrength + 0.1);
-
-      // 同意保護インジケーターを正常に
-      const consentIndicator = this.securityMetrics.indicators.find(i => i.type === 'consent');
-      if (consentIndicator) {
-        consentIndicator.status = 'active';
-        consentIndicator.description = '判断の自由を守っています';
-      }
-    }
-
-    this.updateOverallScore();
-    this.onSecurityUpdate?.(this.securityMetrics);
   }
 
   /**
@@ -511,20 +521,37 @@ export class ConversationLogManager {
    * セキュリティメトリクスを更新
    */
   private updateSecurityMetrics(entry: LogEntry): void {
-    // エントリタイプに応じてメトリクスを調整
-    if (entry.type === 'scene_change' && entry.data.scene) {
-      const scene = entry.data.scene;
+    // 統合された計算ロジックを使用
+    const updates = this.calculateMetricUpdates(entry);
 
-      if (scene === '調和') {
-        this.securityMetrics.threatLevel = Math.max(0, this.securityMetrics.threatLevel - 0.05);
-        this.securityMetrics.barrierStrength = Math.min(1, this.securityMetrics.barrierStrength + 0.02);
-      } else if (scene === '一方的' || scene === '沈黙') {
-        this.securityMetrics.threatLevel = Math.min(1, this.securityMetrics.threatLevel + 0.03);
-        this.securityMetrics.barrierStrength = Math.max(0, this.securityMetrics.barrierStrength - 0.01);
+    // 値の更新
+    if (updates.threatLevel !== undefined) this.securityMetrics.threatLevel = updates.threatLevel;
+    if (updates.barrierStrength !== undefined) this.securityMetrics.barrierStrength = updates.barrierStrength;
+
+    // インジケーターの状態更新（副作用として実行）
+    this.updateIndicators(entry);
+
+    this.updateOverallScore();
+    this.onSecurityUpdate?.(this.securityMetrics);
+  }
+
+  /**
+   * インジケーターの状態更新
+   */
+  private updateIndicators(entry: LogEntry): void {
+    if (entry.type === 'event' && entry.data.event) {
+      const eventType = entry.data.event.type;
+      const consentIndicator = this.securityMetrics.indicators.find(i => i.type === 'consent');
+
+      if (consentIndicator) {
+        if (eventType === 'MonologueLong' || eventType === 'OverlapBurst') {
+          consentIndicator.status = 'warning';
+          consentIndicator.description = '同調圧力が検出されています';
+        } else if (eventType === 'StableCalm') {
+          consentIndicator.status = 'active';
+          consentIndicator.description = '判断の自由を守っています';
+        }
       }
-
-      this.updateOverallScore();
-      this.onSecurityUpdate?.(this.securityMetrics);
     }
   }
 
