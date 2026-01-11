@@ -14,7 +14,7 @@ Concordia Shrineは、会議やミーティングにおける「見えない圧�
 - **気まずさや沈黙のせいで飲み込まれてしまう違和感**
 - **場の空気に押し流される前の「本当はこう思っている」の可能性**
 
-### 意思決定のセキュリティ (Human Decision Security)
+### 意思決定におけるセキュリティ (Human Decision Security)
 
 従来のセキュリティは、外部からの攻撃（External Threat）を防ぐことに焦点を当ててきました。
 しかし、Concordia Shrineは**「内在的脅威（Intrinsic Threat）」**――すなわち、集団心理や同調圧力によって個人の判断が歪められるリスク――から、人の心を防御します。
@@ -63,10 +63,6 @@ Concordia Shrineは、会議やミーティングにおける「見えない圧�
 ログインユーザーは「詳細」ボタンから、これらの守護者たちの働きを確認できます。
 
 ### セキュリティアーキテクチャ (Security Architecture)
-
-### セキュリティアーキテクチャ (Security Architecture)
-
-- **オリジン分離 (Origin Isolation)**: フロントエンドとバックエンドのドメイン分離によるXSSリスクの低減
 - **最小権限の原則 (Least Privilege)**: AWS Lambdaには必要最小限のIAM権限のみを付与
 - **型安全性 (Type Safety)**: tRPCによるエンドツーエンドの型安全性で、不正なデータ構造を排除
 - **セキュア・バイ・デザイン (Secure by Design)**: ドメインモデル(DDD)により、不正な状態のオブジェクト生成をコンパイルレベルで防止
