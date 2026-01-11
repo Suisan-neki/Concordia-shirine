@@ -12,7 +12,7 @@
 
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
 import { getDb } from './db';
-import { securityAuditLogs, securitySummaries, InsertSecurityAuditLog } from '../drizzle/schema';
+import { securityAuditLogs, securitySummaries, InsertSecurityAuditLog, users, sessions } from '../drizzle/schema';
 import { eq, and, lt, sql } from 'drizzle-orm';
 import { ENV } from './_core/env';
 
@@ -302,22 +302,106 @@ export class SecurityService {
     resourceId: number,
     action: string
   ): Promise<boolean> {
-    const allowed = true; // 簡略化のため常に許可
-    
-    // コスト最適化: アクセス許可は頻繁なのでサンプリング
-    // アクセス拒否は重要なので必ず記録
-    await this.logSecurityEvent({
-      userId,
-      eventType: allowed ? 'access_granted' : 'access_denied',
-      severity: allowed ? 'info' : 'warning',
-      description: allowed 
-        ? `${resourceType}へのアクセスが許可されました`
-        : `${resourceType}へのアクセスが拒否されました`,
-      metadata: { resourceType, resourceId, action },
-      timestamp: Date.now(),
-    }, !allowed); // 拒否時は強制記録
-    
-    return allowed;
+    try {
+      const db = await getDb();
+      if (!db) {
+        // データベースが利用できない場合は拒否
+        await this.logSecurityEvent({
+          userId,
+          eventType: 'access_denied',
+          severity: 'warning',
+          description: `${resourceType}へのアクセスが拒否されました（データベースエラー）`,
+          metadata: { resourceType, resourceId, action },
+          timestamp: Date.now(),
+        }, true);
+        return false;
+      }
+
+      // ユーザー情報を取得
+      const userResult = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const user = userResult[0];
+      
+      if (!user) {
+        await this.logSecurityEvent({
+          userId,
+          eventType: 'access_denied',
+          severity: 'warning',
+          description: `${resourceType}へのアクセスが拒否されました（ユーザーが見つかりません）`,
+          metadata: { resourceType, resourceId, action },
+          timestamp: Date.now(),
+        }, true);
+        return false;
+      }
+
+      const isAdmin = user.role === 'admin';
+      let allowed = false;
+
+      // リソースタイプに応じた権限チェック
+      switch (resourceType) {
+        case 'session':
+          // セッションの所有者であるか、adminであることを確認
+          const sessionResult = await db.select().from(sessions).where(eq(sessions.id, resourceId)).limit(1);
+          const session = sessionResult[0];
+          if (!session) {
+            allowed = false;
+          } else {
+            allowed = isAdmin || session.userId === userId;
+          }
+          break;
+
+        case 'user':
+          // 自分自身へのアクセス、またはadminであることを確認
+          allowed = isAdmin || resourceId === userId;
+          break;
+
+        case 'security_summary':
+          // セキュリティサマリーはセッション経由でアクセスされる
+          // セッションの所有者であるか、adminであることを確認
+          const summarySessionResult = await db.select()
+            .from(sessions)
+            .where(eq(sessions.id, resourceId))
+            .limit(1);
+          const summarySession = summarySessionResult[0];
+          if (!summarySession) {
+            allowed = false;
+          } else {
+            allowed = isAdmin || summarySession.userId === userId;
+          }
+          break;
+
+        default:
+          // 不明なリソースタイプはadminのみ許可
+          allowed = isAdmin;
+          break;
+      }
+      
+      // コスト最適化: アクセス許可は頻繁なのでサンプリング
+      // アクセス拒否は重要なので必ず記録
+      await this.logSecurityEvent({
+        userId,
+        eventType: allowed ? 'access_granted' : 'access_denied',
+        severity: allowed ? 'info' : 'warning',
+        description: allowed 
+          ? `${resourceType}へのアクセスが許可されました`
+          : `${resourceType}へのアクセスが拒否されました`,
+        metadata: { resourceType, resourceId, action, userRole: user.role },
+        timestamp: Date.now(),
+      }, !allowed); // 拒否時は強制記録
+      
+      return allowed;
+    } catch (error) {
+      console.error('[Security] Error verifying access:', error);
+      // エラー時は安全側に倒して拒否
+      await this.logSecurityEvent({
+        userId,
+        eventType: 'access_denied',
+        severity: 'warning',
+        description: `${resourceType}へのアクセスが拒否されました（エラー発生）`,
+        metadata: { resourceType, resourceId, action, error: String(error) },
+        timestamp: Date.now(),
+      }, true);
+      return false;
+    }
   }
   
   /**
