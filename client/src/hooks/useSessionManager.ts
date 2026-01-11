@@ -99,7 +99,7 @@ export function useSessionManager() {
     const oneSidedRatio = totalScenes > 0 ? (sceneCountsRef.current['一方的'] || 0) / totalScenes : 0;
     
     const securityScore = Math.round(
-      (harmonyRatio * 40 + silenceRatio * 30 + (1 - oneSidedRatio) * 30) * 100
+      (harmonyRatio * 0.4 + silenceRatio * 0.3 + (1 - oneSidedRatio) * 0.3) * 100
     );
 
     // インサイトを生成
