@@ -259,11 +259,11 @@ export class StepFunctionsStack extends cdk.Stack {
             stateMachineName: `concordia-transcript-pipeline-${environment}`,
             definitionBody: sfn.DefinitionBody.fromChainable(definition),
             timeout: cdk.Duration.hours(12),
-            tracingEnabled: true,
+            tracingEnabled: false,
             logs: {
                 destination: logGroup,
-                level: sfn.LogLevel.ALL,
-                includeExecutionData: true,
+                level: sfn.LogLevel.ERROR,
+                includeExecutionData: false,
             },
         });
 
