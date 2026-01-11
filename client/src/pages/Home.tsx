@@ -47,10 +47,10 @@ interface TranscriptItem {
 export default function Home() {
   // 認証状態を取得
   const { user, isAuthenticated, logout } = useAuth();
-  
+
   // セッション管理フック
   const sessionManager = useSessionManager();
-  
+
   // 介入設定フック
   const { settings: interventionSettings, updateSettings: updateInterventionSettings } = useInterventionSettings();
 
@@ -83,14 +83,14 @@ export default function Home() {
       { type: 'consent', status: 'active', label: '同意保護', description: '判断の自由を守っています' }
     ]
   });
-  
+
   // Refs
   const audioAnalyzerRef = useRef<AudioAnalyzer | null>(null);
   const logManagerRef = useRef<ConversationLogManager | null>(null);
   const speechRecognitionRef = useRef<SpeechRecognitionManager | null>(null);
   const lastSceneRef = useRef<SceneType>('静寂');
   const sessionStartTimeRef = useRef<number>(0);
-  
+
   // 認証状態が変わったらセキュリティメトリクスを更新
   useEffect(() => {
     setSecurityMetrics(prev => ({
@@ -113,7 +113,7 @@ export default function Home() {
       })
     }));
   }, [isAuthenticated, user]);
-  
+
   // 初期化
   useEffect(() => {
     // AudioAnalyzerの初期化
@@ -137,7 +137,7 @@ export default function Home() {
         // 発話状態の変化
       }
     });
-    
+
     // LogManagerの初期化
     logManagerRef.current = new ConversationLogManager();
     logManagerRef.current.setCallbacks({
@@ -151,7 +151,7 @@ export default function Home() {
         })
       }))
     });
-    
+
     // SpeechRecognitionの初期化
     speechRecognitionRef.current = new SpeechRecognitionManager();
     speechRecognitionRef.current.setCallbacks({
@@ -160,13 +160,13 @@ export default function Home() {
       onStart: () => console.log('Speech recognition started'),
       onEnd: () => console.log('Speech recognition ended')
     });
-    
+
     return () => {
       audioAnalyzerRef.current?.stop();
       speechRecognitionRef.current?.stop();
     };
   }, [isDemoMode, sessionManager]);
-  
+
   // 音声認識結果のハンドラ
   const handleSpeechResult = useCallback((result: SpeechRecognitionResult) => {
     if (result.isFinal) {
@@ -177,14 +177,14 @@ export default function Home() {
         isFinal: true,
         timestamp: result.timestamp
       };
-      
+
       setTranscripts(prev => [...prev, newTranscript]);
       setInterimText('');
-      
+
       // ログに記録
       logManagerRef.current?.logSpeech(result.text);
       sessionManager.logSpeech(result.text);
-      
+
       // 感情分析によるシーン更新
       const sentiment = analyzeSentiment(result.text);
       if (sentiment && !isDemoMode) {
@@ -196,55 +196,55 @@ export default function Home() {
       setInterimText(result.text);
     }
   }, [isDemoMode, sessionManager]);
-  
+
   // イベントハンドラ
   const handleEvent = useCallback((event: ConcordiaEvent) => {
     console.log('Event detected:', event.type, event.metadata);
   }, []);
-  
+
   // 介入イベントのハンドラ
   const handleIntervention = useCallback((type: string) => {
     sessionManager.logIntervention(type, { scene, timestamp: Date.now() });
   }, [sessionManager, scene]);
-  
+
   // 録音開始
   const handleStartRecording = useCallback(async () => {
     try {
       setSessionSummary(null);
       setTranscripts([]);
       setInterimText('');
-      
+
       // バックエンドセッションを開始
       await sessionManager.startSession();
       sessionStartTimeRef.current = Date.now();
-      
+
       logManagerRef.current?.startSession();
       await audioAnalyzerRef.current?.start();
-      
+
       // 音声認識も開始
       if (speechRecognitionRef.current?.isSupported()) {
         speechRecognitionRef.current.start();
       }
-      
+
       setIsRecording(true);
     } catch (error) {
       console.error('Failed to start recording:', error);
     }
   }, [sessionManager]);
-  
+
   // 録音停止
   const handleStopRecording = useCallback(async () => {
     audioAnalyzerRef.current?.stop();
     speechRecognitionRef.current?.stop();
     setIsRecording(false);
     setInterimText('');
-    
+
     // ローカルのサマリーを取得
     const localSummary = await logManagerRef.current?.endSession();
-    
+
     // バックエンドセッションを終了
     const backendSummary = await sessionManager.endSession();
-    
+
     if (localSummary || backendSummary) {
       // localSummaryがあればそれを使用、なければbackendSummaryから構築
       const summary: SessionSummary = localSummary || {
@@ -258,7 +258,7 @@ export default function Home() {
       };
       setSessionSummary(summary);
       setIsLogExpanded(true);
-      
+
       // レポート用のセッションデータを準備
       if (backendSummary) {
         setReportSession({
@@ -274,7 +274,7 @@ export default function Home() {
       }
     }
   }, [sessionManager]);
-  
+
   // デモモード切り替え
   const handleToggleDemoMode = useCallback(() => {
     setIsDemoMode(prev => !prev);
@@ -284,13 +284,13 @@ export default function Home() {
       lastSceneRef.current = '静寂';
     }
   }, [isDemoMode]);
-  
+
   // デモシーン変更
   const handleDemoSceneChange = useCallback((newScene: SceneType) => {
     setDemoScene(newScene);
     setScene(newScene);
     lastSceneRef.current = newScene;
-    
+
     // デモモード時のエネルギー設定
     const energyMap: Record<SceneType, number> = {
       '静寂': 0.3,
@@ -299,7 +299,7 @@ export default function Home() {
       '沈黙': 0.2
     };
     setEnergy(energyMap[newScene]);
-    
+
     // デモ用のセキュリティメトリクス更新
     const metricsMap: Record<SceneType, Partial<SecurityMetrics>> = {
       '静寂': { barrierStrength: 0.8, threatLevel: 0.1, protectionStatus: 'active' },
@@ -307,7 +307,7 @@ export default function Home() {
       '一方的': { barrierStrength: 0.5, threatLevel: 0.6, protectionStatus: 'warning' },
       '沈黙': { barrierStrength: 0.6, threatLevel: 0.4, protectionStatus: 'warning' }
     };
-    
+
     const newMetrics = metricsMap[newScene];
     setSecurityMetrics(prev => ({
       ...prev,
@@ -318,23 +318,23 @@ export default function Home() {
           return {
             ...ind,
             status: newScene === '一方的' || newScene === '沈黙' ? 'warning' : 'active',
-            description: newScene === '一方的' 
-              ? '同調圧力が検出されています' 
+            description: newScene === '一方的'
+              ? '同調圧力が検出されています'
               : newScene === '沈黙'
-              ? '発言しにくい空気を検出'
-              : '判断の自由を守っています'
+                ? '発言しにくい空気を検出'
+                : '判断の自由を守っています'
           };
         }
         return ind;
       })
     }));
   }, []);
-  
+
   // ログパネルのトグル
   const handleToggleLog = useCallback(() => {
     setIsLogExpanded(prev => !prev);
   }, []);
-  
+
   // セッション履歴の読み込み（バックエンドから取得）
   const handleLoadSessions = useCallback(async (): Promise<Session[]> => {
     // バックエンドからのセッションをローカル形式に変換
@@ -355,12 +355,12 @@ export default function Home() {
       } : undefined,
     }));
   }, [sessionManager.sessions]);
-  
+
   // セッションの削除
   const handleDeleteSession = useCallback(async (id: string): Promise<void> => {
     await sessionManager.deleteSession(id);
   }, [sessionManager]);
-  
+
   // レポートパネルを開く
   const handleOpenReport = useCallback((session?: SessionData) => {
     if (session) {
@@ -368,20 +368,20 @@ export default function Home() {
     }
     setIsReportPanelOpen(true);
   }, []);
-  
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       {/* 波のキャンバス（背景） */}
       <div className="absolute inset-0">
         <WaveCanvas scene={scene} energy={energy} />
       </div>
-      
+
       {/* セキュリティバリア（結界） */}
       <SecurityBarrier metrics={securityMetrics} />
-      
+
       {/* シーンインジケーター */}
       <SceneIndicator scene={scene} isRecording={isRecording} />
-      
+
       {/* 介入システム */}
       <InterventionSystem
         scene={scene}
@@ -389,7 +389,7 @@ export default function Home() {
         settings={interventionSettings}
         onIntervention={handleIntervention}
       />
-      
+
       {/* ナビゲーションボタン */}
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 flex-wrap justify-center">
         <Button
@@ -458,7 +458,7 @@ export default function Home() {
           </Button>
         )}
       </div>
-      
+
       {/* ログイン/ログアウトボタン */}
       <div className="fixed top-4 right-4 z-20">
         {isAuthenticated ? (
@@ -491,7 +491,7 @@ export default function Home() {
           </Button>
         )}
       </div>
-      
+
       {/* タイトル */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -506,7 +506,7 @@ export default function Home() {
           空気だけを聴き、判断の自由をそっと守る祠
         </p>
       </motion.div>
-      
+
       {/* コンセプトメッセージ */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -523,7 +523,7 @@ export default function Home() {
           結界が展開され、あなたの判断の自由が守られています。
         </p>
       </motion.div>
-      
+
       {/* リアルタイム文字起こし表示 */}
       {isRecording && (
         <TranscriptDisplay
@@ -531,7 +531,7 @@ export default function Home() {
           interimText={interimText}
         />
       )}
-      
+
       {/* コントロールパネル */}
       <ControlPanel
         isRecording={isRecording}
@@ -542,7 +542,7 @@ export default function Home() {
         onToggleDemoMode={handleToggleDemoMode}
         onDemoSceneChange={handleDemoSceneChange}
       />
-      
+
       {/* 会話ログパネル */}
       <ConversationLogPanel
         logs={logs}
@@ -550,7 +550,7 @@ export default function Home() {
         isExpanded={isLogExpanded}
         onToggle={handleToggleLog}
       />
-      
+
       {/* セキュリティダッシュボード */}
       <SecurityDashboard
         metrics={securityMetrics}
@@ -558,13 +558,13 @@ export default function Home() {
         isOpen={isSecurityDashboardOpen}
         onClose={() => setIsSecurityDashboardOpen(false)}
       />
-      
+
       {/* セキュリティ詳細パネル（「実は裏で動いていました」） */}
       <SecurityDetailPanel
         isOpen={isSecurityDetailOpen}
         onClose={() => setIsSecurityDetailOpen(false)}
       />
-      
+
       {/* セッション履歴 */}
       <SessionHistory
         isOpen={isSessionHistoryOpen}
@@ -572,7 +572,7 @@ export default function Home() {
         onLoadSessions={handleLoadSessions}
         onDeleteSession={handleDeleteSession}
       />
-      
+
       {/* 介入設定パネル */}
       <InterventionSettingsPanel
         isOpen={isInterventionSettingsOpen}
@@ -581,14 +581,14 @@ export default function Home() {
         onUpdateSettings={updateInterventionSettings}
         isAuthenticated={isAuthenticated}
       />
-      
+
       {/* レポートダウンロードパネル */}
       <ReportDownloadPanel
         isOpen={isReportPanelOpen}
         onClose={() => setIsReportPanelOpen(false)}
         session={reportSession}
       />
-      
+
       {/* フッター */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -598,7 +598,7 @@ export default function Home() {
       >
         <Link href="/about">
           <span className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground cursor-pointer transition-colors">
-            Concordia Shrine v2 — Human Decision Security
+            Concordia Shrine — Human Decision Security
           </span>
         </Link>
       </motion.div>
