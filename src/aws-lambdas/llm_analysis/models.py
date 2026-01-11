@@ -2,16 +2,22 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 class Scoring(BaseModel):
-    electric_bill_score: int = Field(..., description="電気代関心度スコア (0-10)")
-    engagement_score: int = Field(..., description="エンゲージメントスコア (0-10)")
-    crowdfunding_score: int = Field(..., description="クラファン適合スコア (0-10)")
-    total_score: int = Field(..., description="合計スコア")
-    segment: Literal["A", "B", "C", "D"] = Field(..., description="セグメント判定 (A: 省エネ, B: ガジェット, C: 便利, D: ライト)")
+    harmony_score: int = Field(..., description="調和度スコア (0-10): 参加者間の協力体制や雰囲気")
+    engagement_score: int = Field(..., description="関与度スコア (0-10): 参加者の積極的な発言や姿勢")
+    clarity_score: int = Field(..., description="明確性スコア (0-10): 議論の目的や結論の明確さ")
+    
+    # Legacy fields mapping (to avoid breaking frontend if it expects specific fields, though ideally frontend updates too)
+    # We will map `total_score` to a generic quality metric
+    total_score: int = Field(..., description="総合会議品質スコア (0-100)")
+    
+    # Generic segmentation
+    segment: Literal["Strategic", "Operations", "Team Building", "Casual", "Conflict"] = Field(..., description="会議のタイプ分類")
 
-class HEMSInterviewData(BaseModel):
+class ConcordiaAnalysisData(BaseModel):
     summary: str = Field(..., description="会議の概要 (3文以内)")
     topics: list[str] = Field(..., description="主な議題 (箇条書き)")
     decisions: list[str] = Field(..., description="決定事項 (箇条書き)")
-    action_items: list[str] = Field(..., description="アクションアイテム")
-    issues: list[str] = Field(..., description="次回までの課題")
-    scoring: Scoring = Field(..., description="スコアリングとセグメント判定")
+    action_items: list[str] = Field(..., description="アクションアイテム（担当者・期限）")
+    issues: list[str] = Field(..., description="残された課題・懸念点")
+    key_quotes: list[str] = Field(..., description="印象的な発言や重要なキーワード")
+    scoring: Scoring = Field(..., description="会議のスコアリングと分類")
