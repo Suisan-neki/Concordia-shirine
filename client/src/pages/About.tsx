@@ -254,7 +254,7 @@ export default function About() {
                       ↓ (API Gateway + tRPC)
                       [Backend] AWS Lambda (Node.js/Python)
                       ↓
-                      [AI] OpenAI (Realtime/Audio/GPT-4o)
+                      [AI] OpenAI (Realtime/Audio/GPT-5-mini)
                     </div>
                     <p className="text-sm text-muted-foreground">
                       完全なサーバーレス構成により、高い可用性とスケーラビリティを実現。
@@ -272,7 +272,7 @@ export default function About() {
                     <div className="space-y-2">
                       <Badge variant="outline" className="text-shrine-jade border-shrine-jade">Perlin Noise</Badge>
                       <Badge variant="outline" className="text-shrine-vermilion border-shrine-vermilion ml-2">OpenAI Whisper</Badge>
-                      <Badge variant="outline" className="text-primary border-primary ml-2">GPT-4o</Badge>
+                      <Badge variant="outline" className="text-primary border-primary ml-2">GPT-5-mini</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       リアルタイムの音声波形分析(Web Audio API)と、LLMによる文脈分析を融合。
