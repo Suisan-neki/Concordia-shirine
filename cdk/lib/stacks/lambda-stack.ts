@@ -68,7 +68,7 @@ export class LambdaStack extends cdk.Stack {
         this.extractAudioFn = new lambda.Function(this, "ExtractAudioFn", {
             ...commonProps,
             code: lambda.Code.fromAsset(path.join(lambdasPath, "extract_audio/dist")),
-            memorySize: 3008,
+            memorySize: 2048,
             timeout: cdk.Duration.minutes(15),
             ephemeralStorageSize: cdk.Size.mebibytes(2048), // ffmpeg 処理のために増加
             environment: {
@@ -84,7 +84,7 @@ export class LambdaStack extends cdk.Stack {
         this.chunkAudioFn = new lambda.Function(this, "ChunkAudioFn", {
             ...commonProps,
             code: lambda.Code.fromAsset(path.join(lambdasPath, "chunk_audio/dist")),
-            memorySize: 3008,
+            memorySize: 2048,
             timeout: cdk.Duration.minutes(15),
             environment: {
                 INPUT_BUCKET: inputBucket.bucketName,
@@ -119,7 +119,7 @@ export class LambdaStack extends cdk.Stack {
         this.mergeSpeakersFn = new lambda.Function(this, "MergeSpeakersFn", {
             ...commonProps,
             code: lambda.Code.fromAsset(path.join(lambdasPath, "merge_speakers/dist")),
-            memorySize: 3008,
+            memorySize: 2048,
             timeout: cdk.Duration.minutes(5),
             environment: {
                 INPUT_BUCKET: inputBucket.bucketName,
@@ -134,7 +134,7 @@ export class LambdaStack extends cdk.Stack {
         this.splitBySpeakerFn = new lambda.Function(this, "SplitBySpeakerFn", {
             ...commonProps,
             code: lambda.Code.fromAsset(path.join(lambdasPath, "split_by_speaker/dist")),
-            memorySize: 3008,
+            memorySize: 2048,
             timeout: cdk.Duration.minutes(15),
             ephemeralStorageSize: cdk.Size.mebibytes(2048),
             environment: {
