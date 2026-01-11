@@ -156,6 +156,9 @@ class SDKServer {
 
   private getSessionSecret() {
     const secret = ENV.cookieSecret;
+    if (!secret || secret.length === 0) {
+      throw new Error('JWT_SECRET environment variable is required. Cannot use default secret in production.');
+    }
     return new TextEncoder().encode(secret);
   }
 

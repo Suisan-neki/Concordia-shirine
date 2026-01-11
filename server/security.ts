@@ -18,7 +18,10 @@ import { ENV } from './_core/env';
 
 // 暗号化キー（JWT_SECRETから派生）
 const getEncryptionKey = (): Buffer => {
-  const secret = ENV.cookieSecret || 'default-secret-key-for-development';
+  const secret = ENV.cookieSecret;
+  if (!secret || secret.length === 0) {
+    throw new Error('JWT_SECRET environment variable is required. Cannot use default secret in production.');
+  }
   return createHash('sha256').update(secret).digest();
 };
 
