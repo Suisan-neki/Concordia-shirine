@@ -1,8 +1,8 @@
 """
 LLMAnalysis Lambda Function
 
-OpenAI API (gpt-4o-mini) を使用して文字起こし結果を分析する。
-Structured Outputs を使用して Concordia インタビューデータを構造化抽出。
+OpenAI API(gpt-4o-mini)を使用して文字起こし結果を分析する。
+Structured Outputsを使用してConcordiaインタビューデータを構造化抽出。
 
 Class-based implementation for better state management and testing.
 
@@ -28,7 +28,7 @@ logger.setLevel(logging.INFO)
 
 class ConcordiaAnalyzer:
     """
-    Concordia 分析ロジックをカプセル化するクラス
+    Concordia分析ロジックをカプセル化するクラス
     """
     def __init__(self):
         self.output_bucket = os.environ.get("OUTPUT_BUCKET", "")
@@ -67,7 +67,7 @@ class ConcordiaAnalyzer:
 
     @property
     def openai_client(self) -> openai.OpenAI:
-        """OpenAI クライアントを取得（シングルトン）"""
+        """OpenAIクライアントを取得（シングルトン）"""
         if self._openai_client is None:
             if not self.openai_api_key:
                 raise ValueError("OPENAI_API_KEY environment variable not set")
@@ -81,7 +81,7 @@ class ConcordiaAnalyzer:
     )
     def analyze_structured(self, transcript: list[dict]) -> ConcordiaAnalysisData:
         """
-        文字起こしを構造化分析（Structured Outputs 使用）
+        文字起こしを構造化分析(Structured Outputs使用)
         """
         # 話者ごとの発言を整形
         full_text = "\n".join([f"[{t['speaker']}] {t['text']}" for t in transcript])

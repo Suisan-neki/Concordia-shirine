@@ -249,12 +249,12 @@ export default function About() {
                   <CardContent className="space-y-4">
                     <div className="bg-muted/30 p-4 rounded-md text-xs font-mono">
                       [Client] React/Vite/Tailwind
-                      ↓ (CloudFront)
-                      [Edge] Security Headers (WAF)
-                      ↓ (API Gateway + tRPC)
-                      [Backend] AWS Lambda (Node.js/Python)
+                      ↓(CloudFront)
+                      [Edge] Security Headers(WAF)
+                      ↓(API Gateway + tRPC)
+                      [Backend] AWS Lambda(Node.js/Python)
                       ↓
-                      [AI] OpenAI (Realtime/Audio/GPT-5-mini)
+                      [AI] OpenAI(Realtime/Audio/GPT-5-mini)
                     </div>
                     <p className="text-sm text-muted-foreground">
                       完全なサーバーレス構成により、高い可用性とスケーラビリティを実現。
