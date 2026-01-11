@@ -90,7 +90,7 @@ pnpm test
 > 
 > これは、技術が人を守る物語です。
 
-詳しくは [client/src/pages/About.tsx](client/src/pages/About.tsx) (アプリケーション実行時は `/about`) をご覧ください。
+詳しくは [システムアーキテクチャ詳細](docs/architecture.md) をご覧ください。
 
 ## ライセンス
 
