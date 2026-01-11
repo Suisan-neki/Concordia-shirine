@@ -12,6 +12,7 @@ import { z } from "zod";
 import {
   getSessionBySessionId,
 } from "./db";
+import { getAllUsers, getUserById, softDeleteUser, getAuditLogs } from "./db_admin";
 import { securityService } from "./security";
 import { sessionService } from "./services/SessionService";
 import { nanoid } from "nanoid";
