@@ -7,6 +7,9 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { ENV } from "./env";
+
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -33,6 +36,43 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Basic CSRF defense: require same-origin (or allowlisted) for state-changing requests.
+  app.use((req, res, next) => {
+    const method = req.method.toUpperCase();
+    if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
+      next();
+      return;
+    }
+
+    const origin = req.headers.origin;
+    if (!origin) {
+      next();
+      return;
+    }
+
+    try {
+      const originUrl = new URL(origin);
+      const allowedOrigins = new Set(ENV.allowedOrigins);
+      if (allowedOrigins.has(origin)) {
+        next();
+        return;
+      }
+
+      if (originUrl.hostname === req.hostname) {
+        next();
+        return;
+      }
+
+      if (LOCAL_HOSTS.has(originUrl.hostname) && LOCAL_HOSTS.has(req.hostname)) {
+        next();
+        return;
+      }
+    } catch {
+      // fall through to deny
+    }
+
+    res.status(403).json({ error: "CSRF check failed" });
+  });
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API
