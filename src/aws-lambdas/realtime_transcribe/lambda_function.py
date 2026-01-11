@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import time
-from typing import Any
+from typing import Any, List, Optional
 
 from openai import OpenAI
 
@@ -20,6 +20,32 @@ logger.setLevel(logging.INFO)
 
 WHISPER_MODEL_DIR = os.environ.get("WHISPER_MODEL_DIR", "/opt/whisper-models")
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "medium")
+
+def get_allowed_origins() -> List[str]:
+    """環境変数から許可されたCORSオリジンを取得"""
+    allowed_origins_str = os.environ.get("ALLOWED_ORIGINS", "")
+    if not allowed_origins_str:
+        # 環境変数が設定されていない場合は空リストを返す（CORSヘッダーを設定しない）
+        logger.warning("ALLOWED_ORIGINS not set, CORS headers will not be set")
+        return []
+    return [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+
+def get_cors_headers(request_origin: Optional[str] = None) -> dict:
+    """CORSヘッダーを生成（リクエストのOriginに基づいて許可/拒否）"""
+    allowed_origins = get_allowed_origins()
+    if not allowed_origins:
+        # 許可されたオリジンが設定されていない場合はCORSヘッダーを返さない
+        return {}
+    
+    if request_origin and request_origin in allowed_origins:
+        return {
+            "Access-Control-Allow-Origin": request_origin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Max-Age": "3600",
+        }
+    # リクエストのOriginが許可リストにない場合はCORSヘッダーを返さない
+    return {}
 
 # ウォームスタート用のグローバルモデルインスタンス
 _model = None
@@ -103,6 +129,22 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     API Gateway からのリアルタイム文字起こしリクエストを処理します。
     期待されるボディ: {"audio_data": "base64_string"} を含む JSON
     """
+    # CORSヘッダーを取得（リクエストのOriginに基づく）
+    headers = event.get("headers", {}) or {}
+    request_origin = headers.get("Origin") or headers.get("origin")
+    cors_headers = get_cors_headers(request_origin)
+    
+    # OPTIONSリクエスト（プリフライト）の処理
+    if event.get("httpMethod") == "OPTIONS" or event.get("requestContext", {}).get("http", {}).get("method") == "OPTIONS":
+        return {
+            "statusCode": 200,
+            "headers": {
+                **cors_headers,
+                "Content-Type": "application/json",
+            },
+            "body": json.dumps({"message": "OK"}),
+        }
+    
     try:
         model = get_model()
 
@@ -111,6 +153,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         if not body:
             return {
                 "statusCode": 400,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Missing request body"}),
             }
 
@@ -125,11 +168,13 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             if not audio_b64:
                  return {
                     "statusCode": 400,
+                    "headers": cors_headers,
                     "body": json.dumps({"error": "Missing audio_data field"}),
                 }
         except json.JSONDecodeError:
              return {
                 "statusCode": 400,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Invalid JSON body"}),
             }
 
@@ -140,6 +185,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             logger.error(f"Failed to decode base64: {e}")
             return {
                 "statusCode": 400,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "Invalid base64 audio data"}),
             }
 
@@ -177,7 +223,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*", # CORS を有効化
+                **cors_headers,
             },
             "body": json.dumps({
                 "segments": result_segments,
@@ -189,7 +235,10 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Error processing request: {e}", exc_info=True)
+        # エラー時もCORSヘッダーを設定
+        error_cors_headers = get_cors_headers(request_origin)
         return {
             "statusCode": 500,
+            "headers": error_cors_headers,
             "body": json.dumps({"error": f"Internal Server Error: {str(e)}"}),
         }

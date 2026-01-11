@@ -2,9 +2,36 @@ import json
 import os
 import boto3
 from openai import OpenAI
+from typing import List, Optional
 
 # OpenAI クライアントの初期化（遅延ロード）
 client = None
+
+def get_allowed_origins() -> List[str]:
+    """環境変数から許可されたCORSオリジンを取得"""
+    allowed_origins_str = os.environ.get("ALLOWED_ORIGINS", "")
+    if not allowed_origins_str:
+        # 環境変数が設定されていない場合は空リストを返す（CORSヘッダーを設定しない）
+        print("ALLOWED_ORIGINS not set, CORS headers will not be set")
+        return []
+    return [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+
+def get_cors_headers(request_origin: Optional[str] = None) -> dict:
+    """CORSヘッダーを生成（リクエストのOriginに基づいて許可/拒否）"""
+    allowed_origins = get_allowed_origins()
+    if not allowed_origins:
+        # 許可されたオリジンが設定されていない場合はCORSヘッダーを返さない
+        return {}
+    
+    if request_origin and request_origin in allowed_origins:
+        return {
+            "Access-Control-Allow-Origin": request_origin,
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Max-Age": "3600",
+        }
+    # リクエストのOriginが許可リストにない場合はCORSヘッダーを返さない
+    return {}
 
 def get_openai_client():
     global client
@@ -37,6 +64,22 @@ SYSTEM_PROMPT = """
 def lambda_handler(event, context):
     print("Received event:", json.dumps(event))
     
+    # CORSヘッダーを取得（リクエストのOriginに基づく）
+    headers = event.get("headers", {}) or {}
+    request_origin = headers.get("Origin") or headers.get("origin")
+    cors_headers = get_cors_headers(request_origin)
+    
+    # OPTIONSリクエスト（プリフライト）の処理
+    if event.get("httpMethod") == "OPTIONS" or event.get("requestContext", {}).get("http", {}).get("method") == "OPTIONS":
+        return {
+            "statusCode": 200,
+            "headers": {
+                **cors_headers,
+                "Content-Type": "application/json",
+            },
+            "body": json.dumps({"message": "OK"}),
+        }
+    
     try:
         body = json.loads(event.get("body", "{}"))
         transcript_recent = body.get("transcript_recent", "")
@@ -45,6 +88,7 @@ def lambda_handler(event, context):
         if not transcript_recent:
             return {
                 "statusCode": 200,
+                "headers": cors_headers,
                 "body": json.dumps({
                     "advice": None,
                     "analysis_label": "Listening...",
@@ -56,6 +100,7 @@ def lambda_handler(event, context):
         if not client:
             return {
                 "statusCode": 500,
+                "headers": cors_headers,
                 "body": json.dumps({"error": "OpenAI client not initialized"})
             }
 
@@ -81,14 +126,16 @@ def lambda_handler(event, context):
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*" # CORS は API Gateway で処理されますが、念のため
+                **cors_headers,
             },
             "body": json.dumps(result)
         }
 
     except Exception as e:
         print(f"Error: {e}")
+        error_cors_headers = get_cors_headers(request_origin)
         return {
             "statusCode": 500,
+            "headers": error_cors_headers,
             "body": json.dumps({"error": str(e)})
         }
