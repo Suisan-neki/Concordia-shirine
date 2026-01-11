@@ -5,6 +5,7 @@
  */
 
 import { trpc } from '@/lib/trpc';
+import { useAuth } from '@/_core/hooks/useAuth';
 
 export interface SecurityStats {
   totalEvents: number;
@@ -39,11 +40,13 @@ export interface SessionSecuritySummary {
  * @returns セキュリティ統計の状態とアクション（stats、isLoading、error、refetch）
  */
 export function useSecurityStats() {
+  const { isAuthenticated } = useAuth();
   const { data, isLoading, error, refetch } = trpc.security.getStats.useQuery(undefined, {
     // 5分ごとに自動更新
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: isAuthenticated ? 5 * 60 * 1000 : false,
     // バックグラウンドでも更新
-    refetchIntervalInBackground: true,
+    refetchIntervalInBackground: isAuthenticated,
+    enabled: isAuthenticated,
   });
 
   return {
@@ -64,10 +67,11 @@ export function useSecurityStats() {
  * @returns セキュリティサマリーの状態（summary、isLoading、error）
  */
 export function useSessionSecuritySummary(sessionId: string | null) {
+  const { isAuthenticated } = useAuth();
   const { data, isLoading, error } = trpc.security.getSessionSummary.useQuery(
     { sessionId: sessionId || '' },
     {
-      enabled: !!sessionId,
+      enabled: !!sessionId && isAuthenticated,
     }
   );
 
