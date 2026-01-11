@@ -4,9 +4,8 @@ import * as tasks from "aws-cdk-lib/aws-stepfunctions-tasks";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import * as s3n from "aws-cdk-lib/aws-s3-notifications";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
-import * as events from "aws-cdk-lib/aws-events";
-import * as targets from "aws-cdk-lib/aws-events-targets";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as path from "path";
@@ -14,7 +13,7 @@ import { Construct } from "constructs";
 
 export interface StepFunctionsStackProps extends cdk.StackProps {
     environment: string;
-    inputBucket: s3.IBucket;
+    inputBucket: s3.Bucket;
     outputBucket: s3.IBucket;
     interviewsTable: dynamodb.ITable;
     extractAudioFn: lambda.IFunction;
@@ -295,25 +294,12 @@ export class StepFunctionsStack extends cdk.Stack {
         this.stateMachine.grantStartExecution(startPipelineLambda);
         interviewsTable.grantReadWriteData(startPipelineLambda);
 
-        // S3 動画アップロード時に Lambda をトリガーする EventBridge ルール
-        const s3UploadRule = new events.Rule(this, "S3UploadRule", {
-            ruleName: `concordia-s3-upload-${environment}`,
-            eventPattern: {
-                source: ["aws.s3"],
-                detailType: ["Object Created"],
-                detail: {
-                    bucket: {
-                        name: [inputBucket.bucketName],
-                    },
-                    object: {
-                        key: [{ prefix: "uploads/" }],
-                    },
-                },
-            },
-        });
-
-        // S3 アップロードイベントのターゲットとして Lambda を追加
-        s3UploadRule.addTarget(new targets.LambdaFunction(startPipelineLambda));
+        // S3 アップロードイベントで直接 Lambda をトリガー
+        inputBucket.addEventNotification(
+            s3.EventType.OBJECT_CREATED,
+            new s3n.LambdaDestination(startPipelineLambda),
+            { prefix: "uploads/" }
+        );
 
         // 完了ハンドラー Lambda
         // Note: コードは cdk/lib/lambdas/completion-handler に配置されると想定
