@@ -1,6 +1,6 @@
 {
-  "name": "concordia-shrine-v2",
-  "version": "1.0.0",
+  "name": "concordia-shrine",
+  "version": "0.0.1",
   "type": "module",
   "license": "MIT",
   "scripts": {

@@ -1,4 +1,4 @@
-# Concordia Shrine v2 - 技術仕様書
+# Concordia Shrine - 技術仕様書
 
 ## システムアーキテクチャ
 

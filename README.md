@@ -1,4 +1,4 @@
-# Concordia Shrine v2
+# Concordia Shrine
 
 > 「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」
 
@@ -98,4 +98,4 @@ MIT License
 
 ---
 
-Concordia Shrine v2 — Human Decision Security
+Concordia Shrine — Human Decision Security
