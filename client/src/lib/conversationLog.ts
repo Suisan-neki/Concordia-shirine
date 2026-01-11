@@ -82,10 +82,10 @@ const CONTENT_ANALYSIS_CONFIG = {
  */
 export function analyzeSentiment(text: string): SceneType | null {
   if (!text) return null;
-  
+
   const scores: Record<string, number> = { '調和': 0, '一方的': 0, '沈黙': 0 };
   let found = false;
-  
+
   for (const [label, keywords] of Object.entries(CONTENT_ANALYSIS_CONFIG)) {
     for (const keyword of keywords) {
       if (text.includes(keyword)) {
@@ -94,9 +94,9 @@ export function analyzeSentiment(text: string): SceneType | null {
       }
     }
   }
-  
+
   if (!found) return null;
-  
+
   let maxLabel: string | null = null;
   let maxScore = -1;
   for (const [label, score] of Object.entries(scores)) {
@@ -105,7 +105,7 @@ export function analyzeSentiment(text: string): SceneType | null {
       maxLabel = label;
     }
   }
-  
+
   return maxScore > 0 ? (maxLabel as SceneType) : null;
 }
 
@@ -116,29 +116,29 @@ class IndexedDBHelper {
   private dbName = 'ConcordiaShrine';
   private dbVersion = 1;
   private db: IDBDatabase | null = null;
-  
+
   async open(): Promise<IDBDatabase> {
     if (this.db) return this.db;
-    
+
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.dbVersion);
-      
+
       request.onerror = () => reject(request.error);
-      
+
       request.onsuccess = () => {
         this.db = request.result;
         resolve(this.db);
       };
-      
+
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
-        
+
         // セッションストア
         if (!db.objectStoreNames.contains('sessions')) {
           const sessionStore = db.createObjectStore('sessions', { keyPath: 'id' });
           sessionStore.createIndex('startTime', 'startTime', { unique: false });
         }
-        
+
         // ログエントリストア
         if (!db.objectStoreNames.contains('entries')) {
           const entryStore = db.createObjectStore('entries', { keyPath: 'id' });
@@ -148,7 +148,7 @@ class IndexedDBHelper {
       };
     });
   }
-  
+
   async saveSession(session: Session): Promise<void> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
@@ -159,7 +159,7 @@ class IndexedDBHelper {
       request.onsuccess = () => resolve();
     });
   }
-  
+
   async getSession(id: string): Promise<Session | null> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
@@ -170,7 +170,7 @@ class IndexedDBHelper {
       request.onsuccess = () => resolve(request.result || null);
     });
   }
-  
+
   async getAllSessions(): Promise<Session[]> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
@@ -181,7 +181,7 @@ class IndexedDBHelper {
       request.onsuccess = () => resolve(request.result || []);
     });
   }
-  
+
   async deleteSession(id: string): Promise<void> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
@@ -194,23 +194,128 @@ class IndexedDBHelper {
   }
 }
 
+// セッションエンティティ (Rich Domain Model)
+export class SessionEntity {
+  public readonly id: string;
+  public readonly startTime: number;
+  public endTime?: number;
+  private _entries: LogEntry[];
+  public summary?: SessionSummary;
+
+  constructor(id?: string) {
+    // IDと開始時間の生成をコンストラクタ内で完結させ、不正な状態を防ぐ
+    this.id = id || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.startTime = Date.now();
+    this._entries = [];
+  }
+
+  // ログエントリの追加と不変性の保護
+  addEntry(entry: LogEntry): void {
+    this._entries.push(entry);
+  }
+
+  get entries(): ReadonlyArray<LogEntry> {
+    return this._entries;
+  }
+
+  // セッション終了ロジックをデータ保持側に移動 (Tell, Don't Ask)
+  end(securityScore: number): SessionSummary {
+    this.endTime = Date.now();
+    this.summary = this.generateSummary(securityScore);
+    return this.summary;
+  }
+
+  // サマリー生成ロジックのカプセル化
+  private generateSummary(securityScore: number): SessionSummary {
+    const totalDuration = (this.endTime || Date.now()) - this.startTime;
+
+    let speechDuration = 0;
+    let silenceDuration = 0;
+    const sceneDistribution: Record<SceneType, number> = { '静寂': 0, '調和': 0, '一方的': 0, '沈黙': 0 };
+    const eventCounts: Record<string, number> = {};
+
+    for (const entry of this._entries) {
+      if (entry.type === 'speech' && entry.data.duration) {
+        speechDuration += entry.data.duration;
+      } else if (entry.type === 'silence' && entry.data.duration) {
+        silenceDuration += entry.data.duration;
+      } else if (entry.type === 'scene_change' && entry.data.scene) {
+        sceneDistribution[entry.data.scene]++;
+      } else if (entry.type === 'event' && entry.data.event) {
+        const eventType = entry.data.event.type;
+        eventCounts[eventType] = (eventCounts[eventType] || 0) + 1;
+      }
+    }
+
+    // インサイト生成
+    const insights: string[] = [];
+    if (sceneDistribution['調和'] > sceneDistribution['一方的'] + sceneDistribution['沈黙']) {
+      insights.push('この対話は全体的に調和が取れていました。');
+    }
+    if ((eventCounts['MonologueLong'] || 0) > 2) {
+      insights.push('一方的な発言が多く見られました。対話のバランスを意識してみてください。');
+    }
+    if ((eventCounts['SilenceLong'] || 0) > 2) {
+      insights.push('長い沈黙が複数回ありました。発言しやすい雰囲気作りを心がけてみてください。');
+    }
+    if ((eventCounts['StableCalm'] || 0) > 3) {
+      insights.push('安定した対話が続きました。良いコミュニケーションが取れています。');
+    }
+
+    return {
+      totalDuration,
+      speechDuration,
+      silenceDuration,
+      sceneDistribution,
+      eventCounts,
+      securityScore,
+      insights
+    };
+  }
+
+  // 純粋なデータオブジェクトとしてエクスポート（保存用）
+  toJSON(): Session {
+    return {
+      id: this.id,
+      startTime: this.startTime,
+      endTime: this.endTime,
+      entries: [...this._entries], // コピーを返す
+      summary: this.summary
+    };
+  }
+
+  // 保存されたデータからの復元
+  static fromJSON(data: Session): SessionEntity {
+    // コンストラクタを使わず、既存データから復元するためのファクトリ
+    const entity = Object.create(SessionEntity.prototype);
+    Object.assign(entity, {
+      id: data.id,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      _entries: [...data.entries],
+      summary: data.summary
+    });
+    return entity;
+  }
+}
+
 /**
  * 会話ログマネージャー
  */
 export class ConversationLogManager {
   private db: IndexedDBHelper;
-  private currentSession: Session | null = null;
+  private currentSession: SessionEntity | null = null;
   private securityMetrics: SecurityMetrics;
-  
+
   // コールバック
   private onLogUpdate?: (entries: LogEntry[]) => void;
   private onSecurityUpdate?: (metrics: SecurityMetrics) => void;
-  
+
   constructor() {
     this.db = new IndexedDBHelper();
     this.securityMetrics = this.initializeSecurityMetrics();
   }
-  
+
   /**
    * セキュリティメトリクスを初期化
    */
@@ -248,7 +353,7 @@ export class ConversationLogManager {
       ]
     };
   }
-  
+
   /**
    * コールバックを設定
    */
@@ -259,18 +364,14 @@ export class ConversationLogManager {
     this.onLogUpdate = callbacks.onLogUpdate;
     this.onSecurityUpdate = callbacks.onSecurityUpdate;
   }
-  
+
   /**
    * 新しいセッションを開始
    */
   startSession(): string {
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    this.currentSession = {
-      id: sessionId,
-      startTime: Date.now(),
-      entries: []
-    };
-    
+    // SessionEntity のコンストラクタで安全に初期化
+    this.currentSession = new SessionEntity();
+
     // セキュリティログを追加
     this.addEntry({
       type: 'security',
@@ -279,19 +380,19 @@ export class ConversationLogManager {
         message: '聖域が起動しました。結界が展開されています。'
       }
     });
-    
-    return sessionId;
+
+    return this.currentSession.id;
   }
-  
+
   /**
    * セッションを終了
    */
   async endSession(): Promise<SessionSummary | null> {
     if (!this.currentSession) return null;
-    
-    this.currentSession.endTime = Date.now();
-    this.currentSession.summary = this.generateSummary();
-    
+
+    // ロジックはエンティティに委譲
+    const summary = this.currentSession.end(this.securityMetrics.overallScore);
+
     // セキュリティログを追加
     this.addEntry({
       type: 'security',
@@ -300,35 +401,37 @@ export class ConversationLogManager {
         message: 'セッションが終了しました。ログは安全に保存されます。'
       }
     });
-    
-    // IndexedDBに保存
-    await this.db.saveSession(this.currentSession);
-    
-    const summary = this.currentSession.summary;
+
+    // IndexedDBに保存 (JSON形式に変換)
+    await this.db.saveSession(this.currentSession.toJSON());
+
     this.currentSession = null;
-    
+
     return summary;
   }
-  
+
   /**
    * ログエントリを追加
    */
   addEntry(entry: Omit<LogEntry, 'id' | 'timestamp'>): void {
     if (!this.currentSession) return;
-    
+
     const fullEntry: LogEntry = {
       id: `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: Date.now(),
       ...entry
     };
-    
-    this.currentSession.entries.push(fullEntry);
-    this.onLogUpdate?.(this.currentSession.entries);
-    
+
+    // エンティティのメソッドを使用
+    this.currentSession.addEntry(fullEntry);
+
+    // 読み取り専用プロパティへアクセス
+    this.onLogUpdate?.([...this.currentSession.entries]);
+
     // セキュリティメトリクスを更新
     this.updateSecurityMetrics(fullEntry);
   }
-  
+
   /**
    * 発話を記録
    */
@@ -337,7 +440,7 @@ export class ConversationLogManager {
       type: 'speech',
       data: { text, duration }
     });
-    
+
     // 感情分析
     const sentiment = analyzeSentiment(text);
     if (sentiment) {
@@ -347,7 +450,7 @@ export class ConversationLogManager {
       });
     }
   }
-  
+
   /**
    * 沈黙を記録
    */
@@ -357,7 +460,7 @@ export class ConversationLogManager {
       data: { duration }
     });
   }
-  
+
   /**
    * イベントを記録
    */
@@ -366,12 +469,12 @@ export class ConversationLogManager {
       type: 'event',
       data: { event }
     });
-    
+
     // イベントに応じてセキュリティメトリクスを更新
     if (event.type === 'MonologueLong' || event.type === 'OverlapBurst') {
       this.securityMetrics.threatLevel = Math.min(1, this.securityMetrics.threatLevel + 0.1);
       this.securityMetrics.barrierStrength = Math.max(0, this.securityMetrics.barrierStrength - 0.05);
-      
+
       // 同意保護インジケーターを警告に
       const consentIndicator = this.securityMetrics.indicators.find(i => i.type === 'consent');
       if (consentIndicator) {
@@ -381,7 +484,7 @@ export class ConversationLogManager {
     } else if (event.type === 'StableCalm') {
       this.securityMetrics.threatLevel = Math.max(0, this.securityMetrics.threatLevel - 0.15);
       this.securityMetrics.barrierStrength = Math.min(1, this.securityMetrics.barrierStrength + 0.1);
-      
+
       // 同意保護インジケーターを正常に
       const consentIndicator = this.securityMetrics.indicators.find(i => i.type === 'consent');
       if (consentIndicator) {
@@ -389,11 +492,11 @@ export class ConversationLogManager {
         consentIndicator.description = '判断の自由を守っています';
       }
     }
-    
+
     this.updateOverallScore();
     this.onSecurityUpdate?.(this.securityMetrics);
   }
-  
+
   /**
    * シーン変更を記録
    */
@@ -403,7 +506,7 @@ export class ConversationLogManager {
       data: { scene }
     });
   }
-  
+
   /**
    * セキュリティメトリクスを更新
    */
@@ -411,7 +514,7 @@ export class ConversationLogManager {
     // エントリタイプに応じてメトリクスを調整
     if (entry.type === 'scene_change' && entry.data.scene) {
       const scene = entry.data.scene;
-      
+
       if (scene === '調和') {
         this.securityMetrics.threatLevel = Math.max(0, this.securityMetrics.threatLevel - 0.05);
         this.securityMetrics.barrierStrength = Math.min(1, this.securityMetrics.barrierStrength + 0.02);
@@ -419,12 +522,12 @@ export class ConversationLogManager {
         this.securityMetrics.threatLevel = Math.min(1, this.securityMetrics.threatLevel + 0.03);
         this.securityMetrics.barrierStrength = Math.max(0, this.securityMetrics.barrierStrength - 0.01);
       }
-      
+
       this.updateOverallScore();
       this.onSecurityUpdate?.(this.securityMetrics);
     }
   }
-  
+
   /**
    * 総合スコアを更新
    */
@@ -432,7 +535,7 @@ export class ConversationLogManager {
     this.securityMetrics.overallScore = Math.round(
       (this.securityMetrics.barrierStrength * 50 + (1 - this.securityMetrics.threatLevel) * 50)
     );
-    
+
     // 保護ステータスを更新
     if (this.securityMetrics.overallScore >= 70) {
       this.securityMetrics.protectionStatus = 'active';
@@ -442,95 +545,31 @@ export class ConversationLogManager {
       this.securityMetrics.protectionStatus = 'breach';
     }
   }
-  
-  /**
-   * セッションサマリーを生成
-   */
-  private generateSummary(): SessionSummary {
-    if (!this.currentSession) {
-      return {
-        totalDuration: 0,
-        speechDuration: 0,
-        silenceDuration: 0,
-        sceneDistribution: { '静寂': 0, '調和': 0, '一方的': 0, '沈黙': 0 },
-        eventCounts: {},
-        securityScore: 0,
-        insights: []
-      };
-    }
-    
-    const entries = this.currentSession.entries;
-    const totalDuration = (this.currentSession.endTime || Date.now()) - this.currentSession.startTime;
-    
-    let speechDuration = 0;
-    let silenceDuration = 0;
-    const sceneDistribution: Record<SceneType, number> = { '静寂': 0, '調和': 0, '一方的': 0, '沈黙': 0 };
-    const eventCounts: Record<string, number> = {};
-    
-    for (const entry of entries) {
-      if (entry.type === 'speech' && entry.data.duration) {
-        speechDuration += entry.data.duration;
-      } else if (entry.type === 'silence' && entry.data.duration) {
-        silenceDuration += entry.data.duration;
-      } else if (entry.type === 'scene_change' && entry.data.scene) {
-        sceneDistribution[entry.data.scene]++;
-      } else if (entry.type === 'event' && entry.data.event) {
-        const eventType = entry.data.event.type;
-        eventCounts[eventType] = (eventCounts[eventType] || 0) + 1;
-      }
-    }
-    
-    // インサイトを生成
-    const insights: string[] = [];
-    
-    if (sceneDistribution['調和'] > sceneDistribution['一方的'] + sceneDistribution['沈黙']) {
-      insights.push('この対話は全体的に調和が取れていました。');
-    }
-    
-    if (eventCounts['MonologueLong'] > 2) {
-      insights.push('一方的な発言が多く見られました。対話のバランスを意識してみてください。');
-    }
-    
-    if (eventCounts['SilenceLong'] > 2) {
-      insights.push('長い沈黙が複数回ありました。発言しやすい雰囲気作りを心がけてみてください。');
-    }
-    
-    if (eventCounts['StableCalm'] > 3) {
-      insights.push('安定した対話が続きました。良いコミュニケーションが取れています。');
-    }
-    
-    return {
-      totalDuration,
-      speechDuration,
-      silenceDuration,
-      sceneDistribution,
-      eventCounts,
-      securityScore: this.securityMetrics.overallScore,
-      insights
-    };
-  }
-  
+
+  // SessionEntityに移動したため、generateSummary は削除
+
   /**
    * 現在のセキュリティメトリクスを取得
    */
   getSecurityMetrics(): SecurityMetrics {
     return { ...this.securityMetrics };
   }
-  
+
   /**
    * 現在のセッションのログを取得
    */
   getCurrentLogs(): LogEntry[] {
-    return this.currentSession?.entries || [];
+    // SessionEntity から取得（読み取り専用）
+    return this.currentSession ? [...this.currentSession.entries] : [];
   }
-  
+
   /**
    * 過去のセッションを取得
    */
   async getPastSessions(): Promise<Session[]> {
     return this.db.getAllSessions();
   }
-  
+
   /**
    * セッションを削除
    */
