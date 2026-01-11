@@ -247,6 +247,133 @@ export const appRouter = router({
         return await securityService.generateSecuritySummary(session.id);
       }),
   }),
+
+  // ===== 管理者機能 =====
+  /**
+   * 管理者専用のルーター
+   * 
+   * 管理者ダッシュボードで使用するエンドポイントを提供する。
+   * ユーザー管理、監査ログ閲覧などの機能を含む。
+   */
+  admin: router({
+    /**
+     * ユーザー管理のルーター
+     */
+    user: router({
+      /**
+       * ユーザー一覧を取得する
+       * 
+       * 管理者ダッシュボードでユーザー一覧を表示するために使用される。
+       * 検索、フィルタリング、ページネーションに対応している。
+       * 
+       * @param input - 取得オプション（ページ、件数、検索、削除済み含むかどうか）
+       * @returns ユーザー一覧と総件数
+       */
+      list: adminProcedure
+        .input(z.object({
+          page: z.number().min(1).optional(),
+          limit: z.number().min(1).max(100).optional(),
+          search: z.string().optional(),
+          includeDeleted: z.boolean().optional(),
+        }).optional())
+        .query(async ({ input }) => {
+          return await getAllUsers(input);
+        }),
+
+      /**
+       * ユーザー詳細を取得する
+       * 
+       * 管理者ダッシュボードでユーザー詳細を表示するために使用される。
+       * 削除済みユーザーも取得可能。
+       * 
+       * @param input - ユーザーID
+       * @returns ユーザーオブジェクト、またはnull（存在しない場合）
+       */
+      get: adminProcedure
+        .input(z.object({ userId: z.number() }))
+        .query(async ({ input }) => {
+          return await getUserById(input.userId) || null;
+        }),
+
+      /**
+       * ユーザーを論理削除する
+       * 
+       * ユーザーのdeletedAtフィールドを現在時刻に設定して論理削除を行う。
+       * セキュリティチェック: 自分自身の削除は不可、最後のadminアカウントの削除は不可。
+       * 
+       * @param input - ユーザーID
+       * @param ctx - コンテキスト（現在のユーザー情報を含む）
+       * @returns 削除成功フラグ
+       */
+      delete: adminProcedure
+        .input(z.object({ userId: z.number() }))
+        .mutation(async ({ input, ctx }) => {
+          // 自分自身の削除は不可
+          if (input.userId === ctx.user.id) {
+            throw new Error("Cannot delete yourself");
+          }
+
+          // 削除対象のユーザーを取得
+          const targetUser = await getUserById(input.userId);
+          if (!targetUser) {
+            throw new Error("User not found");
+          }
+
+          // 最後のadminアカウントの削除は不可
+          if (targetUser.role === 'admin') {
+            const allAdmins = await getAllUsers({ includeDeleted: false });
+            const activeAdmins = allAdmins.users.filter(u => u.role === 'admin' && !u.deletedAt);
+            if (activeAdmins.length <= 1) {
+              throw new Error("Cannot delete the last admin account");
+            }
+          }
+
+          // 論理削除を実行
+          await softDeleteUser(input.userId);
+
+          // 監査ログに記録
+          await securityService.logSecurityEvent({
+            userId: ctx.user.id,
+            eventType: 'access_granted',
+            severity: 'info',
+            description: `User deleted by admin: ${targetUser.email || targetUser.name || targetUser.openId}`,
+            metadata: { deletedUserId: input.userId },
+            timestamp: Date.now(),
+          });
+
+          return { success: true };
+        }),
+    }),
+
+    /**
+     * 監査ログのルーター
+     */
+    audit: router({
+      /**
+       * 監査ログを取得する
+       * 
+       * 管理者ダッシュボードでセキュリティ監査ログを表示するために使用される。
+       * フィルタリング、ページネーションに対応している。
+       * 
+       * @param input - 取得オプション（ページ、件数、フィルタリング条件）
+       * @returns 監査ログ一覧と総件数
+       */
+      getLogs: adminProcedure
+        .input(z.object({
+          page: z.number().min(1).optional(),
+          limit: z.number().min(1).max(100).optional(),
+          eventType: z.string().optional(),
+          severity: z.enum(["info", "warning", "critical"]).optional(),
+          userId: z.number().optional(),
+          sessionId: z.number().optional(),
+          startDate: z.number().optional(),
+          endDate: z.number().optional(),
+        }).optional())
+        .query(async ({ input }) => {
+          return await getAuditLogs(input || {});
+        }),
+    }),
+  }),
 });
 
 /**
