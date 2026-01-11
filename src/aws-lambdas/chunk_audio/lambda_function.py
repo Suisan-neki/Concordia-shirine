@@ -227,6 +227,21 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 "overlap_duration": OVERLAP_DURATION,
             },
         }
+        
+        # update duration to dynamoDB
+        if interview_id and TABLE_NAME:
+            try:
+                dynamodb = boto3.client("dynamodb")
+                dynamodb.update_item(
+                    TableName=TABLE_NAME,
+                    Key={"interview_id": {"S": interview_id}},
+                    UpdateExpression="SET audio_duration = :duration",
+                    ExpressionAttributeValues={":duration": {"N": str(int(audio_duration))}},
+                )
+                logger.info(f"Updated DynamoDB duration: {int(audio_duration)}")
+            except Exception as e:
+                logger.warning(f"Failed to update DynamoDB duration: {e}")
+
         # interview_id を次のステップに渡す
         if interview_id:
             result["interview_id"] = interview_id
