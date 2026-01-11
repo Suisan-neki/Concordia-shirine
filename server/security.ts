@@ -26,7 +26,25 @@ const getEncryptionKey = (): Buffer => {
 };
 
 // レート制限のストレージ（メモリベース）
+// TODO: 本番環境ではRedis等の共有ストレージに移行して、複数インスタンス間でレート制限を共有する
+// 現在のメモリベース実装は単一インスタンスでのみ有効
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+// レート制限レコードの自動クリーンアップ（メモリリーク防止）
+// リセット時刻が過ぎたレコードを定期的に削除
+setInterval(() => {
+  const now = Date.now();
+  const keysToDelete: string[] = [];
+  for (const [key, record] of rateLimitStore.entries()) {
+    if (now > record.resetTime + 60000) { // リセット時刻から1分以上経過したレコードを削除
+      keysToDelete.push(key);
+    }
+  }
+  keysToDelete.forEach(key => rateLimitStore.delete(key));
+  if (keysToDelete.length > 0) {
+    console.log(`[Security] Cleaned up ${keysToDelete.length} expired rate limit records`);
+  }
+}, 5 * 60 * 1000); // 5分ごとにクリーンアップ
 
 // ===== コスト最適化: ログバッファリング =====
 interface LogBuffer {
