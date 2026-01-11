@@ -12,6 +12,9 @@ cdk/cdk.out/
 **/cdk.out/
 *.so
 *.bin
+ffmpeg
+ffprobe
+
 
 
 

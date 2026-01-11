@@ -94,6 +94,7 @@ export class LambdaStack extends cdk.Stack {
                 OVERLAP_DURATION: "30",
                 MIN_CHUNK_DURATION: "60",
                 ENVIRONMENT: environment,
+                PATH: "/var/task:$PATH",
             },
         });
 
@@ -141,6 +142,7 @@ export class LambdaStack extends cdk.Stack {
                 OUTPUT_BUCKET: outputBucket.bucketName,
                 TABLE_NAME: interviewsTable.tableName,
                 ENVIRONMENT: environment,
+                PATH: "/var/task:$PATH",
             },
         });
 

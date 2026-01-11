@@ -53,8 +53,8 @@ find "$LAMBDAS_DIR" -name "requirements.txt" | while read requirements_file; do
     # Verify size
     du -sh "$DIST_DIR"
 
-    # Special handling for extract_audio: Add ffmpeg
-    if [[ "$lambda_dir" == *"extract_audio"* ]]; then
+    # Special handling for extract_audio, chunk_audio, split_by_speaker: Add ffmpeg
+    if [[ "$lambda_dir" == *"extract_audio"* ]] || [[ "$lambda_dir" == *"chunk_audio"* ]] || [[ "$lambda_dir" == *"split_by_speaker"* ]]; then
         echo "Downloading ffmpeg for extract_audio (ARM64)..."
         FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz"
         curl -L "$FFMPEG_URL" -o /tmp/ffmpeg.tar.xz
