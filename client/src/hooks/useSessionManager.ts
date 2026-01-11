@@ -129,7 +129,6 @@ export function useSessionManager() {
           sessionId: currentSessionId,
           endTime,
           duration,
-          securityScore,
           sceneDistribution: summary.sceneDistribution,
           eventCounts: summary.eventCounts,
           insights,

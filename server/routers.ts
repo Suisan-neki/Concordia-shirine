@@ -43,7 +43,6 @@ export const appRouter = router({
         sessionId: z.string(),
         endTime: z.number(),
         duration: z.number(),
-        securityScore: z.number().min(0).max(100),
         sceneDistribution: z.record(z.string(), z.number()),
         eventCounts: z.record(z.string(), z.number()),
         insights: z.array(z.string()),
