@@ -272,7 +272,7 @@ export class SecurityService {
   
   /**
    * 入力をサニタイズする
-   * XSS攻撃やSQLインジェクションを防ぐ
+   * XSS攻撃、SQLインジェクション、NoSQLインジェクション、JSONインジェクションを防ぐ
    */
   async sanitizeInput(
     input: string,
@@ -280,17 +280,40 @@ export class SecurityService {
     sessionId?: number
   ): Promise<{ sanitized: string; wasModified: boolean }> {
     const original = input;
+    let sanitized = input;
     
-    // HTMLタグを除去
-    let sanitized = input.replace(/<[^>]*>/g, '');
+    // 1. 制御文字を除去（改行とタブは許可）
+    sanitized = sanitized.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '');
     
-    // 危険な文字をエスケープ
+    // 2. HTMLタグを除去
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
+    
+    // 3. HTMLエスケープ（XSS対策）
     sanitized = sanitized
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#x27;');
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;'); // スラッシュもエスケープ（XSS対策）
+    
+    // 4. NoSQLインジェクション対策（MongoDB等のオペレーター文字をエスケープ）
+    // $ と . はNoSQLクエリで特別な意味を持つため、エスケープ
+    sanitized = sanitized
+      .replace(/\$/g, '&#36;')
+      .replace(/\./g, '&#46;');
+    
+    // 5. JSONインジェクション対策（JSONメタデータに使用される場合に備えて）
+    // バックスラッシュと改行をエスケープ
+    sanitized = sanitized
+      .replace(/\\/g, '&#92;')
+      .replace(/\n/g, '&#10;')
+      .replace(/\r/g, '&#13;');
+    
+    // 6. スクリプトインジェクション対策（javascript:やdata:プロトコルを無効化）
+    sanitized = sanitized.replace(/javascript:/gi, '');
+    sanitized = sanitized.replace(/data:/gi, '');
+    sanitized = sanitized.replace(/vbscript:/gi, '');
     
     const wasModified = original !== sanitized;
     
@@ -302,7 +325,17 @@ export class SecurityService {
         eventType: 'input_sanitized',
         severity: 'info',
         description: '入力データが安全にサニタイズされました',
-        metadata: { originalLength: original.length, sanitizedLength: sanitized.length },
+        metadata: { 
+          originalLength: original.length, 
+          sanitizedLength: sanitized.length,
+          // どの種類のサニタイズが適用されたかを記録（デバッグ用）
+          sanitizationTypes: [
+            original.length !== sanitized.length ? 'length_changed' : null,
+            original.includes('<') ? 'html_tags_removed' : null,
+            original.includes('$') || original.includes('.') ? 'nosql_escaped' : null,
+            original.includes('\\') ? 'json_escaped' : null,
+          ].filter(Boolean) as string[],
+        },
         timestamp: Date.now(),
       });
     }
