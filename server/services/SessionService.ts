@@ -63,7 +63,6 @@ export class SessionService {
         data: {
             endTime: number;
             duration: number;
-            securityScore: number;
             sceneDistribution: Record<string, number>;
             eventCounts: Record<string, number>;
             insights: string[];
@@ -78,7 +77,7 @@ export class SessionService {
         await updateSession(sessionId, {
             endTime: data.endTime,
             duration: data.duration,
-            securityScore: data.securityScore,
+            securityScore: this.calculateSecurityScore(data.sceneDistribution),
             sceneDistribution: data.sceneDistribution,
             eventCounts: data.eventCounts,
             insights: data.insights,
@@ -88,6 +87,17 @@ export class SessionService {
         const securitySummary = await securityService.generateSecuritySummary(session.id);
 
         return { success: true, securitySummary };
+    }
+
+    private calculateSecurityScore(sceneDistribution: Record<string, number>): number {
+        const totalScenes = Object.values(sceneDistribution).reduce((sum, value) => sum + value, 0);
+        const harmonyRatio = totalScenes > 0 ? (sceneDistribution['調和'] || 0) / totalScenes : 0;
+        const silenceRatio = totalScenes > 0 ? (sceneDistribution['静寂'] || 0) / totalScenes : 0;
+        const oneSidedRatio = totalScenes > 0 ? (sceneDistribution['一方的'] || 0) / totalScenes : 0;
+        const score = Math.round(
+            (harmonyRatio * 0.4 + silenceRatio * 0.3 + (1 - oneSidedRatio) * 0.3) * 100
+        );
+        return Math.min(100, Math.max(0, score));
     }
 
     /**
