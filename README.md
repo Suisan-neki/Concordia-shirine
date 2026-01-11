@@ -14,7 +14,7 @@ Concordia Shrineは、会議やミーティングにおける「見えない圧�
 - **気まずさや沈黙のせいで飲み込まれてしまう違和感**
 - **場の空気に押し流される前の「本当はこう思っている」の可能性**
 
-### Human Decision Security
+### 意思決定のセキュリティ (Human Decision Security)
 
 従来のセキュリティは、外部からの攻撃（External Threat）を防ぐことに焦点を当ててきました。
 しかし、Concordia Shrineは**「内在的脅威（Intrinsic Threat）」**――すなわち、集団心理や同調圧力によって個人の判断が歪められるリスク――から、人の心を防御します。
@@ -133,10 +133,4 @@ Concordia-shirine-1
 
 詳しくは [システムアーキテクチャ詳細](docs/architecture.md) をご覧ください。
 
-## ライセンス
 
-MIT License
-
----
-
-Concordia Shrine — Human Decision Security
