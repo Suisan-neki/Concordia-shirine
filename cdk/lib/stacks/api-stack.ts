@@ -146,6 +146,9 @@ export class ApiStack extends cdk.Stack {
                 OAUTH_SERVER_URL: oauthServerUrl,
                 OWNER_OPEN_ID: ownerOpenId,
                 NODE_ENV: "production",
+                COGNITO_REGION: cdk.Stack.of(this).region,
+                COGNITO_USER_POOL_ID: userPool.userPoolId,
+                COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
             },
             bundling: {
                 minify: true,
