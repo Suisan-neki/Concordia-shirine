@@ -1,8 +1,8 @@
 """
-Realtime Transcribe Lambda (OpenAI API Version)
+Realtime Transcribe Lambda (OpenAI API 版)
 
-Handles API Gateway requests for real-time transcription using OpenAI Audio API.
-Replaces local faster-whisper inference to enable Docker-less deployment.
+API Gateway からのリクエストを処理し、OpenAI Audio API を使用してリアルタイム文字起こしを行います。
+Dockerレス化を実現するため、ローカルの faster-whisper 推論を廃止しました。
 """
 
 import base64
@@ -14,14 +14,14 @@ from typing import Any
 
 from openai import OpenAI
 
-# Initialize logger
+# ロガーの初期化
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 WHISPER_MODEL_DIR = os.environ.get("WHISPER_MODEL_DIR", "/opt/whisper-models")
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "medium")
 
-# Global model instance for warm starts
+# ウォームスタート用のグローバルモデルインスタンス
 _model = None
 
 def download_model_from_s3(model_name: str, download_root: str):
@@ -66,21 +66,21 @@ def get_model():
         logger.info("Importing faster_whisper...")
         from faster_whisper import WhisperModel
         
-        # Check /tmp (or configured dir)
-        # Note: In Lambda Zip, /opt is read-only (Layer). /tmp is writable.
-        # If WHISPER_MODEL_DIR is /opt/..., we assume it comes from a Layer OR we override it to /tmp locally
-        # Here, we force check /tmp/whisper-models if not found in configured dir
+        # /tmp（または設定されたディレクトリ）を確認
+        # 注意: Lambda Zip では /opt は読み取り専用（Layer）。/tmp は書き込み可能。
+        # WHISPER_MODEL_DIR が /opt/... の場合、Layer から提供されるか、ローカルで /tmp に上書きすると想定。
+        # ここでは、設定されたディレクトリにない場合、強制的に /tmp/whisper-models を確認します。
         
         model_name = WHISPER_MODEL
         model_root = "/tmp/whisper-models" 
         model_path = os.path.join(model_root, model_name)
         
-        # If configured dir exists (e.g. from Layer), use it
+        # 設定されたディレクトリが存在する場合（例: Layer から）、それを使用
         if os.path.exists(os.path.join(WHISPER_MODEL_DIR, model_name)):
             final_model_path = os.path.join(WHISPER_MODEL_DIR, model_name)
             logger.info(f"Using pre-existing model at {final_model_path}")
         else:
-             # Else use /tmp and download if needed
+             # それ以外の場合は /tmp を使用し、必要に応じてダウンロード
              if not os.path.exists(model_path):
                  logger.info(f"Model not found at {model_path}. Downloading from S3...")
                  download_model_from_s3(model_name, model_path)
@@ -92,7 +92,7 @@ def get_model():
             final_model_path,
             device="cpu",
             compute_type="int8",
-            local_files_only=True,  # Ensure we use the pre-downloaded model
+            local_files_only=True,  # ダウンロード済みモデルの使用を強制
         )
         logger.info(f"Model loaded in {time.time() - start_time:.2f}s")
     return _model
@@ -100,13 +100,13 @@ def get_model():
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """
-    Handles API Gateway requests for real-time transcription.
-    Expected Body: JSON with {"audio_data": "base64_string"}
+    API Gateway からのリアルタイム文字起こしリクエストを処理します。
+    期待されるボディ: {"audio_data": "base64_string"} を含む JSON
     """
     try:
         model = get_model()
 
-        # Parse body
+        # ボディの解析
         body = event.get("body")
         if not body:
             return {
@@ -115,7 +115,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             }
 
         try:
-            # Handle both JSON string and direct dict (CMD invocation vs API Gateway)
+            # JSON文字列と直接的な辞書（CMD起動 vs API Gateway）の両方を処理
             if isinstance(body, str):
                 body_data = json.loads(body)
             else:
@@ -133,7 +133,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 "body": json.dumps({"error": "Invalid JSON body"}),
             }
 
-        # Decode audio
+        # 音声のデコード
         try:
             audio_bytes = base64.b64decode(audio_b64)
         except Exception as e:
@@ -143,31 +143,31 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 "body": json.dumps({"error": "Invalid base64 audio data"}),
             }
 
-        # Save to ephemeral storage
+        # 一時ストレージへの保存
         input_path = "/tmp/input.wav"
         with open(input_path, "wb") as f:
             f.write(audio_bytes)
 
-        # Transcribe
+        # 文字起こし実行
         logger.info("Starting transcription...")
         start_time = time.time()
         
         segments, info = model.transcribe(
             input_path,
             beam_size=5,
-            language="ja", # Default to Japanese or detect? Let's fix to Japanese for speed if targeting Japanese users
-            vad_filter=True, # Filter silence
+            language="ja", # 日本語ユーザー向けに速度優先で固定
+            vad_filter=True, # 無音を除去
             vad_parameters=dict(min_silence_duration_ms=500),
         )
 
-        # Iterate generator to get results
+        # ジェネレータを反復処理して結果を取得
         result_segments = []
         for segment in segments:
             result_segments.append({
                 "start": segment.start,
                 "end": segment.end,
                 "text": segment.text,
-                "confidence": segment.avg_logprob # Approximation
+                "confidence": segment.avg_logprob # 近似値
             })
 
         duration = time.time() - start_time
@@ -177,7 +177,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*", # Enable CORS
+                "Access-Control-Allow-Origin": "*", # CORS を有効化
             },
             "body": json.dumps({
                 "segments": result_segments,

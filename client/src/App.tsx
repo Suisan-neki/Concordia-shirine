@@ -8,7 +8,7 @@ import Home from "./pages/Home";
 import About from "./pages/About";
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
+  // 特定のルートに認証が必要かどうかを確認してください
   return (
     <Switch>
       <Route path={"/"} component={Home} />

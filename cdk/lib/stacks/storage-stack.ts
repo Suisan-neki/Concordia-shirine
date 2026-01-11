@@ -18,13 +18,13 @@ export class StorageStack extends cdk.Stack {
 
         const { environment } = props;
 
-        // Input bucket for video uploads
+        // 動画アップロード用の入力バケット
         this.inputBucket = new s3.Bucket(this, "InputBucket", {
-            bucketName: `concordia-input-${environment}-${this.account}`, // Renamed for project
+            bucketName: `concordia-input-${environment}-${this.account}`, // プロジェクト用にリネーム
             encryption: s3.BucketEncryption.S3_MANAGED,
             blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-            versioned: true, // Enable Versioning for Data Protection
-            eventBridgeEnabled: true, // Enable EventBridge for S3 events
+            versioned: true, // データ保護のためにバージョニングを有効化
+            eventBridgeEnabled: true, // S3 イベントのために EventBridge を有効化
             removalPolicy:
                 environment === "prod"
                     ? cdk.RemovalPolicy.RETAIN
@@ -54,12 +54,12 @@ export class StorageStack extends cdk.Stack {
             ],
         });
 
-        // Output bucket for processed results
+        // 処理結果用の出力バケット
         this.outputBucket = new s3.Bucket(this, "OutputBucket", {
-            bucketName: `concordia-output-${environment}-${this.account}`, // Renamed for project
+            bucketName: `concordia-output-${environment}-${this.account}`, // プロジェクト用にリネーム
             encryption: s3.BucketEncryption.S3_MANAGED,
             blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-            versioned: true, // Enable Versioning for Data Protection
+            versioned: true, // データ保護のためにバージョニングを有効化
             removalPolicy:
                 environment === "prod"
                     ? cdk.RemovalPolicy.RETAIN
@@ -81,7 +81,7 @@ export class StorageStack extends cdk.Stack {
             ],
         });
 
-        // DynamoDB table for interview data
+        // インタビューデータ用の DynamoDB テーブル
         this.interviewsTable = new dynamodb.Table(this, "InterviewsTable", {
             tableName: `concordia-interviews-${environment}`,
             partitionKey: {
@@ -97,7 +97,7 @@ export class StorageStack extends cdk.Stack {
             pointInTimeRecovery: environment === "prod",
         });
 
-        // GSI for segment-based queries
+        // セグメントベースのクエリ用 GSI
         this.interviewsTable.addGlobalSecondaryIndex({
             indexName: "segment-index",
             partitionKey: {
