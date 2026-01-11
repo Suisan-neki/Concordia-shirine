@@ -1,4 +1,15 @@
 import { defineConfig } from "drizzle-kit";
+import { config } from "dotenv";
+import { resolve } from "path";
+import { existsSync } from "fs";
+
+// .envファイルを読み込む（プロジェクトルートから）
+const envPath = resolve(process.cwd(), ".env");
+if (existsSync(envPath)) {
+  config({ path: envPath });
+} else {
+  console.warn(`Warning: .env file not found at ${envPath}`);
+}
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
