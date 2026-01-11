@@ -78,7 +78,19 @@ const CONTENT_ANALYSIS_CONFIG = {
 };
 
 /**
- * テキストの感情分析
+ * テキストの感情分析を行う
+ * 
+ * テキストに含まれるキーワードを分析し、会話のシーン（調和、一方的、沈黙）を判定する。
+ * CONTENT_ANALYSIS_CONFIGに定義されたキーワードを使用して、テキストの感情的な傾向を判断する。
+ * 
+ * 処理の流れ:
+ * 1. テキストが空の場合はnullを返す
+ * 2. 各シーン（調和、一方的、沈黙）のキーワードをチェック
+ * 3. キーワードが見つかった場合は、該当するシーンのスコアをインクリメント
+ * 4. 最もスコアが高いシーンを返す（スコアが0の場合はnull）
+ * 
+ * @param text - 分析するテキスト
+ * @returns 判定されたシーン（'調和'、'一方的'、'沈黙'）、またはnull（判定できない場合）
  */
 export function analyzeSentiment(text: string): SceneType | null {
   if (!text) return null;
@@ -149,6 +161,14 @@ class IndexedDBHelper {
     });
   }
 
+  /**
+   * セッションを保存する
+   * 
+   * セッションをIndexedDBに保存する。既に存在する場合は更新される。
+   * 
+   * @param session - 保存するセッション
+   * @throws {Error} データベース操作に失敗した場合
+   */
   async saveSession(session: Session): Promise<void> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
@@ -160,6 +180,15 @@ class IndexedDBHelper {
     });
   }
 
+  /**
+   * セッションを取得する
+   * 
+   * 指定されたIDのセッションをIndexedDBから取得する。
+   * 
+   * @param id - 取得するセッションのID
+   * @returns セッション、またはnull（存在しない場合）
+   * @throws {Error} データベース操作に失敗した場合
+   */
   async getSession(id: string): Promise<Session | null> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
@@ -171,6 +200,14 @@ class IndexedDBHelper {
     });
   }
 
+  /**
+   * すべてのセッションを取得する
+   * 
+   * IndexedDBに保存されているすべてのセッションを取得する。
+   * 
+   * @returns セッションの配列
+   * @throws {Error} データベース操作に失敗した場合
+   */
   async getAllSessions(): Promise<Session[]> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
@@ -194,7 +231,12 @@ class IndexedDBHelper {
   }
 }
 
-// セッションエンティティ (Rich Domain Model)
+/**
+ * セッションエンティティ（Rich Domain Model）
+ * 
+ * セッションのビジネスロジックをカプセル化するドメインモデル。
+ * ログエントリの管理、サマリー生成などの機能を提供する。
+ */
 export class SessionEntity {
   public readonly id: string;
   public readonly startTime: number;
@@ -218,7 +260,15 @@ export class SessionEntity {
     return this._entries;
   }
 
-  // セッション終了ロジックをデータ保持側に移動 (Tell, Don't Ask)
+  /**
+   * セッションを終了する
+   * 
+   * セッションを終了し、サマリーを生成する。
+   * 終了時刻を記録し、ログエントリから統計情報を集計してサマリーを作成する。
+   * 
+   * @param securityScore - セキュリティスコア（0-100）
+   * @returns セッションサマリー（継続時間、シーン分布、イベント数、インサイトなど）
+   */
   end(securityScore: number): SessionSummary {
     this.endTime = Date.now();
     this.summary = this.generateSummary(securityScore);
@@ -301,6 +351,9 @@ export class SessionEntity {
 
 /**
  * 会話ログマネージャー
+ * 
+ * 会話ログの保存、分析、セキュリティ可視化を統合管理するクラス。
+ * IndexedDBを使用した永続化、セキュリティメトリクスの計算、コールバック機能を提供する。
  */
 export class ConversationLogManager {
   private db: IndexedDBHelper;
@@ -402,7 +455,12 @@ export class ConversationLogManager {
   }
 
   /**
-   * 新しいセッションを開始
+   * 新しいセッションを開始する
+   * 
+   * 新しいセッションエンティティを作成し、セキュリティログを追加する。
+   * 「聖域が起動しました。結界が展開されています。」というメッセージを記録する。
+   * 
+   * @returns 作成されたセッションのID
    */
   startSession(): string {
     // SessionEntity のコンストラクタで安全に初期化
@@ -421,7 +479,12 @@ export class ConversationLogManager {
   }
 
   /**
-   * セッションを終了
+   * セッションを終了する
+   * 
+   * 現在のセッションを終了し、サマリーを生成してIndexedDBに保存する。
+   * セッション終了時にもセキュリティログを追加する。
+   * 
+   * @returns セッションサマリー、またはnull（セッションが存在しない場合）
    */
   async endSession(): Promise<SessionSummary | null> {
     if (!this.currentSession) return null;
@@ -447,7 +510,12 @@ export class ConversationLogManager {
   }
 
   /**
-   * ログエントリを追加
+   * ログエントリを追加する
+   * 
+   * 現在のセッションにログエントリを追加し、セキュリティメトリクスを更新する。
+   * IDとタイムスタンプを自動的に生成してエントリを完成させる。
+   * 
+   * @param entry - 追加するログエントリ（IDとタイムスタンプは自動生成）
    */
   addEntry(entry: Omit<LogEntry, 'id' | 'timestamp'>): void {
     if (!this.currentSession) return;
@@ -469,7 +537,13 @@ export class ConversationLogManager {
   }
 
   /**
-   * 発話を記録
+   * 発話を記録する
+   * 
+   * 発話テキストと継続時間を記録し、感情分析を実行してシーン変更を検出する。
+   * 感情分析の結果、シーンが判定された場合はシーン変更ログも追加される。
+   * 
+   * @param text - 発話テキスト
+   * @param duration - 発話の継続時間（秒、オプション）
    */
   logSpeech(text: string, duration?: number): void {
     this.addEntry({
@@ -488,7 +562,11 @@ export class ConversationLogManager {
   }
 
   /**
-   * 沈黙を記録
+   * 沈黙を記録する
+   * 
+   * 沈黙の継続時間を記録する。
+   * 
+   * @param duration - 沈黙の継続時間（秒）
    */
   logSilence(duration: number): void {
     this.addEntry({
@@ -498,7 +576,11 @@ export class ConversationLogManager {
   }
 
   /**
-   * イベントを記録
+   * イベントを記録する
+   * 
+   * 音声分析で検出されたイベント（長い沈黙、長い独演、オーバーラップ、安定した状態など）を記録する。
+   * 
+   * @param event - 記録するイベント（タイプ、タイムスタンプ、メタデータを含む）
    */
   logEvent(event: ConcordiaEvent): void {
     this.addEntry({
@@ -508,7 +590,11 @@ export class ConversationLogManager {
   }
 
   /**
-   * シーン変更を記録
+   * シーン変更を記録する
+   * 
+   * 会話のシーン（静寂、調和、一方的、沈黙）の変更を記録する。
+   * 
+   * @param scene - 変更後のシーン
    */
   logSceneChange(scene: SceneType): void {
     this.addEntry({
@@ -576,14 +662,23 @@ export class ConversationLogManager {
   // SessionEntityに移動したため、generateSummary は削除
 
   /**
-   * 現在のセキュリティメトリクスを取得
+   * 現在のセキュリティメトリクスを取得する
+   * 
+   * セキュリティメトリクスのコピーを返す（不変性を保証）。
+   * 
+   * @returns セキュリティメトリクス（総合スコア、結界の強さ、脅威レベル、保護ステータス、インジケーター）
    */
   getSecurityMetrics(): SecurityMetrics {
     return { ...this.securityMetrics };
   }
 
   /**
-   * 現在のセッションのログを取得
+   * 現在のセッションのログを取得する
+   * 
+   * 現在のセッションに記録されているすべてのログエントリを取得する。
+   * 読み取り専用のコピーを返す（不変性を保証）。
+   * 
+   * @returns ログエントリの配列（セッションが存在しない場合は空配列）
    */
   getCurrentLogs(): LogEntry[] {
     // SessionEntity から取得（読み取り専用）
@@ -591,14 +686,22 @@ export class ConversationLogManager {
   }
 
   /**
-   * 過去のセッションを取得
+   * 過去のセッションを取得する
+   * 
+   * IndexedDBに保存されているすべてのセッションを取得する。
+   * 
+   * @returns セッションの配列
    */
   async getPastSessions(): Promise<Session[]> {
     return this.db.getAllSessions();
   }
 
   /**
-   * セッションを削除
+   * セッションを削除する
+   * 
+   * 指定されたIDのセッションをIndexedDBから削除する。
+   * 
+   * @param id - 削除するセッションのID
    */
   async deleteSession(id: string): Promise<void> {
     return this.db.deleteSession(id);

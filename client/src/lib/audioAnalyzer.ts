@@ -42,6 +42,9 @@ const DEFAULT_CONFIG: AudioAnalyzerConfig = {
 
 /**
  * イベント検出器
+ * 
+ * 音声分析から得られる情報（発話/沈黙の状態、切り替え回数など）を分析し、
+ * 会話パターンからイベント（長い沈黙、長い独演、オーバーラップ、安定した状態など）を検出する。
  */
 export class EventDetector {
   private config: AudioAnalyzerConfig;
@@ -57,7 +60,19 @@ export class EventDetector {
   }
   
   /**
-   * フレームを処理してイベントを検出
+   * フレームを処理してイベントを検出する
+   * 
+   * 音声分析の各フレーム（20msごと）を処理し、連続時間や切り替え回数を計算してイベントを検出する。
+   * 
+   * 検出されるイベント:
+   * - SilenceLong: 長い沈黙が続いた場合
+   * - MonologueLong: 長い独演が続いた場合
+   * - OverlapBurst: 短時間で発話/沈黙の切り替えが多く発生した場合
+   * - StableCalm: 安定した対話が続いている場合
+   * 
+   * @param isSpeech - 現在のフレームが発話かどうか
+   * @param now - 現在時刻（秒、セッション開始からの経過時間）
+   * @returns 検出されたイベントの配列（複数のイベントが同時に検出される場合もある）
    */
   process(isSpeech: boolean, now: number): ConcordiaEvent[] {
     const events: ConcordiaEvent[] = [];
@@ -138,7 +153,17 @@ export class EventDetector {
   }
   
   /**
-   * 現在の状態からシーンを判定
+   * 現在の状態からシーンを判定する
+   * 
+   * 連続時間や切り替え回数から、会話のシーン（静寂、調和、一方的、沈黙）を判定する。
+   * 
+   * 判定ロジック:
+   * - 沈黙: 沈黙が8秒以上続いている場合
+   * - 一方的: 発話が8秒以上続いている場合
+   * - 調和: 切り替えが6回以上ある場合（活発な対話）
+   * - 静寂: 上記以外の場合
+   * 
+   * @returns 判定されたシーン（'静寂'、'調和'、'一方的'、'沈黙'）
    */
   getScene(): SceneType {
     const switchCount = this.calculateSwitchCount();
@@ -177,6 +202,9 @@ export class EventDetector {
 
 /**
  * 音声分析器
+ * 
+ * マイク入力から音声を分析し、音声活動検出（VAD）、シーン判定、イベント検出を行う。
+ * Web Audio APIを使用してリアルタイムで音声を処理する。
  */
 export class AudioAnalyzer {
   private audioContext: AudioContext | null = null;
@@ -204,7 +232,15 @@ export class AudioAnalyzer {
   }
   
   /**
-   * コールバックを設定
+   * コールバックを設定する
+   * 
+   * 音声分析の結果を受け取るコールバック関数を設定する。
+   * 
+   * @param callbacks - コールバック関数のオブジェクト
+   * @param callbacks.onEnergyUpdate - 音声エネルギーが更新されたときに呼ばれる（0-1の範囲）
+   * @param callbacks.onSceneChange - シーンが変更されたときに呼ばれる
+   * @param callbacks.onEvent - イベントが検出されたときに呼ばれる
+   * @param callbacks.onSpeechChange - 発話状態が変更されたときに呼ばれる（発話開始/終了）
    */
   setCallbacks(callbacks: {
     onEnergyUpdate?: (energy: number) => void;
@@ -219,7 +255,19 @@ export class AudioAnalyzer {
   }
   
   /**
-   * 音声入力を開始
+   * 音声入力を開始する
+   * 
+   * マイクアクセスを取得し、AudioContextを作成して音声分析を開始する。
+   * 分析ループを起動し、リアルタイムで音声を処理する。
+   * 
+   * 処理の流れ:
+   * 1. マイクアクセスを取得（エコーキャンセル、ノイズ抑制、自動ゲイン制御を有効化）
+   * 2. AudioContextを作成
+   * 3. AnalyserNodeを作成（FFTサイズ: 2048、スムージング: 0.8）
+   * 4. マイク入力をAnalyserNodeに接続
+   * 5. 分析ループを開始
+   * 
+   * @throws {Error} マイクアクセスの取得に失敗した場合、またはAudioContextの作成に失敗した場合
    */
   async start(): Promise<void> {
     if (this.isRunning) return;
@@ -258,7 +306,10 @@ export class AudioAnalyzer {
   }
   
   /**
-   * 音声入力を停止
+   * 音声入力を停止する
+   * 
+   * マイクアクセスを停止し、AudioContextを閉じて音声分析を終了する。
+   * イベント検出器の状態もリセットする。
    */
   stop(): void {
     this.isRunning = false;
@@ -337,7 +388,11 @@ export class AudioAnalyzer {
   }
   
   /**
-   * 現在の状態を取得
+   * 現在の状態を取得する
+   * 
+   * 音声分析器の現在の状態（実行中かどうか、発話中かどうか、現在のシーン）を返す。
+   * 
+   * @returns 状態オブジェクト（isRunning、isSpeech、scene）
    */
   getState(): {
     isRunning: boolean;

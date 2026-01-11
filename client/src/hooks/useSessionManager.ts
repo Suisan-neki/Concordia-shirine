@@ -24,6 +24,20 @@ export interface LogEntry {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * セッション管理フック
+ * 
+ * バックエンドAPIと連携してセッションデータを管理するReactカスタムフック。
+ * セッションの開始、終了、ログエントリの追加、セッション一覧の取得などの機能を提供する。
+ * 
+ * 機能:
+ * - セッションの開始・終了
+ * - シーン変更、発話、イベント、介入のログ記録
+ * - セッション一覧の取得・削除
+ * - 認証状態に応じたローカル/サーバーモードの切り替え
+ * 
+ * @returns セッション管理の状態とアクション（currentSessionId、isActive、sessions、startSession、endSessionなど）
+ */
 export function useSessionManager() {
   const { isAuthenticated } = useAuth();
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);

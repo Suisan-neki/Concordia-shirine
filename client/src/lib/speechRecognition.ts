@@ -66,6 +66,9 @@ declare global {
 
 /**
  * 音声認識マネージャー
+ * 
+ * Web Speech APIを使用したリアルタイム音声認識を管理するクラス。
+ * 日本語対応の連続認識モードで動作し、認識結果をコールバックで通知する。
  */
 export class SpeechRecognitionManager {
   private recognition: SpeechRecognitionInstance | null = null;
@@ -158,14 +161,27 @@ export class SpeechRecognitionManager {
   }
   
   /**
-   * コールバックを設定
+   * コールバックを設定する
+   * 
+   * 音声認識の結果を受け取るコールバック関数を設定する。
+   * 
+   * @param callbacks - コールバック関数のオブジェクト
+   * @param callbacks.onResult - 認識結果が得られたときに呼ばれる
+   * @param callbacks.onError - エラーが発生したときに呼ばれる
+   * @param callbacks.onStart - 認識が開始されたときに呼ばれる
+   * @param callbacks.onEnd - 認識が終了したときに呼ばれる
    */
   setCallbacks(callbacks: SpeechRecognitionCallbacks): void {
     this.callbacks = callbacks;
   }
   
   /**
-   * 音声認識を開始
+   * 音声認識を開始する
+   * 
+   * Web Speech APIを使用して音声認識を開始する。
+   * 既に実行中の場合は何もしない。
+   * 
+   * @returns 認識が開始された場合はtrue、開始に失敗した場合はfalse
    */
   start(): boolean {
     if (!this.recognition) {
@@ -189,7 +205,9 @@ export class SpeechRecognitionManager {
   }
   
   /**
-   * 音声認識を停止
+   * 音声認識を停止する
+   * 
+   * 実行中の音声認識を停止し、再起動タイマーもクリアする。
    */
   stop(): void {
     this.isRunning = false;
@@ -209,14 +227,22 @@ export class SpeechRecognitionManager {
   }
   
   /**
-   * サポート状況を確認
+   * サポート状況を確認する
+   * 
+   * ブラウザがWeb Speech APIをサポートしているかどうかを確認する。
+   * 
+   * @returns Web Speech APIがサポートされている場合はtrue、それ以外はfalse
    */
   isSupported(): boolean {
     return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   }
   
   /**
-   * 実行中かどうか
+   * 実行中かどうかを確認する
+   * 
+   * 音声認識が現在実行中かどうかを返す。
+   * 
+   * @returns 実行中の場合はtrue、それ以外はfalse
    */
   getIsRunning(): boolean {
     return this.isRunning;

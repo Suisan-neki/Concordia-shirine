@@ -25,6 +25,19 @@ export interface SessionSecuritySummary {
   }>;
 }
 
+/**
+ * セキュリティ統計フック
+ * 
+ * ユーザーのセキュリティ統計を取得するReactカスタムフック。
+ * 「実は裏でこれだけ動いていました」の情報を取得するために使用される。
+ * 
+ * 機能:
+ * - ユーザーのセキュリティイベントの統計情報を取得
+ * - 5分ごとに自動更新
+ * - バックグラウンドでも更新
+ * 
+ * @returns セキュリティ統計の状態とアクション（stats、isLoading、error、refetch）
+ */
 export function useSecurityStats() {
   const { data, isLoading, error, refetch } = trpc.security.getStats.useQuery(undefined, {
     // 5分ごとに自動更新
@@ -41,6 +54,15 @@ export function useSecurityStats() {
   };
 }
 
+/**
+ * セッションセキュリティサマリーフック
+ * 
+ * 指定されたセッションのセキュリティサマリーを取得するReactカスタムフック。
+ * セッション中に適用されたセキュリティ機能の集計を取得する。
+ * 
+ * @param sessionId - 取得するセッションのID（nullの場合はクエリが無効化される）
+ * @returns セキュリティサマリーの状態（summary、isLoading、error）
+ */
 export function useSessionSecuritySummary(sessionId: string | null) {
   const { data, isLoading, error } = trpc.security.getSessionSummary.useQuery(
     { sessionId: sessionId || '' },
@@ -57,7 +79,13 @@ export function useSessionSecuritySummary(sessionId: string | null) {
 }
 
 /**
- * イベントタイプの日本語ラベルを取得
+ * イベントタイプの日本語ラベルを取得する
+ * 
+ * セキュリティイベントタイプを日本語のラベルに変換する。
+ * UI表示で使用される。
+ * 
+ * @param eventType - イベントタイプ（例: 'encryption_applied'、'access_granted'）
+ * @returns 日本語ラベル（例: 'データ暗号化'、'アクセス許可'）、見つからない場合は元の文字列を返す
  */
 export function getEventTypeLabel(eventType: string): string {
   const labels: Record<string, string> = {
@@ -76,7 +104,13 @@ export function getEventTypeLabel(eventType: string): string {
 }
 
 /**
- * イベントタイプのアイコンを取得
+ * イベントタイプのアイコンを取得する
+ * 
+ * セキュリティイベントタイプに対応する絵文字アイコンを返す。
+ * UI表示で使用される。
+ * 
+ * @param eventType - イベントタイプ（例: 'encryption_applied'、'access_granted'）
+ * @returns 絵文字アイコン（例: '🔐'、'✓'）、見つからない場合は'•'を返す
  */
 export function getEventTypeIcon(eventType: string): string {
   const icons: Record<string, string> = {

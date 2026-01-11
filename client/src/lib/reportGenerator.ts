@@ -174,7 +174,13 @@ function generateOverallAssessment(
 }
 
 /**
- * レポートデータを生成
+ * レポートデータを生成する
+ * 
+ * セッションデータから分析レポートのデータを生成する。
+ * 全体評価、シーン分析、セキュリティ分析、推奨事項などを含む。
+ * 
+ * @param session - セッションデータ（ID、開始/終了時刻、セキュリティスコア、シーン分布など）
+ * @returns レポートデータ（タイトル、生成日時、セッション情報、分析結果）
  */
 export function generateReportData(session: SessionData): ReportData {
   const sceneBreakdown: ReportData['analysis']['sceneBreakdown'] = [];
@@ -219,7 +225,13 @@ export function generateReportData(session: SessionData): ReportData {
 }
 
 /**
- * レポートをMarkdown形式で出力
+ * レポートをMarkdown形式で出力する
+ * 
+ * レポートデータをMarkdown形式の文字列に変換する。
+ * セッション概要、全体評価、シーン分析、セキュリティ分析、推奨事項などを含む。
+ * 
+ * @param data - レポートデータ
+ * @returns Markdown形式のレポート文字列
  */
 export function generateMarkdownReport(data: ReportData): string {
   const lines: string[] = [];
@@ -301,7 +313,13 @@ export function generateMarkdownReport(data: ReportData): string {
 }
 
 /**
- * レポートをHTMLとしてダウンロード可能な形式で生成
+ * レポートをHTML形式で生成する
+ * 
+ * レポートデータをHTML形式の文字列に変換する。
+ * Markdown形式のレポートを簡易的にHTMLに変換し、スタイルを適用する。
+ * 
+ * @param data - レポートデータ
+ * @returns HTML形式のレポート文字列（完全なHTMLドキュメント）
  */
 export function generateHtmlReport(data: ReportData): string {
   const markdown = generateMarkdownReport(data);
@@ -395,7 +413,13 @@ export function generateHtmlReport(data: ReportData): string {
 }
 
 /**
- * レポートをダウンロード
+ * レポートをダウンロードする
+ * 
+ * レポートデータを指定された形式（MarkdownまたはHTML）でダウンロードする。
+ * ブラウザのダウンロード機能を使用してファイルを保存する。
+ * 
+ * @param data - レポートデータ
+ * @param format - ダウンロード形式（'markdown'または'html'）
  */
 export function downloadReport(data: ReportData, format: 'markdown' | 'html'): void {
   let content: string;
