@@ -38,6 +38,8 @@ import { getLoginUrl } from '@/const';
 import { Link } from 'wouter';
 import { toast } from 'sonner';
 
+const MAX_RECORDING_MS = 15 * 60 * 1000;
+
 interface TranscriptItem {
   id: string;
   text: string;
@@ -91,6 +93,7 @@ export default function Home() {
   const speechRecognitionRef = useRef<SpeechRecognitionManager | null>(null);
   const lastSceneRef = useRef<SceneType>('静寂');
   const sessionStartTimeRef = useRef<number>(0);
+  const recordingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 認証状態が変わったらセキュリティメトリクスを更新
   useEffect(() => {
@@ -228,13 +231,26 @@ export default function Home() {
       }
 
       setIsRecording(true);
+
+      if (recordingTimeoutRef.current) {
+        clearTimeout(recordingTimeoutRef.current);
+      }
+      recordingTimeoutRef.current = setTimeout(() => {
+        toast.info('録音は15分までのため自動停止しました');
+        void handleStopRecording();
+      }, MAX_RECORDING_MS);
     } catch (error) {
       console.error('Failed to start recording:', error);
     }
-  }, [isAuthenticated, sessionManager]);
+  }, [handleStopRecording, isAuthenticated, sessionManager]);
 
   // 録音停止
   const handleStopRecording = useCallback(async () => {
+    if (recordingTimeoutRef.current) {
+      clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = null;
+    }
+
     audioAnalyzerRef.current?.stop();
     speechRecognitionRef.current?.stop();
     setIsRecording(false);
@@ -286,7 +302,7 @@ export default function Home() {
       setSessionSummary(localSummary);
       setIsLogExpanded(true);
     }
-  }, [sessionManager]);
+  }, [isAuthenticated, sessionManager]);
 
   // デモモード切り替え
   const handleToggleDemoMode = useCallback(() => {
