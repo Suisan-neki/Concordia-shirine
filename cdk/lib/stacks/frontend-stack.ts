@@ -61,7 +61,7 @@ export class FrontendStack extends cdk.Stack {
       sources: [s3deploy.Source.asset(path.join(__dirname, "../../../dist/public"))],
       destinationBucket: siteBucket,
       distribution: distribution,
-      distributionPaths: ["/*"], // デプロイ時にキャッシュを無効化
+      distributionPaths: ["/index.html"], // SPA entry only to reduce invalidation cost
     });
 
     // Outputs
