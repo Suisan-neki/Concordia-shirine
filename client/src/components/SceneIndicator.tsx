@@ -19,6 +19,7 @@ interface SceneIndicatorProps {
 const sceneConfigs: Record<SceneType, {
   label: string;
   description: string;
+  guidance: string;
   color: string;
   bgColor: string;
   icon: string;
@@ -26,13 +27,15 @@ const sceneConfigs: Record<SceneType, {
   '静寂': {
     label: '静寂',
     description: '声と静けさが、ゆっくり行き来しています。',
+    guidance: '会話が始まる準備ができています。',
     color: 'text-foreground',
     bgColor: 'bg-muted/30',
     icon: '○'
   },
   '調和': {
     label: '調和',
-    description: '声の出入りが穏やかで、波が落ち着いています。',
+    description: '声の出入りが穏やかで、バランスの良い対話が続いています。',
+    guidance: 'この状態を保ちましょう。全員が発言しやすい雰囲気です。',
     color: 'text-shrine-jade',
     bgColor: 'bg-shrine-jade/10',
     icon: '◎'
@@ -40,6 +43,7 @@ const sceneConfigs: Record<SceneType, {
   '一方的': {
     label: '一方的',
     description: 'ひとつの方向からの声が、長く続いています。',
+    guidance: '他の参加者にも発言の機会を設けてみましょう。',
     color: 'text-shrine-vermilion',
     bgColor: 'bg-shrine-vermilion/10',
     icon: '▶'
@@ -47,6 +51,7 @@ const sceneConfigs: Record<SceneType, {
   '沈黙': {
     label: '沈黙',
     description: '静かな時間が、長めに続いています。',
+    guidance: '発言しやすい雰囲気を作るきっかけを探してみましょう。',
     color: 'text-shrine-wave-deep',
     bgColor: 'bg-shrine-wave-deep/10',
     icon: '◇'
@@ -67,10 +72,10 @@ export function SceneIndicator({ scene, isRecording, className = '' }: SceneIndi
         <div className="flex items-center justify-between mb-2">
           <div className="flex flex-col gap-0.5">
             <span className="text-xs text-muted-foreground font-serif-jp">
-              祠の機嫌を伺う
+              会話の状態
             </span>
             <span className="text-[10px] text-muted-foreground/70">
-              空気の状態
+              対話のバランス
             </span>
           </div>
           {isRecording && (
@@ -106,8 +111,8 @@ export function SceneIndicator({ scene, isRecording, className = '' }: SceneIndi
             <p className="text-sm text-muted-foreground leading-relaxed">
               {config.description}
             </p>
-            <p className="text-xs text-muted-foreground/70 mt-2 italic">
-              波の動きが祠の機嫌を表現しています
+            <p className="text-xs text-foreground mt-2 font-medium">
+              {config.guidance}
             </p>
           </motion.div>
         </AnimatePresence>

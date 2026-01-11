@@ -58,10 +58,10 @@ export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-serif-jp text-foreground mb-2">
-                    祠の機嫌を伺う
+                    会話の状態を視覚化
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    波の動きで会話の「空気」を感じ取る
+                    波の動きで対話のバランスを確認できます
                   </p>
                 </div>
                 <button
@@ -77,30 +77,34 @@ export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
               {/* コンテンツ */}
               <div className="space-y-4 mb-6">
                 <p className="text-sm text-foreground leading-relaxed">
-                  この画面の波は、「祠の機嫌」を表現しています。会話の状態（調和、一方的、沈黙、静寂）が波の色や動きとして可視化されます。
+                  この画面の波は、会話の状態を視覚化しています。対話のバランス（調和、一方的、沈黙、静寂）が波の色や動きとして表示されます。
                 </p>
                 
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <div className="p-3 bg-shrine-jade/10 rounded-lg border border-shrine-jade/20">
-                    <div className="text-xs text-shrine-jade mb-1">調和</div>
-                    <p className="text-xs text-muted-foreground">穏やかな翡翠色の波 = 祠が満足している状態</p>
+                    <div className="text-xs font-medium text-shrine-jade mb-1">調和</div>
+                    <p className="text-xs text-muted-foreground mb-2">バランスの良い対話が続いています</p>
+                    <p className="text-[10px] text-foreground font-medium">この状態を保ちましょう</p>
                   </div>
                   <div className="p-3 bg-shrine-vermilion/10 rounded-lg border border-shrine-vermilion/20">
-                    <div className="text-xs text-shrine-vermilion mb-1">一方的</div>
-                    <p className="text-xs text-muted-foreground">激しい暗い朱色の波 = 祠が不安定な状態</p>
+                    <div className="text-xs font-medium text-shrine-vermilion mb-1">一方的</div>
+                    <p className="text-xs text-muted-foreground mb-2">発言の偏りが検出されています</p>
+                    <p className="text-[10px] text-foreground font-medium">他の参加者にも発言の機会を設けましょう</p>
                   </div>
                   <div className="p-3 bg-shrine-wave-deep/10 rounded-lg border border-shrine-wave-deep/20">
-                    <div className="text-xs text-foreground mb-1">沈黙</div>
-                    <p className="text-xs text-muted-foreground">静かな暗い藍色の波 = 祠が心配している状態</p>
+                    <div className="text-xs font-medium text-foreground mb-1">沈黙</div>
+                    <p className="text-xs text-muted-foreground mb-2">長い沈黙が続いています</p>
+                    <p className="text-[10px] text-foreground font-medium">発言しやすい雰囲気を作るきっかけを探しましょう</p>
                   </div>
                   <div className="p-3 bg-shrine-wave/10 rounded-lg border border-shrine-wave/20">
-                    <div className="text-xs text-foreground mb-1">静寂</div>
-                    <p className="text-xs text-muted-foreground">穏やかな藍色の波 = 祠が落ち着いている状態</p>
+                    <div className="text-xs font-medium text-foreground mb-1">静寂</div>
+                    <p className="text-xs text-muted-foreground mb-2">声と静けさが行き来しています</p>
+                    <p className="text-[10px] text-foreground font-medium">会話が始まる準備ができています</p>
                   </div>
                 </div>
 
                 <p className="text-xs text-muted-foreground italic mt-4">
-                  波の上にマウスを置くと、より詳しい説明が表示されます。
+                  左上のインジケーターで、現在の状態と改善のヒントを確認できます。
                 </p>
               </div>
 

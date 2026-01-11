@@ -146,9 +146,9 @@ export function WaveCanvas({ scene, energy, className = '' }: WaveCanvasProps) {
         </div>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-xs bg-card border border-border">
-        <p className="text-sm font-medium mb-1 text-foreground">祠の機嫌を伺う</p>
+        <p className="text-sm font-medium mb-1 text-foreground">会話の状態を視覚化</p>
         <p className="text-xs text-muted-foreground">
-          波の動きは「祠の機嫌」を表現しています。波の色や動きを見て、会話の「空気」を感じ取ってください。
+          波の色や動きで対話のバランスを確認できます。左上のインジケーターで詳細を確認してください。
         </p>
       </TooltipContent>
     </Tooltip>
