@@ -64,10 +64,12 @@ Concordia Shrineは、会議やミーティングにおける「見えない圧�
 
 ### セキュリティアーキテクチャ (Security Architecture)
 
-- **Domain Segregation**: フロントエンドとバックエンドのドメイン分離によるXSSリスクの低減
-- **Least Privilege**: AWS Lambdaには必要最小限のIAM権限のみを付与
-- **Type Safety**: tRPCによるエンドツーエンドの型安全性で、不正なデータ構造を排除
-- **Constructor Safety**: ドメインモデル(DDD)により、不正な状態のオブジェクト生成をコンパイルレベルで防止
+### セキュリティアーキテクチャ (Security Architecture)
+
+- **オリジン分離 (Origin Isolation)**: フロントエンドとバックエンドのドメイン分離によるXSSリスクの低減
+- **最小権限の原則 (Least Privilege)**: AWS Lambdaには必要最小限のIAM権限のみを付与
+- **型安全性 (Type Safety)**: tRPCによるエンドツーエンドの型安全性で、不正なデータ構造を排除
+- **セキュア・バイ・デザイン (Secure by Design)**: ドメインモデル(DDD)により、不正な状態のオブジェクト生成をコンパイルレベルで防止
 
 ## 技術スタック
 
