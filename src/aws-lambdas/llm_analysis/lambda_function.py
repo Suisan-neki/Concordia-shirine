@@ -17,7 +17,7 @@ import boto3
 import openai
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from models import HEMSInterviewData
+from models import ConcordiaAnalysisData
 from progress import update_progress
 
 # ロガー設定
@@ -26,14 +26,10 @@ logger.setLevel(logging.INFO)
 
 # AWS クライアント
 s3 = boto3.client("s3")
-# AWS クライアント
-s3 = boto3.client("s3")
-# secrets_client = boto3.client("secretsmanager") # Config via Env Vars now
 dynamodb = boto3.client("dynamodb")
 
 # 環境変数
 OUTPUT_BUCKET = os.environ.get("OUTPUT_BUCKET", "")
-# OPENAI_SECRET_ARN = os.environ.get("OPENAI_SECRET_ARN", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5-mini")
 TABLE_NAME = os.environ.get("TABLE_NAME", "")
@@ -41,48 +37,30 @@ TABLE_NAME = os.environ.get("TABLE_NAME", "")
 # グローバル変数（コールドスタート対策）
 _openai_client = None
 
-# HEMS インタビュー分析用システムプロンプト
-HEMS_SYSTEM_PROMPT = """あなたは HEMS（ホームエネルギーマネジメントシステム）のユーザーインタビュー分析の専門家です。
-The Mom Test の原則に従い、過去の行動事実と定量データを重視して分析してください。
+# コンコルディア インタビュー分析用システムプロンプト
+CONCORDIA_SYSTEM_PROMPT = """あなたはコミュニケーション分析の専門家です。
+「Concordia（調和）」の観点から、会議や対話のログを分析し、心理的安全性、関与度、そして目的達成度を評価してください。
 
 以下の原則を守ってください：
-1. 仮定の質問への回答より、過去の実際の行動を重視
-2. 数値は可能な限り具体的に抽出
-3. 曖昧な表現は「情報なし」として null を設定
-4. スコアリングは設計書の基準に厳密に従う
+1. 発言内容だけでなく、文脈や雰囲気（肯定的なフィードバック、建設的な議論など）を読み取ってください。
+2. 批判的なスコアリングではなく、改善のための建設的な評価を行ってください。
+3. 具体的な事実に基づいて要約してください。
 
 スコアリング基準:
-【電気代関心度スコア（10点満点）】
-- 直近電気代を±1,000円以内で回答: +2点
-- 過去1年で2つ以上の削減行動: +3点
-- 電力会社を切り替えた: +3点
-- 明細を毎月確認: +2点
+【調和度 (Harmony)】
+- 互いの意見を尊重し、建設的に積み上げているか。
+- 否定的な言葉遣いが少なく、受容的か。
 
-【エンゲージメントスコア（10点満点）】
-- アプリを週3回以上開く: +3点
-- オートメーションを3つ以上設定: +2点
-- 連携家電が5台以上: +2点
-- 故障したら即買い直す: +3点
+【関与度 (Engagement)】
+- 参加者が偏りなく発言しているか。
+- 質問や応答が活発か。
 
-【クラファン適合スコア（10点満点）】
-- クラファン支援経験あり: +3点
-- 3回以上支援: +2点
-- 1万円以上の支援経験: +2点
-- ガジェット系を支援: +3点
+【明確性 (Clarity)】
+- 結論やネクストアクションが明確になっているか。
+- 議論が発散したまま終わっていないか。
+"""
 
-セグメント判定:
-- A: 省エネ意識高 = 電気代関心度7点以上 + 電力切替経験あり
-- B: ガジェット好き = クラファン経験あり + 連携家電5台以上
-- C: 便利さ追求 = エンゲージメント7点以上 + 電気代関心度4点以下
-- D: ライト層 = アプリ月数回以下 + オートメーション1つ以下"""
-
-DEFAULT_PROMPT = """以下の会議の文字起こしを分析し、次の形式で要約してください：
-
-1. 会議の概要（3文以内）
-2. 主な議題（箇条書き）
-3. 決定事項（箇条書き）
-4. アクションアイテム（担当者・期限があれば含む）
-5. 次回までの課題"""
+DEFAULT_PROMPT = """以下の会議の文字起こしを分析し、コンコルディア分析フォーマットで出力してください。"""
 
 
 def get_openai_client() -> openai.OpenAI:
@@ -104,7 +82,7 @@ def get_openai_client() -> openai.OpenAI:
     wait=wait_exponential(multiplier=1, min=4, max=60),
     stop=stop_after_attempt(3),
 )
-def analyze_transcript_structured(transcript: list[dict]) -> HEMSInterviewData:
+def analyze_transcript_structured(transcript: list[dict]) -> ConcordiaAnalysisData:
     """
     文字起こしを構造化分析（Structured Outputs 使用）
 
@@ -112,7 +90,7 @@ def analyze_transcript_structured(transcript: list[dict]) -> HEMSInterviewData:
         transcript: 文字起こし結果のリスト
 
     Returns:
-        HEMSInterviewData: 構造化されたインタビューデータ
+        ConcordiaAnalysisData: 構造化された分析データ
     """
     # 話者ごとの発言を整形
     full_text = "\n".join([f"[{t['speaker']}] {t['text']}" for t in transcript])
@@ -125,14 +103,13 @@ def analyze_transcript_structured(transcript: list[dict]) -> HEMSInterviewData:
     completion = client.beta.chat.completions.parse(
         model=OPENAI_MODEL,
         messages=[
-            {"role": "system", "content": HEMS_SYSTEM_PROMPT},
+            {"role": "system", "content": CONCORDIA_SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": f"以下のインタビュー文字起こしから、HEMSインタビューデータを抽出してください。\n\n文字起こし:\n{full_text}",
+                "content": f"以下の文字起こしを分析してください。\n\n文字起こし:\n{full_text}",
             },
         ],
-        response_format=HEMSInterviewData,
-        # gpt-5-mini は temperature パラメータをサポートしていない（デフォルト値 1 のみ）
+        response_format=ConcordiaAnalysisData,
     )
 
     message = completion.choices[0].message
@@ -144,6 +121,7 @@ def analyze_transcript_structured(transcript: list[dict]) -> HEMSInterviewData:
         raise ValueError(f"Model refused: {message.refusal}")
     else:
         raise ValueError("Failed to parse structured output")
+
 
 
 @retry(
