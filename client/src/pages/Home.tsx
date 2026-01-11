@@ -49,6 +49,7 @@ interface TranscriptItem {
 }
 
 export default function Home() {
+  const [, navigate] = useLocation();
   // 認証状態を取得
   const { user, isAuthenticated, logout } = useAuth();
 
