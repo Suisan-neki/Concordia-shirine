@@ -40,6 +40,28 @@ interface ExecutionOutput {
     segment?: string;
 }
 
+// ステータス定数
+// Step Functions Status
+const SF_STATUS = {
+    SUCCEEDED: "SUCCEEDED",
+    FAILED: "FAILED",
+    TIMED_OUT: "TIMED_OUT",
+    ABORTED: "ABORTED",
+} as const;
+
+// DynamoDB Status
+const DB_STATUS = {
+    COMPLETED: "completed",
+    FAILED: "failed",
+} as const;
+
+// Error Types
+const ERROR_TYPE = {
+    EXECUTION_FAILED: "ExecutionFailed",
+    LAMBDA_FAILED: "LambdaFunctionFailed",
+    TASK_FAILED: "TaskFailed",
+} as const;
+
 export async function handler(event: StepFunctionsEvent): Promise<void> {
     const tableName = process.env.TABLE_NAME;
     const recordingsTableName = process.env.RECORDINGS_TABLE;
@@ -79,7 +101,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
 
     const now = new Date().toISOString();
 
-    if (status === "SUCCEEDED") {
+    if (status === SF_STATUS.SUCCEEDED) {
         // 利用可能な出力に基づいて更新式を動的に構築
         const updateParts = [
             "#status = :status",
@@ -94,7 +116,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
             "#updated_at": "updated_at",
         };
         const expressionValues: Record<string, unknown> = {
-            ":status": "completed",
+            ":status": DB_STATUS.COMPLETED,
             ":progress": 100,
             ":current_step": "completed",
             ":updated_at": now,
@@ -150,13 +172,13 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
                 "ANALYZED"
             );
         }
-    } else if (status === "FAILED" || status === "TIMED_OUT" || status === "ABORTED") {
+    } else if (status === SF_STATUS.FAILED || status === SF_STATUS.TIMED_OUT || status === SF_STATUS.ABORTED) {
         // 実行履歴からエラー詳細を取得
         let errorMessage = "";
 
-        if (status === "TIMED_OUT") {
+        if (status === SF_STATUS.TIMED_OUT) {
             errorMessage = "Execution timed out";
-        } else if (status === "ABORTED") {
+        } else if (status === SF_STATUS.ABORTED) {
             errorMessage = "Execution was aborted";
         } else {
             try {
@@ -170,21 +192,21 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
 
                 // 失敗イベントを探す
                 for (const historyEvent of historyResponse.events || []) {
-                    if (historyEvent.type === "ExecutionFailed") {
+                    if (historyEvent.type === ERROR_TYPE.EXECUTION_FAILED) {
                         const details = historyEvent.executionFailedEventDetails;
                         if (details) {
                             errorMessage = `${details.error || "Unknown error"}: ${details.cause || "No details"}`;
                         }
                         break;
                     }
-                    if (historyEvent.type === "LambdaFunctionFailed") {
+                    if (historyEvent.type === ERROR_TYPE.LAMBDA_FAILED) {
                         const details = historyEvent.lambdaFunctionFailedEventDetails;
                         if (details) {
                             errorMessage = `Lambda error: ${details.error || "Unknown"} - ${details.cause || "No details"}`;
                         }
                         break;
                     }
-                    if (historyEvent.type === "TaskFailed") {
+                    if (historyEvent.type === ERROR_TYPE.TASK_FAILED) {
                         const details = historyEvent.taskFailedEventDetails;
                         if (details) {
                             errorMessage = `Task error: ${details.error || "Unknown"} - ${details.cause || "No details"}`;
@@ -215,7 +237,7 @@ export async function handler(event: StepFunctionsEvent): Promise<void> {
                     "#updated_at": "updated_at",
                 },
                 ExpressionAttributeValues: {
-                    ":status": "failed",
+                    ":status": DB_STATUS.FAILED,
                     ":error_message": errorMessage,
                     ":updated_at": now,
                 },

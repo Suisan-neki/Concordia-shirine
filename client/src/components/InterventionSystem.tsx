@@ -17,6 +17,9 @@ interface InterventionSystemProps {
   onIntervention?: (type: string) => void;
 }
 
+// 介入のクールダウン時間（秒）
+const INTERVENTION_COOLDOWN_SEC = 30;
+
 // 介入メッセージの定義
 const INTERVENTION_MESSAGES: Record<string, { title: string; message: string; icon: string }> = {
   monologue: {
@@ -40,13 +43,13 @@ const INTERVENTION_MESSAGES: Record<string, { title: string; message: string; ic
 function createNotificationSound(type: 'gentle' | 'chime' | 'bell'): void {
   try {
     const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    
+
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
+
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
+
     // 穏やかな音を生成
     switch (type) {
       case 'gentle':
@@ -64,12 +67,12 @@ function createNotificationSound(type: 'gentle' | 'chime' | 'bell'): void {
         oscillator.type = 'sine';
         break;
     }
-    
+
     // フェードイン・フェードアウト
     gainNode.gain.setValueAtTime(0, audioContext.currentTime);
     gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.1);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
-    
+
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.8);
   } catch (error) {
@@ -77,11 +80,11 @@ function createNotificationSound(type: 'gentle' | 'chime' | 'bell'): void {
   }
 }
 
-export function InterventionSystem({ 
-  scene, 
-  isActive, 
-  settings, 
-  onIntervention 
+export function InterventionSystem({
+  scene,
+  isActive,
+  settings,
+  onIntervention
 }: InterventionSystemProps) {
   const [currentIntervention, setCurrentIntervention] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -106,8 +109,8 @@ export function InterventionSystem({
       const sceneDuration = (now - sceneStartTimeRef.current) / 1000;
       const timeSinceLastIntervention = (now - lastInterventionRef.current) / 1000;
 
-      // 最後の介入から30秒以上経過していない場合はスキップ
-      if (timeSinceLastIntervention < 30) return;
+      // 最後の介入からクールダウン時間が経過していない場合はスキップ
+      if (timeSinceLastIntervention < INTERVENTION_COOLDOWN_SEC) return;
 
       let interventionType: string | null = null;
 
@@ -131,23 +134,23 @@ export function InterventionSystem({
   const triggerIntervention = useCallback((type: string) => {
     lastInterventionRef.current = Date.now();
     setCurrentIntervention(type);
-    
+
     // 通知音を再生
     if (settings.soundEnabled) {
       createNotificationSound('gentle');
     }
-    
+
     // 視覚的ヒントを表示
     if (settings.visualHintEnabled) {
       setIsVisible(true);
-      
+
       // 10秒後に自動的に非表示
       setTimeout(() => {
         setIsVisible(false);
         setTimeout(() => setCurrentIntervention(null), 500);
       }, 10000);
     }
-    
+
     // コールバックを呼び出し
     onIntervention?.(type);
   }, [settings, onIntervention]);
@@ -172,14 +175,14 @@ export function InterventionSystem({
           <div className="bg-card/95 backdrop-blur-md border border-shrine-jade/30 rounded-xl shadow-lg overflow-hidden">
             {/* 上部のグラデーションバー */}
             <div className="h-1 bg-gradient-to-r from-shrine-jade via-shrine-gold to-shrine-jade" />
-            
+
             <div className="p-4">
               <div className="flex items-start gap-3">
                 {/* アイコン */}
                 <div className="flex-shrink-0 w-10 h-10 rounded-full bg-shrine-jade/20 flex items-center justify-center">
                   <span className="text-xl">{intervention.icon}</span>
                 </div>
-                
+
                 {/* コンテンツ */}
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-medium text-foreground mb-1">
@@ -189,7 +192,7 @@ export function InterventionSystem({
                     {intervention.message}
                   </p>
                 </div>
-                
+
                 {/* 閉じるボタン */}
                 <button
                   onClick={dismissIntervention}
@@ -200,7 +203,7 @@ export function InterventionSystem({
                   </svg>
                 </button>
               </div>
-              
+
               {/* アクションヒント */}
               <div className="mt-3 pt-3 border-t border-border/50">
                 <p className="text-[10px] text-muted-foreground/70 text-center">

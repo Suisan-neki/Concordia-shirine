@@ -4,17 +4,10 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import {
-  createSession,
-  updateSession,
-  getUserSessions,
-  deleteSession,
   getSessionBySessionId,
-  addLogEntry,
-  getSessionLogEntries,
-  getOrCreateInterventionSettings,
-  updateInterventionSettings
 } from "./db";
 import { securityService } from "./security";
+import { sessionService } from "./services/SessionService";
 import { nanoid } from "nanoid";
 
 export const appRouter = router({
@@ -38,21 +31,7 @@ export const appRouter = router({
      */
     start: protectedProcedure
       .mutation(async ({ ctx }) => {
-        const sessionId = nanoid();
-        const startTime = Date.now();
-
-        const insertId = await createSession({
-          sessionId,
-          userId: ctx.user.id,
-          startTime,
-        });
-
-        // 静かにセッションを保護（ユーザーには見えない）
-        if (insertId) {
-          await securityService.protectSession(ctx.user.id, insertId);
-        }
-
-        return { sessionId, startTime };
+        return await sessionService.startSession(ctx.user.id);
       }),
 
     /**
@@ -70,27 +49,7 @@ export const appRouter = router({
         insights: z.array(z.string()),
       }))
       .mutation(async ({ ctx, input }) => {
-        const session = await getSessionBySessionId(input.sessionId);
-
-        await updateSession(input.sessionId, {
-          endTime: input.endTime,
-          duration: input.duration,
-          securityScore: input.securityScore,
-          sceneDistribution: input.sceneDistribution,
-          eventCounts: input.eventCounts,
-          insights: input.insights,
-        });
-
-        // セキュリティサマリーを生成（静かに）
-        let securitySummary = null;
-        if (session) {
-          securitySummary = await securityService.generateSecuritySummary(session.id);
-        }
-
-        return {
-          success: true,
-          securitySummary,
-        };
+        return await sessionService.endSession(ctx.user.id, input.sessionId, input);
       }),
 
     /**
@@ -101,8 +60,7 @@ export const appRouter = router({
         limit: z.number().min(1).max(100).optional(),
       }).optional())
       .query(async ({ ctx, input }) => {
-        const sessions = await getUserSessions(ctx.user.id, input?.limit ?? 50);
-        return sessions;
+        return await sessionService.listUserSessions(ctx.user.id, input?.limit);
       }),
 
     /**
@@ -114,30 +72,7 @@ export const appRouter = router({
         sessionId: z.string(),
       }))
       .query(async ({ ctx, input }) => {
-        const session = await getSessionBySessionId(input.sessionId);
-
-        if (!session || session.userId !== ctx.user.id) {
-          // アクセス拒否をログに記録（静かに）
-          await securityService.logSecurityEvent({
-            userId: ctx.user.id,
-            eventType: 'access_denied',
-            severity: 'warning',
-            description: 'セッションへのアクセスが拒否されました',
-            metadata: { sessionId: input.sessionId },
-            timestamp: Date.now(),
-          });
-          return null;
-        }
-
-        // アクセス許可をログに記録（静かに）
-        await securityService.verifyAccess(ctx.user.id, 'session', session.id, 'read');
-
-        const logs = await getSessionLogEntries(session.id);
-
-        return {
-          ...session,
-          logs,
-        };
+        return await sessionService.getSessionWithDetails(ctx.user.id, input.sessionId);
       }),
 
     /**
@@ -148,14 +83,7 @@ export const appRouter = router({
         sessionId: z.string(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const session = await getSessionBySessionId(input.sessionId);
-
-        if (!session || session.userId !== ctx.user.id) {
-          throw new Error("Session not found or access denied");
-        }
-
-        await deleteSession(input.sessionId);
-        return { success: true };
+        return await sessionService.deleteSession(ctx.user.id, input.sessionId);
       }),
 
     /**
@@ -171,46 +99,14 @@ export const appRouter = router({
         metadata: z.record(z.string(), z.unknown()).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const session = await getSessionBySessionId(input.sessionId);
-
-        if (!session || session.userId !== ctx.user.id) {
-          throw new Error("Session not found or access denied");
-        }
-
-        // 入力をサニタイズ（静かに）
-        let sanitizedContent = input.content;
-        if (input.content) {
-          const { sanitized } = await securityService.sanitizeInput(
-            input.content,
-            ctx.user.id,
-            session.id
-          );
-          sanitizedContent = sanitized;
-        }
-
-        // プライバシーを保護（静かに）
-        if (input.type === 'speech') {
-          await securityService.preservePrivacy(ctx.user.id, session.id, 'speech_data');
-        }
-
-        // 同調圧力検知時の保護
-        if (input.type === 'intervention' && input.metadata) {
-          const scene = input.metadata.scene as string;
-          const duration = input.metadata.duration as number;
-          if (scene && duration) {
-            await securityService.protectConsent(ctx.user.id, session.id, scene, duration);
-          }
-        }
-
-        await addLogEntry({
-          sessionId: session.id,
-          type: input.type,
-          timestamp: input.timestamp,
-          content: sanitizedContent,
-          metadata: input.metadata,
-        });
-
-        return { success: true };
+        return await sessionService.addLogEntry(
+          ctx.user.id,
+          input.sessionId,
+          input.type as "scene_change" | "speech" | "event" | "intervention",
+          input.timestamp,
+          input.content,
+          input.metadata
+        );
       }),
   }),
 
@@ -221,14 +117,7 @@ export const appRouter = router({
      */
     getSettings: protectedProcedure
       .query(async ({ ctx }) => {
-        const settings = await getOrCreateInterventionSettings(ctx.user.id);
-        return {
-          enabled: settings.enabled === 1,
-          monologueThreshold: settings.monologueThreshold,
-          silenceThreshold: settings.silenceThreshold,
-          soundEnabled: settings.soundEnabled === 1,
-          visualHintEnabled: settings.visualHintEnabled === 1,
-        };
+        return await sessionService.getInterventionSettings(ctx.user.id);
       }),
 
     /**
@@ -243,26 +132,7 @@ export const appRouter = router({
         visualHintEnabled: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const updateData: Record<string, unknown> = {};
-
-        if (input.enabled !== undefined) {
-          updateData.enabled = input.enabled ? 1 : 0;
-        }
-        if (input.monologueThreshold !== undefined) {
-          updateData.monologueThreshold = input.monologueThreshold;
-        }
-        if (input.silenceThreshold !== undefined) {
-          updateData.silenceThreshold = input.silenceThreshold;
-        }
-        if (input.soundEnabled !== undefined) {
-          updateData.soundEnabled = input.soundEnabled ? 1 : 0;
-        }
-        if (input.visualHintEnabled !== undefined) {
-          updateData.visualHintEnabled = input.visualHintEnabled ? 1 : 0;
-        }
-
-        await updateInterventionSettings(ctx.user.id, updateData);
-        return { success: true };
+        return await sessionService.updateInterventionSettings(ctx.user.id, input);
       }),
   }),
 
