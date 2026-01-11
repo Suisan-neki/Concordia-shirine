@@ -52,12 +52,27 @@ function invalidateCache(pattern: string): void {
   keysToDelete.forEach(key => cache.delete(key));
 }
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
+/**
+ * データベースインスタンスを取得する
+ * 
+ * Drizzle ORMのデータベースインスタンスを取得する。
+ * 初回呼び出し時にDATABASE_URL環境変数から接続を確立する。
+ * 接続に失敗した場合はnullを返し、エラーを投げない。
+ * 
+ * 遅延初期化:
+ * - データベースへの接続は初回呼び出し時に行われる
+ * - これにより、ローカルツール（型チェックなど）がデータベースなしで実行できる
+ * 
+ * @returns Drizzle ORMのデータベースインスタンス、またはnull（接続失敗時）
+ */
 export async function getDb() {
+  // インスタンスが存在せず、DATABASE_URLが設定されている場合のみ接続を試みる
   if (!_db && process.env.DATABASE_URL) {
     try {
       _db = drizzle(process.env.DATABASE_URL);
     } catch (error) {
+      // 接続に失敗した場合は警告をログに出力し、nullを設定
+      // エラーを投げないことで、データベースなしでもアプリケーションが起動できる
       console.warn("[Database] Failed to connect:", error);
       _db = null;
     }
@@ -65,7 +80,24 @@ export async function getDb() {
   return _db;
 }
 
+/**
+ * ユーザーを保存または更新する（upsert）
+ * 
+ * ユーザーが存在する場合は更新し、存在しない場合は新規作成する。
+ * openIdをキーとして使用し、ON DUPLICATE KEY UPDATE構文を使用してupsertを実現する。
+ * 
+ * 処理の流れ:
+ * 1. openIdの存在を確認（必須）
+ * 2. 更新対象のフィールドを構築（name、email、loginMethod、lastSignedIn、role）
+ * 3. ownerOpenIdの場合は自動的にadminロールを付与
+ * 4. データベースにupsertを実行
+ * 5. ユーザーのキャッシュを無効化
+ * 
+ * @param user - 保存または更新するユーザーのデータ
+ * @throws {Error} openIdが設定されていない場合、またはデータベース操作に失敗した場合
+ */
 export async function upsertUser(user: InsertUser): Promise<void> {
+  // openIdは必須（upsertのキーとして使用）
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
   }
@@ -77,14 +109,19 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 
   try {
+    // INSERT用の値（必須フィールドのみ）
     const values: InsertUser = {
       openId: user.openId,
     };
+    // UPDATE用の値（更新対象のフィールド）
     const updateSet: Record<string, unknown> = {};
 
+    // テキストフィールド（name、email、loginMethod）を処理
     const textFields = ["name", "email", "loginMethod"] as const;
     type TextField = (typeof textFields)[number];
 
+    // フィールドを正規化してvaluesとupdateSetに追加
+    // undefinedの場合はスキップ、nullの場合はnullに正規化
     const assignNullable = (field: TextField) => {
       const value = user[field];
       if (value === undefined) return;
@@ -95,31 +132,41 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
     textFields.forEach(assignNullable);
 
+    // 最後のログイン時刻を処理
     if (user.lastSignedIn !== undefined) {
       values.lastSignedIn = user.lastSignedIn;
       updateSet.lastSignedIn = user.lastSignedIn;
     }
+    
+    // ロールを処理
     if (user.role !== undefined) {
       values.role = user.role;
       updateSet.role = user.role;
     } else if (user.openId === ENV.ownerOpenId) {
+      // ownerOpenIdの場合は自動的にadminロールを付与
       values.role = 'admin';
       updateSet.role = 'admin';
     }
 
+    // 最後のログイン時刻が設定されていない場合は現在時刻を設定
     if (!values.lastSignedIn) {
       values.lastSignedIn = new Date();
     }
 
+    // 更新対象がない場合でも、最後のログイン時刻を更新
+    // これにより、既存ユーザーのlastSignedInが常に更新される
     if (Object.keys(updateSet).length === 0) {
       updateSet.lastSignedIn = new Date();
     }
 
+    // ON DUPLICATE KEY UPDATE構文を使用してupsert
+    // openIdが既に存在する場合は更新、存在しない場合は挿入
     await db.insert(users).values(values).onDuplicateKeyUpdate({
       set: updateSet,
     });
     
-    // キャッシュを無効化
+    // ユーザーのキャッシュを無効化
+    // ユーザー情報が更新されたため、キャッシュされたユーザー情報は古くなる
     invalidateCache(`user_${user.openId}`);
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
@@ -127,8 +174,20 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 }
 
+/**
+ * OpenIDでユーザーを取得する
+ * 
+ * OpenIDをキーとしてユーザーを検索する。
+ * キャッシュをチェックし、キャッシュに存在する場合はキャッシュから返す。
+ * キャッシュに存在しない場合はデータベースから取得し、キャッシュに保存する。
+ * 
+ * コスト最適化: キャッシュを使用（TTL: 5分）
+ * 
+ * @param openId - ユーザーのOpenID（一意識別子）
+ * @returns ユーザーオブジェクト、またはundefined（存在しない場合）
+ */
 export async function getUserByOpenId(openId: string) {
-  // キャッシュをチェック
+  // キャッシュをチェック（TTL: 5分）
   const cacheKey = `user_${openId}`;
   const cached = getFromCache<typeof users.$inferSelect>(cacheKey);
   if (cached) {
@@ -141,11 +200,13 @@ export async function getUserByOpenId(openId: string) {
     return undefined;
   }
 
+  // データベースからユーザーを取得
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
   
   const user = result.length > 0 ? result[0] : undefined;
   
-  // キャッシュに保存
+  // ユーザーが存在する場合はキャッシュに保存（TTL: 5分）
+  // これにより、同じユーザーへの複数のリクエストでデータベースアクセスを削減
   if (user) {
     setCache(cacheKey, user);
   }
