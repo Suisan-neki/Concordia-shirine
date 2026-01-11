@@ -1,3 +1,10 @@
+/**
+ * セッション管理サービス
+ * 
+ * セッションの作成、更新、削除、ログエントリの追加などのビジネスロジックを提供する。
+ * セキュリティ保護（暗号化、サニタイズ、プライバシー保護）を自動的に適用する。
+ * シングルトンパターンで実装され、アプリケーション全体で1つのインスタンスを共有する。
+ */
 import { nanoid } from "nanoid";
 import {
     createSession,
@@ -14,16 +21,28 @@ import { securityService } from "../security";
 import { InsertSession } from "../../drizzle/schema";
 
 /**
- * SessionService
+ * セッション管理サービス
  * 
- * Encapsulates business logic for Session management.
- * Follows the Singleton pattern for consistent access.
+ * セッションの作成、更新、削除、ログエントリの追加などのビジネスロジックをカプセル化する。
+ * シングルトンパターンで実装され、一貫したアクセスを提供する。
  */
 export class SessionService {
     private static instance: SessionService;
 
+    /**
+     * プライベートコンストラクタ（シングルトンパターン）
+     * 
+     * 外部からのインスタンス化を防ぐため、コンストラクタをプライベートにしている。
+     */
     private constructor() { }
 
+    /**
+     * シングルトンインスタンスを取得する
+     * 
+     * 初回呼び出し時にインスタンスを作成し、以降は同じインスタンスを返す。
+     * 
+     * @returns SessionServiceのシングルトンインスタンス
+     */
     static getInstance(): SessionService {
         if (!SessionService.instance) {
             SessionService.instance = new SessionService();
@@ -32,20 +51,34 @@ export class SessionService {
     }
 
     /**
-     * Starts a new session for a user.
-     * Automatically applies security protection.
+     * 新しいセッションを開始する
+     * 
+     * ユーザーの新しいセッションを作成し、自動的にセキュリティ保護を適用する。
+     * セッションIDはnanoidを使用して生成され、一意性が保証される。
+     * 
+     * 処理の流れ:
+     * 1. セッションIDを生成（nanoid）
+     * 2. 開始時刻を記録
+     * 3. データベースにセッションを作成
+     * 4. セキュリティ保護を適用（「結界が展開されています」）
+     * 
+     * @param userId - セッションを作成するユーザーのID
+     * @returns セッションIDと開始時刻
      */
     async startSession(userId: number) {
+        // セッションIDを生成（nanoid: URLセーフなランダムID）
         const sessionId = nanoid();
         const startTime = Date.now();
 
+        // データベースにセッションを作成
         const insertId = await createSession({
             sessionId,
             userId,
             startTime,
         });
 
-        // Silently protect the session
+        // セキュリティ保護を自動的に適用
+        // 「結界が展開されています」というメッセージで、バックグラウンドでセキュリティ機能が動作していることを表現
         if (insertId) {
             await securityService.protectSession(userId, insertId);
         }
@@ -54,8 +87,22 @@ export class SessionService {
     }
 
     /**
-     * Ends a session and saves the summary.
-     * Generates a security summary.
+     * セッションを終了する
+     * 
+     * セッションの終了時刻、継続時間、シーン分布、イベント数、インサイトなどの情報を保存する。
+     * セキュリティスコアを計算し、セキュリティサマリーを生成する。
+     * 
+     * 処理の流れ:
+     * 1. セッションの所有権を検証（ユーザーがセッションの所有者であることを確認）
+     * 2. セキュリティスコアを計算（シーン分布から計算）
+     * 3. セッション情報を更新
+     * 4. セキュリティサマリーを生成
+     * 
+     * @param userId - セッションを終了するユーザーのID
+     * @param sessionId - 終了するセッションのID
+     * @param data - セッション終了時のデータ（終了時刻、継続時間、シーン分布、イベント数、インサイト）
+     * @returns 成功フラグ、セキュリティサマリー、セキュリティスコア
+     * @throws {Error} セッションが見つからない、またはアクセスが拒否された場合
      */
     async endSession(
         userId: number,
@@ -68,14 +115,18 @@ export class SessionService {
             insights: string[];
         }
     ) {
-        // Verify ownership indirectly via getSession (caller should verify or we verify here)
+        // セッションの所有権を検証
+        // ユーザーがセッションの所有者であることを確認（間接的にgetSessionを使用）
         const session = await this.getSessionIfAuthorized(userId, sessionId);
         if (!session) {
             throw new Error("Session not found or access denied");
         }
 
+        // セキュリティスコアを計算（シーン分布から計算）
+        // 調和、静寂、一方的の比率からスコアを算出
         const securityScore = this.calculateSecurityScore(data.sceneDistribution);
 
+        // セッション情報を更新
         await updateSession(sessionId, {
             endTime: data.endTime,
             duration: data.duration,
@@ -85,7 +136,8 @@ export class SessionService {
             insights: data.insights,
         });
 
-        // Generate security summary
+        // セキュリティサマリーを生成
+        // セッション中に適用されたセキュリティ機能の集計を取得
         const securitySummary = await securityService.generateSecuritySummary(session.id);
 
         return { success: true, securitySummary, securityScore };
@@ -162,8 +214,26 @@ export class SessionService {
     }
 
     /**
-     * Adds a log entry to a session.
-     * Handles sanitization and specific security protections.
+     * セッションにログエントリを追加する
+     * 
+     * セッションにログエントリを追加し、自動的にセキュリティ保護を適用する。
+     * 入力データのサニタイズ、プライバシー保護、同意保護などを自動的に行う。
+     * 
+     * 処理の流れ:
+     * 1. セッションの所有権を確認
+     * 2. 入力データをサニタイズ（XSS、SQLインジェクションなどの対策）
+     * 3. 音声データの場合はプライバシー保護を適用
+     * 4. 介入データの場合は同意保護を適用
+     * 5. ログエントリをデータベースに保存
+     * 
+     * @param userId - ログエントリを追加するユーザーのID
+     * @param sessionId - ログエントリを追加するセッションのID
+     * @param type - ログエントリのタイプ（"scene_change"、"speech"、"event"、"intervention"）
+     * @param timestamp - ログエントリのタイムスタンプ（Unix timestamp in ms）
+     * @param content - ログエントリの内容（オプション）
+     * @param metadata - ログエントリのメタデータ（オプション）
+     * @returns 成功フラグ
+     * @throws {Error} セッションが見つからない、またはアクセスが拒否された場合
      */
     async addLogEntry(
         userId: number,
@@ -173,12 +243,14 @@ export class SessionService {
         content?: string,
         metadata?: Record<string, unknown>
     ) {
+        // セッションの所有権を確認
         const session = await this.getSessionIfAuthorized(userId, sessionId);
         if (!session) {
             throw new Error("Session not found or access denied");
         }
 
-        // Sanitize input
+        // 入力データをサニタイズ
+        // XSS、SQLインジェクション、NoSQLインジェクションなどの攻撃を防ぐ
         let sanitizedContent = content;
         if (content) {
             const { sanitized } = await securityService.sanitizeInput(
@@ -189,12 +261,14 @@ export class SessionService {
             sanitizedContent = sanitized;
         }
 
-        // Privacy protection
+        // プライバシー保護（音声データの場合）
+        // 音声データは機密情報であるため、プライバシー保護を適用
         if (type === 'speech') {
             await securityService.preservePrivacy(userId, session.id, 'speech_data');
         }
 
-        // Consent protection (Intervention)
+        // 同意保護（介入データの場合）
+        // 同調圧力が検知された場合、判断の自由を守るための介入が行われたことを記録
         if (type === 'intervention' && metadata) {
             const scene = metadata.scene as string;
             const duration = metadata.duration as number;
@@ -203,6 +277,7 @@ export class SessionService {
             }
         }
 
+        // ログエントリをデータベースに保存
         await addLogEntry({
             sessionId: session.id,
             type,
