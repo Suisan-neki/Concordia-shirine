@@ -80,6 +80,31 @@ pnpm db:push
 pnpm test
 ```
 
+## ディレクトリ構成
+
+```text
+Concordia-shirine-1
+├── cdk/                  # AWS CDK インフラストラクチャ (TypeScript)
+│   ├── lib/stacks/       # スタック定義
+│   └── lib/lambdas/      # カスタムリソースハンドラ
+├── client/               # フロントエンドアプリケーション (React 19 + Vite)
+│   └── src/
+│       ├── components/   # UIコンポーネント (Radix UI + Framer Motion)
+│       ├── lib/          # コアロジック (WaveEngine, ConversationLog)
+│       └── pages/        # アプリケーションルート
+├── server/               # バックエンドAPI (Node.js + tRPC)
+│   ├── services/         # ビジネスロジック・サービス層
+│   ├── _core/            # コアユーティリティ (認証、セキュリティ)
+│   └── routers.ts        # APIルーター定義
+├── src/                  # Python AI & 処理サービス
+│   └── aws-lambdas/      # AWS Lambda 関数
+│       ├── coach/               # AIコーチングエージェント
+│       ├── llm_analysis/        # 詳細な会話分析
+│       ├── realtime_transcribe/ # リアルタイム文字起こし
+│       └── ...                  # 音声処理パイプライン (話者分離など)
+└── docs/                 # プロジェクトドキュメント
+```
+
 ## 哲学
 
 > あなたがこの祠を訪れた瞬間、見えない結界が展開されました。
