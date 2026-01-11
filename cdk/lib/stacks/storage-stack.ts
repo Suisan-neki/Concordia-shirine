@@ -43,6 +43,10 @@ export class StorageStack extends cdk.Stack {
                     abortIncompleteMultipartUploadAfter: cdk.Duration.days(7),
                 },
                 {
+                    id: "ExpireNonCurrentVersions",
+                    noncurrentVersionExpiration: cdk.Duration.days(90),
+                },
+                {
                     id: "TransitionToIA",
                     transitions: [
                         {
@@ -77,6 +81,10 @@ export class StorageStack extends cdk.Stack {
                 {
                     id: "DeleteOldResults",
                     expiration: cdk.Duration.days(90),
+                },
+                {
+                    id: "ExpireNonCurrentVersions",
+                    noncurrentVersionExpiration: cdk.Duration.days(90),
                 },
             ],
         });
