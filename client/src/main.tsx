@@ -6,7 +6,10 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { getLoginUrl } from "./const";
+import { getCognitoIdToken, storeCognitoTokensFromUrl } from "./lib/cognito";
 import "./index.css";
+
+storeCognitoTokensFromUrl();
 
 const queryClient = new QueryClient();
 
@@ -45,8 +48,14 @@ const trpcClient = trpc.createClient({
       url: apiBaseUrl ? `${apiBaseUrl}/trpc` : "/api/trpc",
       transformer: superjson,
       fetch(input, init) {
+        const idToken = getCognitoIdToken();
+        const headers = new Headers(init?.headers);
+        if (idToken) {
+          headers.set("Authorization", `Bearer ${idToken}`);
+        }
         return globalThis.fetch(input, {
           ...(init ?? {}),
+          headers,
           credentials: "include",
         });
       },

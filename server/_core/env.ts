@@ -12,4 +12,8 @@ export const ENV = {
     .split(",")
     .map(origin => origin.trim())
     .filter(origin => origin.length > 0),
+  cognitoRegion: process.env.COGNITO_REGION ?? "",
+  cognitoUserPoolId: process.env.COGNITO_USER_POOL_ID ?? "",
+  cognitoClientId: process.env.COGNITO_CLIENT_ID ?? "",
+  cognitoJwksUrl: process.env.COGNITO_JWKS_URL ?? "",
 };

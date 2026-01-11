@@ -3,7 +3,6 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -73,8 +72,11 @@ async function startServer() {
 
     res.status(403).json({ error: "CSRF check failed" });
   });
-  // OAuth callback under /api/oauth/callback
-  registerOAuthRoutes(app);
+  // Legacy OAuth callback under /api/oauth/callback (only when configured)
+  if (ENV.oAuthServerUrl) {
+    const { registerOAuthRoutes } = await import("./oauth");
+    registerOAuthRoutes(app);
+  }
   // tRPC API
   app.use(
     "/api/trpc",
