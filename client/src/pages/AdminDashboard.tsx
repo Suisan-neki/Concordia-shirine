@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { useAuth } from '@/_core/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'wouter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserManagement } from '@/components/UserManagement';
