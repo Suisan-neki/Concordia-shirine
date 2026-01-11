@@ -1,66 +1,68 @@
-# Concordia Shrine v2 - Technical Specification
+# Concordia Shrine v2 - 技術仕様書
 
-## System Architecture (Serverless & Event-Driven)
+## システムアーキテクチャ
 
-```mermaid
-graph TD
-    Client[Client (React/Vite)] -->|HTTPS| CloudFront[CloudFront (CDN)]
-    CloudFront -->|Security Headers| WAF[AWS WAF]
-    WAF -->|API Requests| APIGW[API Gateway]
-    APIGW -->|tRPC| Lambda[AWS Lambda (Node.js/Python)]
-    Lambda -->|Analysis| OpenAI[OpenAI API (Realtime/GPT-4o)]
-    Lambda -->|Persistance| DB[(Database / S3)]
-```
+本システムは、完全なサーバーレス構成（Serverless & Event-Driven）により、高い可用性とスケーラビリティを実現しています。
 
-完全なサーバーレス構成により、高い可用性とスケーラビリティを実現しています。
-インフラ管理コストを最小限に抑えつつ、エンタープライズグレードのセキュリティを提供します。
+### データフロー
 
-### AI & Analysis (Multimedia Processing)
+1.  **クライアント (Client)**
+    React 19 / Vite で構築されたシングルページアプリケーション(SPA)。ユーザーのデバイス上で動作し、マイク入力や画面描画を担当します。
+    
+2.  **CDN & セキュリティ (CloudFront + WAF)**
+    静的リソースは Amazon S3 から CloudFront 経由で高速配信されます。AWS WAF により、エッジロケーションで不正なアクセスを遮断します。
 
-- **Perlin Noise**: リアルタイムの波形生成
-- **OpenAI Whisper**: 高精度な音声認識
-- **GPT-4o**: 文脈分析とセッションスコアリング
+3.  **API ゲートウェイ (API Gateway)**
+    バックエンドへのすべてのリクエストを受け付け、適切な Lambda 関数へルーティングします。
 
-リアルタイムの音声波形分析 (Web Audio API) と、LLMによる文脈分析を融合。「空気」という抽象的な概念を、数学的なモデルを通じて可視化しています。
+4.  **バックエンド処理 (AWS Lambda)**
+    サーバー管理不要な FaaS (Function as a Service) 環境。
+    -   **Node.js**: アプリケーションロジック、セッション管理、tRPC API サーバーとして動作。
+    -   **Python**: 音声データの処理や、高度な数値計算が必要な処理を担当。
 
----
-
-## Tech Stack
-
-### Frontend
-- **Framework**: React 19
-- **Language**: TypeScript 5.x
-- **Build Tool**: Vite 6.x
-- **Styling**: Tailwind CSS 4
-- **Animation**: Framer Motion
-- **UI Components**: Radix UI
-
-### Backend
-- **API Framework**: tRPC (Type-safe API)
-- **Compute**: AWS Lambda (Adapter)
-- **Runtime**: Node.js / Python
-- **AI**: OpenAI API
-- **ORM**: Drizzle ORM
-
-### Infrastructure (IaC)
-- **Provisioning**: AWS CDK
-- **Auth**: Amazon Cognito
-- **CDN**: CloudFront
-- **Storage**: S3
-- **Gateway**: API Gateway
+5.  **AI 分析 (OpenAI API)**
+    外部の高度なAIモデルと連携します。
+    -   **Realtime / Whisper**: 音声データのテキスト化。
+    -   **GPT-4o**: 文脈の理解、セッションの「空気」のスコアリング。
 
 ---
 
-## Security Implementation
+## 技術スタック詳細
 
-### Domain Segregation
-フロントエンド (`d123.cloudfront.net`) とバックエンド (API Gateway) のドメインを物理的に分離し、クロスサイトスクリプティング (XSS) のリスクを構造的に低減しています。
+### フロントエンド (Frontend)
+-   **フレームワーク**: React 19
+-   **言語**: TypeScript 5.x
+-   **ビルドツール**: Vite 6.x
+-   **スタイリング**: Tailwind CSS 4
+-   **アニメーション**: Framer Motion
+-   **UIコンポーネント**: Radix UI
 
-### Least Privilege (最小権限の原則)
-AWS Lambda 関数には、そのタスクを実行するために必要最小限の IAM 権限のみを付与しています。
+### バックエンド (Backend)
+-   **APIフレームワーク**: tRPC (エンドツーエンドの型安全性を提供)
+-   **コンピューティング**: AWS Lambda (Web Adapter使用)
+-   **ランタイム**: Node.js / Python
+-   **AIサービス**: OpenAI API
+-   **ORM**: Drizzle ORM
 
-### Type Safety
-tRPC を採用することで、フロントエンドからバックエンドまで完全な型安全性を確保。不正なデータ構造の混入をコンパイルレベルで排除します。
+### インフラストラクチャ (Infrastructure)
+-   **構築ツール (IaC)**: AWS CDK (TypeScript)
+-   **認証**: Amazon Cognito
+-   **CDN**: Amazon CloudFront
+-   **ストレージ**: Amazon S3
+-   **APIゲートウェイ**: Amazon API Gateway
 
-### Constructor Safety
-ドメイン駆動設計 (DDD) に基づき、`SessionEntity` などのドメインモデルは「常に正しい状態」でのみインスタンス化できるよう設計（バリデータの強制）。
+---
+
+## セキュリティ実装 (Security)
+
+### 1. ドメイン分離 (Domain Segregation)
+フロントエンド（CloudFront配信）とバックエンド（API Gateway）のドメインを物理的に分離することで、同一オリジンポリシーの制限を活用し、クロスサイトスクリプティング（XSS）などのリスクを構造的に低減しています。
+
+### 2. 最小権限の原則 (Least Privilege)
+各 AWS Lambda 関数には、そのタスクを実行するために「必要最低限」の IAM 権限のみを付与しています。万が一関数が侵害されても、被害を最小限に抑えます。
+
+### 3. 型安全性 (Type Safety)
+tRPC の採用により、フロントエンドからバックエンドまで完全な型安全性を確保しています。定義されていないデータ構造や不正な型のリクエストはコンパイル時および実行時に排除されます。
+
+### 4. コンストラクタ安全性 (Constructor Safety)
+ドメイン駆動設計（DDD）の思想に基づき、`SessionEntity` などの重要なデータモデルは、バリデータを通した「常に正しい状態」でのみインスタンス化できるようコードレベルで制限しています。
