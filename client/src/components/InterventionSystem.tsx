@@ -10,10 +10,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { SceneType } from '@/lib/waveEngine';
 import type { InterventionSettings } from '@/hooks/useInterventionSettings';
 
+/**
+ * InterventionSystemコンポーネントのプロパティ
+ */
 interface InterventionSystemProps {
+  /** 現在のシーン（静寂、調和、一方的、沈黙） */
   scene: SceneType;
+  /** セッションがアクティブかどうか */
   isActive: boolean;
+  /** 介入設定（有効/無効、閾値、サウンド/ビジュアルヒントなど） */
   settings: InterventionSettings;
+  /** 介入が発生したときに呼ばれるコールバック（オプション） */
   onIntervention?: (type: string) => void;
 }
 
@@ -39,7 +46,14 @@ const INTERVENTION_MESSAGES: Record<string, { title: string; message: string; ic
   },
 };
 
-// 通知音を生成するユーティリティ
+/**
+ * 通知音を生成するユーティリティ
+ * 
+ * Web Audio APIを使用して、穏やかな通知音を生成する。
+ * 介入時に使用され、ユーザーの注意を引くために使用される。
+ * 
+ * @param type - 通知音のタイプ（'gentle'、'chime'、'bell'）
+ */
 function createNotificationSound(type: 'gentle' | 'chime' | 'bell'): void {
   try {
     const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -80,6 +94,25 @@ function createNotificationSound(type: 'gentle' | 'chime' | 'bell'): void {
   }
 }
 
+/**
+ * InterventionSystemコンポーネント
+ * 
+ * 「一方的」や「沈黙」状態が続いた場合に、穏やかな通知音や画面上のヒントを
+ * 表示して参加者に気づきを促すコンポーネント。
+ * 
+ * 機能:
+ * - シーンの継続時間を監視
+ * - 閾値を超えた場合に介入をトリガー
+ * - クールダウン時間（30秒）で連続介入を防ぐ
+ * - サウンド通知とビジュアルヒントの両方をサポート
+ * 
+ * @param props - コンポーネントのプロパティ
+ * @param props.scene - 現在のシーン（静寂、調和、一方的、沈黙）
+ * @param props.isActive - セッションがアクティブかどうか
+ * @param props.settings - 介入設定（有効/無効、閾値、サウンド/ビジュアルヒントなど）
+ * @param props.onIntervention - 介入が発生したときに呼ばれるコールバック（オプション）
+ * @returns InterventionSystemコンポーネント
+ */
 export function InterventionSystem({
   scene,
   isActive,
@@ -92,7 +125,12 @@ export function InterventionSystem({
   const lastInterventionRef = useRef<number>(0);
   const previousSceneRef = useRef<SceneType>(scene);
 
-  // シーン変更を検出
+  /**
+   * シーン変更を検出する
+   * 
+   * シーンプロパティが変更された場合、シーンの開始時刻を更新する。
+   * これにより、シーンの継続時間を正確に計測できる。
+   */
   useEffect(() => {
     if (scene !== previousSceneRef.current) {
       sceneStartTimeRef.current = Date.now();
@@ -100,7 +138,12 @@ export function InterventionSystem({
     }
   }, [scene]);
 
-  // 介入チェック
+  /**
+   * 介入チェックを実行する
+   * 
+   * 1秒ごとにシーンの継続時間をチェックし、閾値を超えた場合に介入をトリガーする。
+   * クールダウン時間（30秒）を考慮し、連続介入を防ぐ。
+   */
   useEffect(() => {
     if (!isActive || !settings.enabled) return;
 
@@ -131,6 +174,14 @@ export function InterventionSystem({
     return () => clearInterval(checkInterval);
   }, [isActive, scene, settings]);
 
+  /**
+   * 介入をトリガーする
+   * 
+   * 指定されたタイプの介入を実行し、通知音を再生し、ビジュアルヒントを表示する。
+   * 最後の介入時刻を記録し、コールバックを呼び出す。
+   * 
+   * @param type - 介入のタイプ（'monologue'、'silence'、'prolonged_tension'）
+   */
   const triggerIntervention = useCallback((type: string) => {
     lastInterventionRef.current = Date.now();
     setCurrentIntervention(type);
@@ -155,6 +206,12 @@ export function InterventionSystem({
     onIntervention?.(type);
   }, [settings, onIntervention]);
 
+  /**
+   * 介入ヒントを閉じる
+   * 
+   * ユーザーが手動で介入ヒントを閉じた場合に呼ばれる。
+   * アニメーションを考慮して、遅延を設けて状態をクリアする。
+   */
   const dismissIntervention = useCallback(() => {
     setIsVisible(false);
     setTimeout(() => setCurrentIntervention(null), 500);

@@ -12,10 +12,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { SecurityMetrics } from '@/lib/conversationLog';
 import type { SceneType } from '@/lib/waveEngine';
 
+/**
+ * SecurityDashboardコンポーネントのプロパティ
+ */
 interface SecurityDashboardProps {
+  /** セキュリティメトリクス（総合スコア、結界の強さ、脅威レベルなど） */
   metrics: SecurityMetrics;
+  /** 現在のシーン（静寂、調和、一方的、沈黙） */
   scene: SceneType;
+  /** ダッシュボードが開いているかどうか */
   isOpen: boolean;
+  /** ダッシュボードを閉じるコールバック */
   onClose: () => void;
 }
 
@@ -69,6 +76,25 @@ const sceneExplanations: Record<SceneType, { cyber: string; human: string; relat
   }
 };
 
+/**
+ * SecurityDashboardコンポーネント
+ * 
+ * サイバーセキュリティとヒューマンセキュリティの関係を可視化するダッシュボード。
+ * 技術的なセキュリティ指標と心理的安全性の指標の相互作用を示す。
+ * 
+ * 機能:
+ * - 現在のシーンに応じたセキュリティ状態の説明
+ * - サイバーセキュリティとヒューマンセキュリティの各レイヤーの詳細表示
+ * - 両者の相互作用の可視化
+ * - セキュリティの循環（技術的防御 → 安心感 → 自由な対話 → より良い判断）の図解
+ * 
+ * @param props - コンポーネントのプロパティ
+ * @param props.metrics - セキュリティメトリクス（総合スコア、結界の強さ、脅威レベルなど）
+ * @param props.scene - 現在のシーン（静寂、調和、一方的、沈黙）
+ * @param props.isOpen - ダッシュボードが開いているかどうか
+ * @param props.onClose - ダッシュボードを閉じるコールバック
+ * @returns SecurityDashboardコンポーネント
+ */
 export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityDashboardProps) {
   const [activeLayer, setActiveLayer] = useState<'cyber' | 'human' | null>(null);
   const explanation = sceneExplanations[scene];
