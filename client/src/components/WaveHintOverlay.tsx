@@ -1,0 +1,122 @@
+/**
+ * Wave Hint Overlay Component
+ * 
+ * 初回訪問時に「祠の機嫌を伺う」というコンセプトを説明するオーバーレイ
+ */
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+
+const STORAGE_KEY = 'concordia-shine-wave-hint-dismissed';
+
+interface WaveHintOverlayProps {
+  onDismiss?: () => void;
+}
+
+export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    // 初回訪問かどうかをチェック
+    const hasSeenHint = localStorage.getItem(STORAGE_KEY) === 'true';
+    if (!hasSeenHint) {
+      setIsVisible(true);
+    }
+  }, []);
+
+  const handleDismiss = () => {
+    localStorage.setItem(STORAGE_KEY, 'true');
+    setIsVisible(false);
+    onDismiss?.();
+  };
+
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <>
+          {/* オーバーレイ背景 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleDismiss}
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
+          />
+          
+          {/* ヒントカード */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: 'spring', damping: 25 }}
+            className="fixed inset-4 md:inset-16 lg:inset-32 z-50 pointer-events-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-card border border-border rounded-xl shadow-lg p-6 md:p-8 max-w-2xl mx-auto pointer-events-auto">
+              {/* ヘッダー */}
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-serif-jp text-foreground mb-2">
+                    祠の機嫌を伺う
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    波の動きで会話の「空気」を感じ取る
+                  </p>
+                </div>
+                <button
+                  onClick={handleDismiss}
+                  className="p-1 hover:bg-muted rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* コンテンツ */}
+              <div className="space-y-4 mb-6">
+                <p className="text-sm text-foreground leading-relaxed">
+                  この画面の波は、「祠の機嫌」を表現しています。会話の状態（調和、一方的、沈黙、静寂）が波の色や動きとして可視化されます。
+                </p>
+                
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="p-3 bg-shrine-jade/10 rounded-lg border border-shrine-jade/20">
+                    <div className="text-xs text-shrine-jade mb-1">調和</div>
+                    <p className="text-xs text-muted-foreground">穏やかな翡翠色の波 = 祠が満足している状態</p>
+                  </div>
+                  <div className="p-3 bg-shrine-vermilion/10 rounded-lg border border-shrine-vermilion/20">
+                    <div className="text-xs text-shrine-vermilion mb-1">一方的</div>
+                    <p className="text-xs text-muted-foreground">激しい暗い朱色の波 = 祠が不安定な状態</p>
+                  </div>
+                  <div className="p-3 bg-shrine-wave-deep/10 rounded-lg border border-shrine-wave-deep/20">
+                    <div className="text-xs text-foreground mb-1">沈黙</div>
+                    <p className="text-xs text-muted-foreground">静かな暗い藍色の波 = 祠が心配している状態</p>
+                  </div>
+                  <div className="p-3 bg-shrine-wave/10 rounded-lg border border-shrine-wave/20">
+                    <div className="text-xs text-foreground mb-1">静寂</div>
+                    <p className="text-xs text-muted-foreground">穏やかな藍色の波 = 祠が落ち着いている状態</p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground italic mt-4">
+                  波の上にマウスを置くと、より詳しい説明が表示されます。
+                </p>
+              </div>
+
+              {/* アクション */}
+              <div className="flex justify-end">
+                <Button onClick={handleDismiss} size="sm">
+                  理解しました
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+export default WaveHintOverlay;
+

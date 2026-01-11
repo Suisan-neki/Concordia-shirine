@@ -15,6 +15,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { motion } from 'framer-motion';
 import { WaveCanvas } from '@/components/WaveCanvas';
+import { WaveHintOverlay } from '@/components/WaveHintOverlay';
 import { SecurityBarrier } from '@/components/SecurityBarrier';
 import { SceneIndicator } from '@/components/SceneIndicator';
 import { ControlPanel } from '@/components/ControlPanel';
@@ -400,6 +401,9 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
+      {/* 初回ヒントオーバーレイ */}
+      <WaveHintOverlay />
+
       {/* 波のキャンバス（背景） */}
       <div className="absolute inset-0">
         <WaveCanvas scene={scene} energy={energy} />

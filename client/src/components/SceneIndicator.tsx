@@ -65,9 +65,14 @@ export function SceneIndicator({ scene, isRecording, className = '' }: SceneIndi
       >
         {/* ヘッダー */}
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-muted-foreground font-serif-jp">
-            空気の状態
-          </span>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-muted-foreground font-serif-jp">
+              祠の機嫌を伺う
+            </span>
+            <span className="text-[10px] text-muted-foreground/70">
+              空気の状態
+            </span>
+          </div>
           {isRecording && (
             <motion.div
               animate={{ opacity: [1, 0.5, 1] }}
@@ -100,6 +105,9 @@ export function SceneIndicator({ scene, isRecording, className = '' }: SceneIndi
             
             <p className="text-sm text-muted-foreground leading-relaxed">
               {config.description}
+            </p>
+            <p className="text-xs text-muted-foreground/70 mt-2 italic">
+              波の動きが祠の機嫌を表現しています
             </p>
           </motion.div>
         </AnimatePresence>
