@@ -1,4 +1,4 @@
-import { eq, desc, and, lt } from "drizzle-orm";
+import { eq, desc, and, lt, or, like, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, 
@@ -8,7 +8,8 @@ import {
   interventionSettings,
   InsertSession,
   InsertLogEntry,
-  InsertInterventionSettings
+  InsertInterventionSettings,
+  securityAuditLogs
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
