@@ -45,8 +45,13 @@ export async function getUserByOpenId(openId: string): Promise<User | null> {
       isOwner: result.Item.openId === ENV.ownerOpenId,
     });
     
+    // IDはopenIdのハッシュから生成（互換性のため）
+    // DynamoDBではidは不要だが、既存のコードとの互換性のために生成
+    const idHash = result.Item.openId.split('-').slice(0, 2).join('').substring(0, 8);
+    const id = parseInt(idHash, 16) || 0;
+    
     return {
-      id: result.Item.id || 0, // DynamoDBではidは不要だが、互換性のため
+      id, // openIdから生成したID
       openId: result.Item.openId,
       name: result.Item.name || null,
       email: result.Item.email || null,
@@ -133,15 +138,25 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       item.loginMethod = existingUser.loginMethod;
     }
     
-    if (user.lastSignedIn !== undefined) {
+    // 削除済みユーザーの場合は最終ログイン日時を更新しない
+    if (existingUser?.deletedAt) {
+      // 削除済みユーザーの場合は、既存の最終ログイン日時を保持
+      if (existingUser.lastSignedIn) {
+        item.lastSignedIn = existingUser.lastSignedIn.toISOString();
+      }
+    } else if (user.lastSignedIn !== undefined) {
       item.lastSignedIn = user.lastSignedIn.toISOString();
     } else {
       item.lastSignedIn = now;
     }
     
-    // 新規作成の場合のみcreatedAtを設定
+    // createdAtの処理
     if (!existingUser) {
+      // 新規作成の場合のみcreatedAtを設定
       item.createdAt = now;
+    } else if (existingUser.createdAt) {
+      // 既存ユーザーの場合は、既存のcreatedAtを保持
+      item.createdAt = existingUser.createdAt.toISOString();
     }
     
     // deletedAtの処理
@@ -179,43 +194,109 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 /**
  * すべてのユーザーを取得する（管理者用）
  * 
+ * @param includeDeleted - 削除済みユーザーを含めるかどうか（デフォルト: false）
  * @returns ユーザーの配列
  */
-export async function getAllUsers(): Promise<User[]> {
+export async function getAllUsers(includeDeleted: boolean = false): Promise<User[]> {
   const client = getDynamoClient();
   
   try {
     // DynamoDBで全件取得するにはScanを使用
+    const scanParams: {
+      TableName: string;
+      FilterExpression?: string;
+      ExpressionAttributeValues?: Record<string, unknown>;
+    } = {
+      TableName: USERS_TABLE,
+    };
+    
+    // 削除済みユーザーを含めない場合はフィルタリング
+    if (!includeDeleted) {
+      scanParams.FilterExpression = "attribute_not_exists(deletedAt) OR deletedAt = :null";
+      scanParams.ExpressionAttributeValues = {
+        ":null": null,
+      };
+    }
+    
     const result = await client.send(
-      new ScanCommand({
-        TableName: USERS_TABLE,
-        // deletedAtがnullのもののみ取得（論理削除されていないユーザーのみ）
-        FilterExpression: "attribute_not_exists(deletedAt) OR deletedAt = :null",
-        ExpressionAttributeValues: {
-          ":null": null,
-        },
-      })
+      new ScanCommand(scanParams)
     );
     
     if (!result.Items) {
       return [];
     }
     
-    return result.Items.map((item) => ({
-      id: item.id || 0,
-      openId: item.openId,
-      name: item.name || null,
-      email: item.email || null,
-      loginMethod: item.loginMethod || null,
-      role: item.role || "user",
-      deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
-      createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-      updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
-      lastSignedIn: item.lastSignedIn ? new Date(item.lastSignedIn) : new Date(),
-    })) as User[];
+    return result.Items.map((item) => {
+      // IDはopenIdのハッシュから生成（互換性のため）
+      // openIdのUUID形式（例: 87a4baf8-b061-704e-e4b6-6bc62b922d6c）から数値を生成
+      const idHash = item.openId.split('-').slice(0, 2).join('').substring(0, 8);
+      const id = parseInt(idHash, 16) || 0;
+      
+      return {
+        id, // openIdから生成したID
+        openId: item.openId,
+        name: item.name || null,
+        email: item.email || null,
+        loginMethod: item.loginMethod || null,
+        role: item.role || "user",
+        deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
+        createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+        updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+        lastSignedIn: item.lastSignedIn ? new Date(item.lastSignedIn) : new Date(),
+      };
+    }) as User[];
   } catch (error) {
     console.error("[DynamoDB] Failed to get all users:", error);
     return [];
+  }
+}
+
+/**
+ * ユーザーを論理削除する
+ * 
+ * @param userId - ユーザーID（openIdから生成された数値）
+ * @returns 削除成功フラグ
+ */
+export async function softDeleteUser(userId: number): Promise<boolean> {
+  const client = getDynamoClient();
+  
+  try {
+    // まず、すべてのユーザーを取得してuserIdで検索
+    const allUsers = await getAllUsers(true);
+    const user = allUsers.find(u => u.id === userId);
+    
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    // 既に削除済みの場合は何もしない
+    if (user.deletedAt) {
+      return true;
+    }
+    
+    // deletedAtを現在時刻に設定して更新
+    await client.send(
+      new PutCommand({
+        TableName: USERS_TABLE,
+        Item: {
+          openId: user.openId,
+          name: user.name || null,
+          email: user.email || null,
+          loginMethod: user.loginMethod || null,
+          role: user.role || "user",
+          deletedAt: new Date().toISOString(),
+          createdAt: user.createdAt?.toISOString() || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          lastSignedIn: user.lastSignedIn?.toISOString() || new Date().toISOString(),
+        },
+      })
+    );
+    
+    console.log("[DynamoDB] User soft deleted:", { userId, openId: user.openId });
+    return true;
+  } catch (error) {
+    console.error("[DynamoDB] Failed to soft delete user:", error);
+    throw error;
   }
 }
 

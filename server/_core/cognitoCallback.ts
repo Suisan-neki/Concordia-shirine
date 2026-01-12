@@ -144,7 +144,7 @@ export async function handleCognitoCallback(req: Request, res: Response): Promis
       },
     } as Request;
 
-    const user = await authenticateRequest(mockReq);
+    const user = await authenticateRequest(mockReq, { updateUser: true });
 
     // セッショントークンを生成（有効期限: 1年）
     const sessionName = user.name || user.email || user.openId;

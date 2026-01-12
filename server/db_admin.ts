@@ -8,6 +8,7 @@
 
 import type { User } from "../drizzle/schema";
 import { getAllUsers as getAllDynamoUsers } from "./db";
+import { getAllUsers as getAllDynamoUsersDirect } from "./db-dynamodb";
 
 /**
  * 全ユーザーを取得する（管理者専用）
@@ -33,13 +34,8 @@ export async function getAllUsers(options: {
   const search = options.search?.trim();
   const includeDeleted = options.includeDeleted || false;
 
-  // DynamoDBから全ユーザーを取得
-  let allUsers = await getAllDynamoUsers();
-
-  // 削除済みユーザーのフィルタリング
-  if (!includeDeleted) {
-    allUsers = allUsers.filter(user => !user.deletedAt);
-  }
+  // DynamoDBから全ユーザーを取得（includeDeletedパラメータを渡す）
+  let allUsers = await getAllDynamoUsersDirect(includeDeleted);
 
   // 検索条件（名前のみ）
   if (search) {
@@ -78,22 +74,19 @@ export async function getAllUsers(options: {
  * 管理者ダッシュボードでユーザー詳細を表示するために使用される。
  * 削除済みユーザーも取得可能。
  * 
- * @param userId - ユーザーID
+ * DynamoDBではidを使わないため、すべてのユーザーを取得してからidでフィルタリングします。
+ * 
+ * @param userId - ユーザーID（openIdから生成された数値）
  * @returns ユーザーオブジェクト、またはundefined（存在しない場合）
  */
-export async function getUserById(userId: number) {
-  const db = await getDb();
-  if (!db) {
-    throw new Error("Database not available");
-  }
-
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+export async function getUserById(userId: number): Promise<User | undefined> {
+  // DynamoDBから全ユーザーを取得（削除済みも含む）
+  const allUsers = await getAllDynamoUsersDirect(true);
+  
+  // idでフィルタリング
+  const user = allUsers.find(u => u.id === userId);
+  
+  return user;
 }
 
 /**
@@ -109,30 +102,9 @@ export async function getUserById(userId: number) {
  * @param userId - 削除するユーザーID
  * @returns 削除成功フラグ
  */
-export async function softDeleteUser(userId: number) {
-  const db = await getDb();
-  if (!db) {
-    throw new Error("Database not available");
-  }
-
-  // ユーザーが存在するか確認
-  const user = await getUserById(userId);
-  if (!user) {
-    throw new Error("User not found");
-  }
-
-  // 既に削除済みの場合は何もしない
-  if (user.deletedAt) {
-    return true;
-  }
-
-  // deletedAtを現在時刻に設定
-  await db
-    .update(users)
-    .set({ deletedAt: new Date() })
-    .where(eq(users.id, userId));
-
-  return true;
+export async function softDeleteUser(userId: number): Promise<boolean> {
+  const { softDeleteUser: softDeleteDynamoUser } = await import("./db-dynamodb");
+  return await softDeleteDynamoUser(userId);
 }
 
 /**

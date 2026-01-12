@@ -52,7 +52,7 @@ export async function createContext(
   try {
     // リクエストを認証（Cognito Bearerトークンを使用）
     // 認証に成功した場合はユーザー情報を取得
-    user = await authenticateRequest(opts.req);
+    user = await authenticateRequest(opts.req, { updateUser: false });
   } catch (error) {
     // 認証に失敗した場合はエラーを無視し、userをnullに設定
     // これにより、公開プロシージャ（認証不要）でもエラーが発生しない
@@ -65,7 +65,9 @@ export async function createContext(
   if (!user && hasSessionCookie(opts.req)) {
     try {
       // セッションCookie認証を試行（Cognitoコールバックで発行したセッションを含む）
-      user = await sdk.authenticateRequest(opts.req);
+      user = await sdk.authenticateRequest(opts.req, {
+        updateLastSignedIn: false,
+      });
     } catch (error) {
       // セッションCookie認証のエラーは無視（Cognito認証が優先）
       console.warn(

@@ -110,7 +110,10 @@ function getBearerToken(req: Request): string | null {
  * const user = await authenticateRequest(req);
  * console.log(`認証されたユーザー: ${user.name}`);
  */
-export async function authenticateRequest(req: Request): Promise<User> {
+export async function authenticateRequest(
+  req: Request,
+  options: { updateUser?: boolean } = {}
+): Promise<User> {
   // Bearerトークンを取得
   const token = getBearerToken(req);
   if (!token) {
@@ -179,6 +182,8 @@ export async function authenticateRequest(req: Request): Promise<User> {
   
   console.log("[Cognito] Extracted user info:", { openId, name, email });
 
+  const shouldUpdateUser = options.updateUser === true;
+
   // データベースからユーザーを取得
   let user = await db.getUserByOpenId(openId);
   if (!user) {
@@ -191,13 +196,11 @@ export async function authenticateRequest(req: Request): Promise<User> {
       lastSignedIn: new Date(),
     });
     user = await db.getUserByOpenId(openId);
-  } else {
-    // ユーザーが存在する場合は情報を更新
-    // 新しい情報があれば更新、なければ既存の情報を保持
+  } else if (shouldUpdateUser && !user.deletedAt) {
     await db.upsertUser({
       openId,
-      name: name || user.name || null, // 新しい名前があれば優先、なければ既存の名前を保持
-      email: email || user.email || null, // 新しいメールがあれば優先、なければ既存のメールを保持
+      name: name || user.name || null,
+      email: email || user.email || null,
       loginMethod: user.loginMethod || "cognito",
       lastSignedIn: new Date(),
     });
