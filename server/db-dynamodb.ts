@@ -3,16 +3,42 @@
  * 
  * AWS DynamoDBを使用したデータベース操作を提供する。
  * MySQLからDynamoDBへの移行版。
+ * 
+ * テーブル命名規則:
+ * - ユーザーテーブル: concordia-users-{environment}
+ * - セキュリティ監査ログテーブル: concordia-securityAuditLogs-{environment}
+ * 
+ * これらのテーブルは cdk/lib/stacks/storage-stack.ts で定義されている。
  */
 
 import { GetCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { getDynamoClient, getTableName } from "./_core/dynamodb";
 import { ENV } from "./_core/env";
 import type { User, InsertUser, SecurityAuditLog } from "../drizzle/schema";
-import { nanoid } from "nanoid";
+import { createHash } from "crypto";
 
+// Table names: concordia-{tableName}-{environment}
 const USERS_TABLE = getTableName("users");
 const SECURITY_AUDIT_LOGS_TABLE = getTableName("securityAuditLogs");
+
+/**
+ * UUIDから安全な数値IDを生成
+ * 
+ * SHA-256ハッシュを使用して、UUIDから一貫性のある数値IDを生成する。
+ * これにより、ID衝突のリスクを軽減する。
+ * 
+ * @param uuid - UUID文字列
+ * @returns 正の整数ID
+ */
+function generateIdFromUuid(uuid: string): number {
+  // SHA-256ハッシュを使用してUUIDから一貫性のある値を生成
+  const hash = createHash('sha256').update(uuid).digest('hex');
+  // ハッシュの最初の12文字（48ビット）を使用して数値を生成
+  // これにより、JavaScriptのNumber.MAX_SAFE_INTEGER (2^53-1) 内に収まる
+  const id = parseInt(hash.substring(0, 12), 16);
+  // 0を避けるため、0の場合は1を返す
+  return id || 1;
+}
 
 /**
  * ユーザーをopenIdで取得する
@@ -52,8 +78,7 @@ export async function getUserByOpenId(openId: string): Promise<User | null> {
     
     // IDはopenIdのハッシュから生成（互換性のため）
     // DynamoDBではidは不要だが、既存のコードとの互換性のために生成
-    const idHash = result.Item.openId.split('-').slice(0, 2).join('').substring(0, 8);
-    const id = parseInt(idHash, 16) || 0;
+    const id = generateIdFromUuid(result.Item.openId);
     
     return {
       id, // openIdから生成したID
@@ -93,6 +118,9 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   const client = getDynamoClient();
   
+  // ロール変数をスコープの最上位で宣言
+  let role = user.role || "user";
+  
   try {
     // 既存のユーザーを取得
     const existingUser = await getUserByOpenId(user.openId);
@@ -101,7 +129,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     const now = new Date().toISOString();
     
     // ロールの決定
-    let role = user.role || existingUser?.role || "user";
+    role = user.role || existingUser?.role || "user";
     if (user.openId === ENV.ownerOpenId) {
       console.log("[DynamoDB] Owner OpenID matched, setting role to admin:", {
         userOpenId: user.openId,
@@ -213,6 +241,9 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 /**
  * すべてのユーザーを取得する（管理者用）
  * 
+ * DynamoDBのScanは1MBのデータ制限があるため、ページネーションを実装している。
+ * LastEvaluatedKeyを使用して、大きなデータセットにも対応。
+ * 
  * @param includeDeleted - 削除済みユーザーを含めるかどうか（デフォルト: false）
  * @returns ユーザーの配列
  */
@@ -225,6 +256,7 @@ export async function getAllUsers(includeDeleted: boolean = false): Promise<User
       TableName: string;
       FilterExpression?: string;
       ExpressionAttributeValues?: Record<string, unknown>;
+      ExclusiveStartKey?: Record<string, unknown>;
     } = {
       TableName: USERS_TABLE,
     };
@@ -237,19 +269,33 @@ export async function getAllUsers(includeDeleted: boolean = false): Promise<User
       };
     }
     
-    const result = await client.send(
-      new ScanCommand(scanParams)
-    );
+    // すべてのページを取得するまでループ
+    let allItems: Array<Record<string, unknown>> = [];
+    let lastEvaluatedKey: Record<string, unknown> | undefined = undefined;
     
-    if (!result.Items) {
+    do {
+      if (lastEvaluatedKey) {
+        scanParams.ExclusiveStartKey = lastEvaluatedKey;
+      }
+      
+      const result = await client.send(
+        new ScanCommand(scanParams)
+      );
+      
+      if (result.Items && result.Items.length > 0) {
+        allItems = allItems.concat(result.Items);
+      }
+      
+      lastEvaluatedKey = result.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+    
+    if (allItems.length === 0) {
       return [];
     }
     
-    return result.Items.map((item) => {
+    return allItems.map((item) => {
       // IDはopenIdのハッシュから生成（互換性のため）
-      // openIdのUUID形式（例: 87a4baf8-b061-704e-e4b6-6bc62b922d6c）から数値を生成
-      const idHash = item.openId.split('-').slice(0, 2).join('').substring(0, 8);
-      const id = parseInt(idHash, 16) || 0;
+      const id = generateIdFromUuid(item.openId as string);
       
       return {
         id, // openIdから生成したID
@@ -258,10 +304,10 @@ export async function getAllUsers(includeDeleted: boolean = false): Promise<User
         email: item.email || null,
         loginMethod: item.loginMethod || null,
         role: item.role || "user",
-        deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
-        createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-        updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
-        lastSignedIn: item.lastSignedIn ? new Date(item.lastSignedIn) : new Date(),
+        deletedAt: item.deletedAt ? new Date(item.deletedAt as string | number) : null,
+        createdAt: item.createdAt ? new Date(item.createdAt as string | number) : new Date(),
+        updatedAt: item.updatedAt ? new Date(item.updatedAt as string | number) : new Date(),
+        lastSignedIn: item.lastSignedIn ? new Date(item.lastSignedIn as string | number) : new Date(),
       };
     }) as User[];
   } catch (error) {
@@ -361,6 +407,7 @@ export async function getSecurityAuditLogs(options: {
       FilterExpression?: string;
       ExpressionAttributeValues?: Record<string, unknown>;
       ExpressionAttributeNames?: Record<string, string>;
+      ExclusiveStartKey?: Record<string, unknown>;
     } = {
       TableName: SECURITY_AUDIT_LOGS_TABLE,
     };
@@ -404,11 +451,27 @@ export async function getSecurityAuditLogs(options: {
       }
     }
 
-    const result = await client.send(new ScanCommand(scanParams));
-    const allLogs = (result.Items || []).map(item => {
+    // すべてのページを取得するまでループ（DynamoDBの1MB制限に対応）
+    let allItems: Array<Record<string, unknown>> = [];
+    let lastEvaluatedKey: Record<string, unknown> | undefined = undefined;
+    
+    do {
+      if (lastEvaluatedKey) {
+        scanParams.ExclusiveStartKey = lastEvaluatedKey;
+      }
+      
+      const result = await client.send(new ScanCommand(scanParams));
+      
+      if (result.Items && result.Items.length > 0) {
+        allItems = allItems.concat(result.Items);
+      }
+      
+      lastEvaluatedKey = result.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+
+    const allLogs = allItems.map(item => {
       // IDはlogIdのハッシュから生成（互換性のため）
-      const idHash = (item.logId || "").split('-').slice(0, 2).join('').substring(0, 8);
-      const id = parseInt(idHash, 16) || 0;
+      const id = item.logId ? generateIdFromUuid(item.logId as string) : 0;
 
       return {
         id,
@@ -421,7 +484,7 @@ export async function getSecurityAuditLogs(options: {
         ipHash: item.ipHash || null,
         userAgent: item.userAgent || null,
         timestamp: item.timestamp,
-        createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+        createdAt: item.createdAt ? new Date(item.createdAt as string | number) : new Date(),
       };
     }) as SecurityAuditLog[];
 

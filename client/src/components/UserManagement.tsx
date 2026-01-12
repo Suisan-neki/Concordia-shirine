@@ -76,14 +76,16 @@ export function UserManagement() {
           }}
           className="max-w-sm"
         />
-        <label className="flex items-center gap-2 text-sm">
+        <label htmlFor="include-deleted" className="flex items-center gap-2 text-sm">
           <input
+            id="include-deleted"
             type="checkbox"
             checked={includeDeleted}
             onChange={(e) => {
               setIncludeDeleted(e.target.checked);
               setPage(1);
             }}
+            aria-label="削除済みユーザーを含めて表示"
           />
           <span>削除済みを含む</span>
         </label>

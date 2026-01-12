@@ -12,7 +12,13 @@ function createNonce(): string {
 }
 
 function encodeBase64Url(value: string): string {
-  const base64 = btoa(unescape(encodeURIComponent(value)));
+  // TextEncoderを使用してUTF-8バイト配列に変換
+  const utf8Bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (let i = 0; i < utf8Bytes.length; i++) {
+    binary += String.fromCharCode(utf8Bytes[i]);
+  }
+  const base64 = btoa(binary);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
@@ -49,10 +55,12 @@ export const getLoginUrl = (redirectPath?: string) => {
   params.set("redirect_uri", callbackUri);
   params.set("state", state);
 
-  // nonceをsessionStorageに保存（クライアント側の検証用）
+  // nonceをsessionStorageに保存（将来のクライアント側検証用に保持）
+  // Note: 現在はサーバー側のCookie検証のみ使用
   sessionStorage.setItem(NONCE_KEY, nonce);
   
-  // nonceをCookieにも保存（サーバー側の検証用）
+  // nonceをCookieに保存（サーバー側の検証用）
+  // サーバーはこのCookieを読み取ってstateパラメータ内のnonceと比較する
   // 有効期限は10分（認証フローが完了するまでの時間）
   const cookieMaxAge = 10 * 60; // 10分（秒単位）
   document.cookie = `cognito_auth_nonce=${nonce}; max-age=${cookieMaxAge}; path=/; SameSite=Lax`;
