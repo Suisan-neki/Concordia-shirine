@@ -102,10 +102,11 @@ export async function getUserByOpenId(openId: string): Promise<User | undefined>
 /**
  * すべてのユーザーを取得する（管理者用）
  * 
+ * @param includeDeleted - 削除済みユーザーを含めるかどうか（デフォルト: false）
  * @returns ユーザーの配列
  */
-export async function getAllUsers(): Promise<User[]> {
-  return await getAllDynamoUsers();
+export async function getAllUsers(includeDeleted: boolean = false): Promise<User[]> {
+  return await getAllDynamoUsers(includeDeleted);
 }
 
 // ===== 後方互換性のためのダミー関数 =====
