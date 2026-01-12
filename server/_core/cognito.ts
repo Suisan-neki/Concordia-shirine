@@ -110,7 +110,10 @@ function getBearerToken(req: Request): string | null {
  * const user = await authenticateRequest(req);
  * console.log(`認証されたユーザー: ${user.name}`);
  */
-export async function authenticateRequest(req: Request): Promise<User> {
+export async function authenticateRequest(
+  req: Request,
+  options: { updateUser?: boolean } = {}
+): Promise<User> {
   // Bearerトークンを取得
   const token = getBearerToken(req);
   if (!token) {
@@ -149,9 +152,46 @@ export async function authenticateRequest(req: Request): Promise<User> {
     throw ForbiddenError("Invalid token payload");
   }
 
+  // デバッグ: ペイロードの内容を確認
+  if (process.env.DEBUG_AUTH === "true") {
+    console.log("[Cognito] Token payload keys:", Object.keys(payload));
+    console.log("[Cognito] Token payload (name-related):", {
+      name: payload.name ? "[REDACTED]" : undefined,
+      given_name: payload.given_name ? "[REDACTED]" : undefined,
+      family_name: payload.family_name ? "[REDACTED]" : undefined,
+      "cognito:username": payload["cognito:username"] ? "[REDACTED]" : undefined,
+      email: payload.email ? "[REDACTED]" : undefined,
+    });
+  }
+
   // オプションのユーザー情報を取得
-  const name = typeof payload.name === "string" ? payload.name : null;
+  // CognitoのIDトークンには、name、given_name、family_name、cognito:usernameなどが含まれる可能性がある
+  // 優先順位: name > given_name + family_name > cognito:username
+  let name: string | null = null;
+  if (typeof payload.name === "string" && payload.name) {
+    name = payload.name;
+  } else if (typeof payload.given_name === "string" || typeof payload.family_name === "string") {
+    // given_nameとfamily_nameを組み合わせる
+    const givenName = typeof payload.given_name === "string" ? payload.given_name : "";
+    const familyName = typeof payload.family_name === "string" ? payload.family_name : "";
+    name = `${givenName} ${familyName}`.trim() || null;
+  } else if (typeof payload["cognito:username"] === "string" && payload["cognito:username"]) {
+    // フォールバック: cognito:usernameを使用
+    name = payload["cognito:username"];
+  }
+  
   const email = typeof payload.email === "string" ? payload.email : null;
+  
+  // デバッグ: 抽出されたユーザー情報を確認（個人情報はマスク）
+  if (process.env.DEBUG_AUTH === "true") {
+    console.log("[Cognito] Extracted user info:", {
+      openId: openId ? `${openId.substring(0, 10)}...` : null,
+      name: name ? "[REDACTED]" : null,
+      email: email ? "[REDACTED]" : null,
+    });
+  }
+
+  const shouldUpdateUser = options.updateUser === true;
 
   // データベースからユーザーを取得
   let user = await db.getUserByOpenId(openId);
@@ -165,14 +205,12 @@ export async function authenticateRequest(req: Request): Promise<User> {
       lastSignedIn: new Date(),
     });
     user = await db.getUserByOpenId(openId);
-  } else {
-    // ユーザーが存在する場合は情報を更新
-    // 既存の情報を保持しつつ、新しい情報があれば更新
+  } else if (shouldUpdateUser && !user.deletedAt) {
     await db.upsertUser({
       openId,
-      name: name ?? user.name ?? null,
-      email: email ?? user.email ?? null,
-      loginMethod: user.loginMethod ?? "cognito",
+      name: name || user.name || null,
+      email: email || user.email || null,
+      loginMethod: user.loginMethod || "cognito",
       lastSignedIn: new Date(),
     });
     user = await db.getUserByOpenId(openId);

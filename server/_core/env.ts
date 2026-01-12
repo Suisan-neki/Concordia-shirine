@@ -29,9 +29,10 @@ function validateEnv(): void {
     errors.push("JWT_SECRET is required");
   }
 
-  if (!process.env.DATABASE_URL || process.env.DATABASE_URL.length === 0) {
-    errors.push("DATABASE_URL is required");
-  }
+  // DATABASE_URLは不要（DynamoDBを使用するため）
+  // if (!process.env.DATABASE_URL || process.env.DATABASE_URL.length === 0) {
+  //   errors.push("DATABASE_URL is required");
+  // }
 
   if (!process.env.VITE_APP_ID || process.env.VITE_APP_ID.length === 0) {
     errors.push("VITE_APP_ID is required");
@@ -97,6 +98,7 @@ validateEnv();
  * - cognitoRegion: AWS Cognitoのリージョン
  * - cognitoUserPoolId: AWS CognitoのユーザープールID
  * - cognitoClientId: AWS CognitoのクライアントID
+ * - cognitoDomain: AWS CognitoのホステッドUIドメイン
  * - cognitoJwksUrl: AWS CognitoのJWKS URL（未設定の場合は自動生成）
  */
 export const ENV = {
@@ -129,6 +131,8 @@ export const ENV = {
   cognitoUserPoolId: process.env.COGNITO_USER_POOL_ID ?? "",
   /** AWS CognitoのクライアントID */
   cognitoClientId: process.env.COGNITO_CLIENT_ID ?? "",
+  /** AWS CognitoのホステッドUIドメイン（Vite用の値を流用する場合はVITE_COGNITO_DOMAIN） */
+  cognitoDomain: process.env.COGNITO_DOMAIN ?? process.env.VITE_COGNITO_DOMAIN ?? "",
   /** AWS CognitoのJWKS URL（未設定の場合は自動生成） */
   cognitoJwksUrl: process.env.COGNITO_JWKS_URL ?? "",
 };

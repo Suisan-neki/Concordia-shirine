@@ -36,7 +36,7 @@ import type { SceneType } from '@/lib/waveEngine';
 import type { SessionData } from '@/lib/reportGenerator';
 import { Button } from '@/components/ui/button';
 import { getLoginUrl } from '@/const';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { toast } from 'sonner';
 
 const MAX_RECORDING_MS = 15 * 60 * 1000;
@@ -49,6 +49,7 @@ interface TranscriptItem {
 }
 
 export default function Home() {
+  const [, navigate] = useLocation();
   // 認証状態を取得
   const { user, isAuthenticated, logout } = useAuth();
 
@@ -212,39 +213,6 @@ export default function Home() {
     sessionManager.logIntervention(type, { scene, timestamp: Date.now() });
   }, [sessionManager, scene]);
 
-  // 録音開始
-  const handleStartRecording = useCallback(async () => {
-    try {
-      setSessionSummary(null);
-      setTranscripts([]);
-      setInterimText('');
-
-      // バックエンドセッションを開始
-      await sessionManager.startSession();
-      sessionStartTimeRef.current = Date.now();
-
-      logManagerRef.current?.startSession();
-      await audioAnalyzerRef.current?.start();
-
-      // 音声認識も開始
-      if (speechRecognitionRef.current?.isSupported()) {
-        speechRecognitionRef.current.start();
-      }
-
-      setIsRecording(true);
-
-      if (recordingTimeoutRef.current) {
-        clearTimeout(recordingTimeoutRef.current);
-      }
-      recordingTimeoutRef.current = setTimeout(() => {
-        toast.info('録音は15分までのため自動停止しました');
-        void handleStopRecording();
-      }, MAX_RECORDING_MS);
-    } catch (error) {
-      console.error('Failed to start recording:', error);
-    }
-  }, [handleStopRecording, isAuthenticated, sessionManager]);
-
   // 録音停止
   const handleStopRecording = useCallback(async () => {
     if (recordingTimeoutRef.current) {
@@ -304,6 +272,39 @@ export default function Home() {
       setIsLogExpanded(true);
     }
   }, [isAuthenticated, sessionManager]);
+
+  // 録音開始
+  const handleStartRecording = useCallback(async () => {
+    try {
+      setSessionSummary(null);
+      setTranscripts([]);
+      setInterimText('');
+
+      // バックエンドセッションを開始
+      await sessionManager.startSession();
+      sessionStartTimeRef.current = Date.now();
+
+      logManagerRef.current?.startSession();
+      await audioAnalyzerRef.current?.start();
+
+      // 音声認識も開始
+      if (speechRecognitionRef.current?.isSupported()) {
+        speechRecognitionRef.current.start();
+      }
+
+      setIsRecording(true);
+
+      if (recordingTimeoutRef.current) {
+        clearTimeout(recordingTimeoutRef.current);
+      }
+      recordingTimeoutRef.current = setTimeout(() => {
+        toast.info('録音は15分までのため自動停止しました');
+        void handleStopRecording();
+      }, MAX_RECORDING_MS);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+    }
+  }, [handleStopRecording, isAuthenticated, sessionManager]);
 
   // デモモード切り替え
   const handleToggleDemoMode = useCallback(() => {
@@ -425,6 +426,21 @@ export default function Home() {
 
       {/* ナビゲーションボタン */}
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 flex-wrap justify-center">
+        {isAuthenticated && user?.role === 'admin' && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/admin')}
+            className="bg-card/60 backdrop-blur-sm text-xs border-primary/30 hover:border-primary/50"
+          >
+            <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+            管理者
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"

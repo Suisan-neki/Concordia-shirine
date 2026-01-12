@@ -14,18 +14,13 @@ Concordia Shrineは、会議やミーティングにおける「見えない圧�
 - **気まずさや沈黙のせいで飲み込まれてしまう違和感**
 - **場の空気に押し流される前の「本当はこう思っている」の可能性**
 
-### 意思決定におけるセキュリティ (Human Decision Security)
+### Human Decision Security
 
-従来のセキュリティは、外部からの攻撃（External Threat）を防ぐことに焦点を当ててきました。
-しかし、Concordia Shrineは**「内在的脅威（Intrinsic Threat）」**――すなわち、集団心理や同調圧力によって個人の判断が歪められるリスク――から、人の心を防御します。
+従来のセキュリティは、データやネットワークを守ることに焦点を当ててきました。
+しかし、Concordia Shrineは**「人の判断の自由」**を守ることを目指します。
 
 技術的な防御（サイバーセキュリティ）が、心理的な安全（ヒューマンセキュリティ）を支え、
 その逆もまた真なのです。
-
-### 合意形成の保護 (Consent Protection)
-
-- **不本意な合意の防止**: 場の空気に流されて「はい」と言ってしまう前に、客観的なデータ（波の赤色化など）で警告を発します。
-- **真正な合意の支援**: 全員が安心して発言できる「調和」の状態（緑色の豊かな波）こそが、真の合意形成の土台であると定義します。
 
 ## 機能
 
@@ -58,63 +53,48 @@ Concordia Shrineは、会議やミーティングにおける「見えない圧�
 | **監査ログ** | セキュリティイベントを自動記録 |
 | **CSRF保護** | フォーム送信時のトークン検証 |
 
-
-
 ログインユーザーは「詳細」ボタンから、これらの守護者たちの働きを確認できます。
-
-### セキュリティアーキテクチャ (Security Architecture)
-- **最小権限の原則 (Least Privilege)**: AWS Lambdaには必要最小限のIAM権限のみを付与
-- **型安全性 (Type Safety)**: tRPCによるエンドツーエンドの型安全性で、不正なデータ構造を排除
-- **セキュア・バイ・デザイン (Secure by Design)**: ドメインモデル(DDD)により、不正な状態のオブジェクト生成をコンパイルレベルで防止
 
 ## 技術スタック
 
 - **フロントエンド**: React 19 + TypeScript + Tailwind CSS 4
 - **バックエンド**: Express + tRPC
-- **データベース**: MySQL (TiDB)
+- **データベース**: AWS DynamoDB
 - **認証**: OAuth 2.0 + JWT
 - **波生成**: Perlin Noise Algorithm
 - **音声分析**: Web Audio API + Web Speech API
 
 ## 開発
 
+### セットアップ
+
 ```bash
 # 依存関係のインストール
 pnpm install
 
+# DynamoDBテーブルの作成
+# AWS CLIを使用してテーブルを作成する場合:
+./scripts/create-dynamodb-table.sh
+
+# または、AWS CDKを使用してインフラをデプロイする場合:
+# cd cdk && cdk deploy
+
+# 環境変数の設定
+# .envファイルを作成し、以下の環境変数を設定してください:
+# - JWT_SECRET: JWT署名用のシークレットキー（必須）
+# - VITE_APP_ID: アプリケーションID（必須）
+# - AWS_REGION: AWSリージョン（デフォルト: ap-northeast-1）
+# - AWS_ACCESS_KEY_ID: AWSアクセスキーID（AWS CLIまたはIAMロールで認証する場合）
+# - AWS_SECRET_ACCESS_KEY: AWSシークレットアクセスキー（AWS CLIまたはIAMロールで認証する場合）
+# 
+# 注意: AWS認証情報は、AWS CLIの設定（~/.aws/credentials）やIAMロールを使用することもできます。
+# 開発環境では、AWS CLIで `aws configure` を実行して認証情報を設定することを推奨します。
+
 # 開発サーバーの起動
 pnpm dev
 
-# データベースのマイグレーション
-pnpm db:push
-
 # テストの実行
 pnpm test
-```
-
-## ディレクトリ構成
-
-```text
-Concordia-shirine-1
-├── cdk/                  # AWS CDK インフラストラクチャ (TypeScript)
-│   ├── lib/stacks/       # スタック定義
-│   └── lib/lambdas/      # カスタムリソースハンドラ
-├── client/               # フロントエンドアプリケーション (React 19 + Vite)
-│   └── src/
-│       ├── components/   # UIコンポーネント (Radix UI + Framer Motion)
-│       ├── lib/          # コアロジック (WaveEngine, ConversationLog)
-│       └── pages/        # アプリケーションルート
-├── server/               # バックエンドAPI (Node.js + tRPC)
-│   ├── services/         # ビジネスロジック・サービス層
-│   ├── _core/            # コアユーティリティ (認証、セキュリティ)
-│   └── routers.ts        # APIルーター定義
-├── src/                  # Python AI & 処理サービス
-│   └── aws-lambdas/      # AWS Lambda 関数
-│       ├── coach/               # AIコーチングエージェント
-│       ├── llm_analysis/        # 詳細な会話分析
-│       ├── realtime_transcribe/ # リアルタイム文字起こし
-│       └── ...                  # 音声処理パイプライン (話者分離など)
-└── docs/                 # プロジェクトドキュメント
 ```
 
 ## 哲学
@@ -129,4 +109,10 @@ Concordia-shirine-1
 
 詳しくは [システムアーキテクチャ詳細](docs/architecture.md) をご覧ください。
 
+## ライセンス
 
+MIT License
+
+---
+
+Concordia Shrine — Human Decision Security

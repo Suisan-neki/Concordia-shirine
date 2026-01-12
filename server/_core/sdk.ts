@@ -408,7 +408,10 @@ class SDKServer {
    * @returns 認証されたユーザーオブジェクト
    * @throws {ForbiddenError} セッションが無効、またはユーザー情報の取得に失敗した場合
    */
-  async authenticateRequest(req: Request): Promise<User> {
+  async authenticateRequest(
+    req: Request,
+    options: { updateLastSignedIn?: boolean } = {}
+  ): Promise<User> {
     // Regular authentication flow
     // Cookieからセッショントークンを取得
     const cookies = this.parseCookies(req.headers.cookie);
@@ -447,11 +450,13 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
-    // 最後のログイン時刻を更新
-    await db.upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt,
-    });
+    if (options.updateLastSignedIn) {
+      // 最後のログイン時刻を更新
+      await db.upsertUser({
+        openId: user.openId,
+        lastSignedIn: signedInAt,
+      });
+    }
 
     return user;
   }

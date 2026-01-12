@@ -18,7 +18,7 @@ const createContext = async ({
 
     let user = null;
     try {
-        user = await authenticateRequest(mockReq);
+        user = await authenticateRequest(mockReq, { updateUser: false });
     } catch (error) {
         // 認証失敗またはオプション
         console.warn("Authentication failed in Lambda context:", error);

@@ -12,6 +12,8 @@ export class StorageStack extends cdk.Stack {
     public readonly inputBucket: s3.Bucket;
     public readonly outputBucket: s3.Bucket;
     public readonly interviewsTable: dynamodb.Table;
+    public readonly usersTable: dynamodb.Table;
+    public readonly securityAuditLogsTable: dynamodb.Table;
 
     constructor(scope: Construct, id: string, props: StorageStackProps) {
         super(scope, id, props);
@@ -118,6 +120,41 @@ export class StorageStack extends cdk.Stack {
             projectionType: dynamodb.ProjectionType.ALL,
         });
 
+        // ユーザー管理用の DynamoDB テーブル
+        this.usersTable = new dynamodb.Table(this, "UsersTable", {
+            tableName: `concordia-users-${environment}`,
+            partitionKey: {
+                name: "openId",
+                type: dynamodb.AttributeType.STRING,
+            },
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy:
+                environment === "prod"
+                    ? cdk.RemovalPolicy.RETAIN
+                    : cdk.RemovalPolicy.DESTROY,
+            pointInTimeRecovery: environment === "prod",
+        });
+
+        // セキュリティ監査ログ用の DynamoDB テーブル
+        // Table name: concordia-securityAuditLogs-{environment}
+        this.securityAuditLogsTable = new dynamodb.Table(this, "SecurityAuditLogsTable", {
+            tableName: `concordia-securityAuditLogs-${environment}`,
+            partitionKey: {
+                name: "logId",
+                type: dynamodb.AttributeType.STRING,
+            },
+            sortKey: {
+                name: "timestamp",
+                type: dynamodb.AttributeType.NUMBER,
+            },
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy:
+                environment === "prod"
+                    ? cdk.RemovalPolicy.RETAIN
+                    : cdk.RemovalPolicy.DESTROY,
+            pointInTimeRecovery: environment === "prod",
+        });
+
         // Outputs
         new cdk.CfnOutput(this, "InputBucketName", {
             value: this.inputBucket.bucketName,
@@ -137,6 +174,26 @@ export class StorageStack extends cdk.Stack {
         new cdk.CfnOutput(this, "InterviewsTableArn", {
             value: this.interviewsTable.tableArn,
             exportName: `${id}-InterviewsTableArn`,
+        });
+
+        new cdk.CfnOutput(this, "UsersTableName", {
+            value: this.usersTable.tableName,
+            exportName: `${id}-UsersTableName`,
+        });
+
+        new cdk.CfnOutput(this, "UsersTableArn", {
+            value: this.usersTable.tableArn,
+            exportName: `${id}-UsersTableArn`,
+        });
+
+        new cdk.CfnOutput(this, "SecurityAuditLogsTableName", {
+            value: this.securityAuditLogsTable.tableName,
+            exportName: `${id}-SecurityAuditLogsTableName`,
+        });
+
+        new cdk.CfnOutput(this, "SecurityAuditLogsTableArn", {
+            value: this.securityAuditLogsTable.tableArn,
+            exportName: `${id}-SecurityAuditLogsTableArn`,
         });
     }
 }

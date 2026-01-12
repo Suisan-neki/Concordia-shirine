@@ -5,8 +5,10 @@
  * リクエストオブジェクト、レスポンスオブジェクト、認証されたユーザー情報を含む。
  */
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
+import { COOKIE_NAME } from "@shared/const";
 import type { User } from "../../drizzle/schema";
 import { authenticateRequest } from "./cognito";
+import { sdk } from "./sdk";
 
 /**
  * tRPCコンテキストの型定義
@@ -50,12 +52,30 @@ export async function createContext(
   try {
     // リクエストを認証（Cognito Bearerトークンを使用）
     // 認証に成功した場合はユーザー情報を取得
-    user = await authenticateRequest(opts.req);
+    user = await authenticateRequest(opts.req, { updateUser: false });
   } catch (error) {
     // 認証に失敗した場合はエラーを無視し、userをnullに設定
     // これにより、公開プロシージャ（認証不要）でもエラーが発生しない
     // Authentication is optional for public procedures.
     user = null;
+  }
+
+  // Cognito認証が成功した場合は、セッションCookie認証をスキップ
+  // セッションCookie認証は、Cognito認証が失敗した場合のみ試行する
+  if (!user && hasSessionCookie(opts.req)) {
+    try {
+      // セッションCookie認証を試行（Cognitoコールバックで発行したセッションを含む）
+      user = await sdk.authenticateRequest(opts.req, {
+        updateLastSignedIn: false,
+      });
+    } catch (error) {
+      // セッションCookie認証のエラーは無視（Cognito認証が優先）
+      console.warn(
+        "[Auth] Session authentication failed:",
+        error instanceof Error ? error.message : String(error)
+      );
+      user = null;
+    }
   }
 
   // コンテキストを返す
@@ -65,4 +85,12 @@ export async function createContext(
     res: opts.res,
     user,
   };
+}
+
+function hasSessionCookie(req: CreateExpressContextOptions["req"]): boolean {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return false;
+  return cookieHeader
+    .split(";")
+    .some(cookie => cookie.trim().startsWith(`${COOKIE_NAME}=`));
 }
