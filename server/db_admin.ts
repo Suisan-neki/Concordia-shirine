@@ -113,6 +113,9 @@ export async function softDeleteUser(userId: number): Promise<boolean> {
  * 管理者ダッシュボードでセキュリティ監査ログを表示するために使用される。
  * フィルタリング、ページネーションに対応している。
  * 
+ * TODO: DynamoDB実装を追加する必要があります。
+ * 現在は一時的なスタブ実装で、空の結果を返します。
+ * 
  * @param options - 取得オプション
  * @param options.page - ページ番号（1から開始）
  * @param options.limit - 1ページあたりの件数（デフォルト: 50、最大: 100）
@@ -134,66 +137,24 @@ export async function getAuditLogs(options: {
   startDate?: number;
   endDate?: number;
 } = {}) {
-  const db = await getDb();
-  if (!db) {
-    throw new Error("Database not available");
-  }
-
   const page = options.page || 1;
   const limit = Math.min(options.limit || 50, 100);
-  const offset = (page - 1) * limit;
 
-  // WHERE条件を構築
-  const conditions: Array<ReturnType<typeof eq> | ReturnType<typeof sql>> = [];
-
-  if (options.eventType) {
-    conditions.push(eq(securityAuditLogs.eventType, options.eventType as any));
-  }
-
-  if (options.severity) {
-    conditions.push(eq(securityAuditLogs.severity, options.severity));
-  }
-
-  if (options.userId) {
-    conditions.push(eq(securityAuditLogs.userId, options.userId));
-  }
-
-  if (options.sessionId) {
-    conditions.push(eq(securityAuditLogs.sessionId, options.sessionId));
-  }
-
-  if (options.startDate !== undefined) {
-    conditions.push(sql`${securityAuditLogs.timestamp} >= ${options.startDate}`);
-  }
-
-  if (options.endDate !== undefined) {
-    conditions.push(sql`${securityAuditLogs.timestamp} <= ${options.endDate}`);
-  }
-
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-  // 総件数を取得
-  const countResult = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(securityAuditLogs)
-    .where(whereClause);
-  const total = Number(countResult[0]?.count || 0);
-
-  // 監査ログ一覧を取得
-  const logs = await db
-    .select()
-    .from(securityAuditLogs)
-    .where(whereClause)
-    .orderBy(desc(securityAuditLogs.timestamp))
-    .limit(limit)
-    .offset(offset);
+  // TODO: DynamoDB実装を追加
+  // - securityAuditLogsテーブルからScanまたはQueryを使用してログを取得
+  // - FilterExpressionでeventType、severity、userId、sessionId、startDate、endDateをフィルタリング
+  // - timestampでソート（降順）
+  // - ページネーションを実装（limitとoffset）
+  // - 総件数を取得してtotalPagesを計算
+  
+  console.warn("[db_admin] getAuditLogs() is not implemented for DynamoDB yet. Returning empty result.");
 
   return {
-    logs,
-    total,
+    logs: [],
+    total: 0,
     page,
     limit,
-    totalPages: Math.ceil(total / limit),
+    totalPages: 0,
   };
 }
 
