@@ -97,6 +97,7 @@ validateEnv();
  * - cognitoRegion: AWS Cognitoのリージョン
  * - cognitoUserPoolId: AWS CognitoのユーザープールID
  * - cognitoClientId: AWS CognitoのクライアントID
+ * - cognitoDomain: AWS CognitoのホステッドUIドメイン
  * - cognitoJwksUrl: AWS CognitoのJWKS URL（未設定の場合は自動生成）
  */
 export const ENV = {
@@ -129,6 +130,8 @@ export const ENV = {
   cognitoUserPoolId: process.env.COGNITO_USER_POOL_ID ?? "",
   /** AWS CognitoのクライアントID */
   cognitoClientId: process.env.COGNITO_CLIENT_ID ?? "",
+  /** AWS CognitoのホステッドUIドメイン（Vite用の値を流用する場合はVITE_COGNITO_DOMAIN） */
+  cognitoDomain: process.env.COGNITO_DOMAIN ?? process.env.VITE_COGNITO_DOMAIN ?? "",
   /** AWS CognitoのJWKS URL（未設定の場合は自動生成） */
   cognitoJwksUrl: process.env.COGNITO_JWKS_URL ?? "",
 };
