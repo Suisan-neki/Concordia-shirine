@@ -300,10 +300,10 @@ export const appRouter = router({
             // PII（個人情報）へのアクセスを監査ログに記録
             await securityService.logSecurityEvent({
               userId: ctx.user.id,
-              eventType: 'admin_action',
+              eventType: 'access_granted',
               severity: 'info',
               description: `Admin viewed user details: ${user.email || user.name || user.openId}`,
-              metadata: { viewedUserId: input.userId },
+              metadata: { viewedUserId: input.userId, action: 'view_user_details' },
               timestamp: Date.now(),
             });
           }
@@ -356,10 +356,10 @@ export const appRouter = router({
           // 監査ログに記録
           await securityService.logSecurityEvent({
             userId: ctx.user.id,
-            eventType: 'admin_action',
+            eventType: 'access_granted',
             severity: 'info',
             description: `User deleted by admin: ${targetUser.email || targetUser.name || targetUser.openId}`,
-            metadata: { deletedUserId: input.userId },
+            metadata: { deletedUserId: input.userId, action: 'delete_user' },
             timestamp: Date.now(),
           });
 
