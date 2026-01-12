@@ -3,15 +3,42 @@
  * 
  * AWS DynamoDBを使用したデータベース操作を提供する。
  * MySQLからDynamoDBへの移行版。
+ * 
+ * テーブル命名規則:
+ * - ユーザーテーブル: concordia-users-{environment}
+ * - セキュリティ監査ログテーブル: concordia-securityAuditLogs-{environment}
+ * 
+ * これらのテーブルは cdk/lib/stacks/storage-stack.ts で定義されている。
  */
 
 import { GetCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { getDynamoClient, getTableName } from "./_core/dynamodb";
 import { ENV } from "./_core/env";
 import type { User, InsertUser, SecurityAuditLog } from "../drizzle/schema";
+import { createHash } from "crypto";
 
+// Table names: concordia-{tableName}-{environment}
 const USERS_TABLE = getTableName("users");
 const SECURITY_AUDIT_LOGS_TABLE = getTableName("securityAuditLogs");
+
+/**
+ * UUIDから安全な数値IDを生成
+ * 
+ * SHA-256ハッシュを使用して、UUIDから一貫性のある数値IDを生成する。
+ * これにより、ID衝突のリスクを軽減する。
+ * 
+ * @param uuid - UUID文字列
+ * @returns 正の整数ID
+ */
+function generateIdFromUuid(uuid: string): number {
+  // SHA-256ハッシュを使用してUUIDから一貫性のある値を生成
+  const hash = createHash('sha256').update(uuid).digest('hex');
+  // ハッシュの最初の12文字（48ビット）を使用して数値を生成
+  // これにより、JavaScriptのNumber.MAX_SAFE_INTEGER (2^53-1) 内に収まる
+  const id = parseInt(hash.substring(0, 12), 16);
+  // 0を避けるため、0の場合は1を返す
+  return id || 1;
+}
 
 /**
  * ユーザーをopenIdで取得する
@@ -51,8 +78,7 @@ export async function getUserByOpenId(openId: string): Promise<User | null> {
     
     // IDはopenIdのハッシュから生成（互換性のため）
     // DynamoDBではidは不要だが、既存のコードとの互換性のために生成
-    const idHash = result.Item.openId.split('-').slice(0, 2).join('').substring(0, 8);
-    const id = parseInt(idHash, 16) || 0;
+    const id = generateIdFromUuid(result.Item.openId);
     
     return {
       id, // openIdから生成したID
@@ -246,9 +272,7 @@ export async function getAllUsers(includeDeleted: boolean = false): Promise<User
     
     return result.Items.map((item) => {
       // IDはopenIdのハッシュから生成（互換性のため）
-      // openIdのUUID形式（例: 87a4baf8-b061-704e-e4b6-6bc62b922d6c）から数値を生成
-      const idHash = item.openId.split('-').slice(0, 2).join('').substring(0, 8);
-      const id = parseInt(idHash, 16) || 0;
+      const id = generateIdFromUuid(item.openId);
       
       return {
         id, // openIdから生成したID
@@ -406,8 +430,7 @@ export async function getSecurityAuditLogs(options: {
     const result = await client.send(new ScanCommand(scanParams));
     const allLogs = (result.Items || []).map(item => {
       // IDはlogIdのハッシュから生成（互換性のため）
-      const idHash = (item.logId || "").split('-').slice(0, 2).join('').substring(0, 8);
-      const id = parseInt(idHash, 16) || 0;
+      const id = item.logId ? generateIdFromUuid(item.logId) : 0;
 
       return {
         id,
