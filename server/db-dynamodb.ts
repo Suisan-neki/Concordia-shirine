@@ -118,6 +118,9 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
   const client = getDynamoClient();
   
+  // ロール変数をスコープの最上位で宣言
+  let role = user.role || "user";
+  
   try {
     // 既存のユーザーを取得
     const existingUser = await getUserByOpenId(user.openId);
@@ -126,7 +129,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     const now = new Date().toISOString();
     
     // ロールの決定
-    let role = user.role || existingUser?.role || "user";
+    role = user.role || existingUser?.role || "user";
     if (user.openId === ENV.ownerOpenId) {
       console.log("[DynamoDB] Owner OpenID matched, setting role to admin:", {
         userOpenId: user.openId,
@@ -238,6 +241,9 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 /**
  * すべてのユーザーを取得する（管理者用）
  * 
+ * DynamoDBのScanは1MBのデータ制限があるため、ページネーションを実装している。
+ * LastEvaluatedKeyを使用して、大きなデータセットにも対応。
+ * 
  * @param includeDeleted - 削除済みユーザーを含めるかどうか（デフォルト: false）
  * @returns ユーザーの配列
  */
@@ -250,6 +256,7 @@ export async function getAllUsers(includeDeleted: boolean = false): Promise<User
       TableName: string;
       FilterExpression?: string;
       ExpressionAttributeValues?: Record<string, unknown>;
+      ExclusiveStartKey?: Record<string, unknown>;
     } = {
       TableName: USERS_TABLE,
     };
@@ -262,17 +269,33 @@ export async function getAllUsers(includeDeleted: boolean = false): Promise<User
       };
     }
     
-    const result = await client.send(
-      new ScanCommand(scanParams)
-    );
+    // すべてのページを取得するまでループ
+    let allItems: Array<Record<string, unknown>> = [];
+    let lastEvaluatedKey: Record<string, unknown> | undefined = undefined;
     
-    if (!result.Items) {
+    do {
+      if (lastEvaluatedKey) {
+        scanParams.ExclusiveStartKey = lastEvaluatedKey;
+      }
+      
+      const result = await client.send(
+        new ScanCommand(scanParams)
+      );
+      
+      if (result.Items && result.Items.length > 0) {
+        allItems = allItems.concat(result.Items);
+      }
+      
+      lastEvaluatedKey = result.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+    
+    if (allItems.length === 0) {
       return [];
     }
     
-    return result.Items.map((item) => {
+    return allItems.map((item) => {
       // IDはopenIdのハッシュから生成（互換性のため）
-      const id = generateIdFromUuid(item.openId);
+      const id = generateIdFromUuid(item.openId as string);
       
       return {
         id, // openIdから生成したID
@@ -281,10 +304,10 @@ export async function getAllUsers(includeDeleted: boolean = false): Promise<User
         email: item.email || null,
         loginMethod: item.loginMethod || null,
         role: item.role || "user",
-        deletedAt: item.deletedAt ? new Date(item.deletedAt) : null,
-        createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-        updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
-        lastSignedIn: item.lastSignedIn ? new Date(item.lastSignedIn) : new Date(),
+        deletedAt: item.deletedAt ? new Date(item.deletedAt as string | number) : null,
+        createdAt: item.createdAt ? new Date(item.createdAt as string | number) : new Date(),
+        updatedAt: item.updatedAt ? new Date(item.updatedAt as string | number) : new Date(),
+        lastSignedIn: item.lastSignedIn ? new Date(item.lastSignedIn as string | number) : new Date(),
       };
     }) as User[];
   } catch (error) {
@@ -384,6 +407,7 @@ export async function getSecurityAuditLogs(options: {
       FilterExpression?: string;
       ExpressionAttributeValues?: Record<string, unknown>;
       ExpressionAttributeNames?: Record<string, string>;
+      ExclusiveStartKey?: Record<string, unknown>;
     } = {
       TableName: SECURITY_AUDIT_LOGS_TABLE,
     };
@@ -427,10 +451,27 @@ export async function getSecurityAuditLogs(options: {
       }
     }
 
-    const result = await client.send(new ScanCommand(scanParams));
-    const allLogs = (result.Items || []).map(item => {
+    // すべてのページを取得するまでループ（DynamoDBの1MB制限に対応）
+    let allItems: Array<Record<string, unknown>> = [];
+    let lastEvaluatedKey: Record<string, unknown> | undefined = undefined;
+    
+    do {
+      if (lastEvaluatedKey) {
+        scanParams.ExclusiveStartKey = lastEvaluatedKey;
+      }
+      
+      const result = await client.send(new ScanCommand(scanParams));
+      
+      if (result.Items && result.Items.length > 0) {
+        allItems = allItems.concat(result.Items);
+      }
+      
+      lastEvaluatedKey = result.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+
+    const allLogs = allItems.map(item => {
       // IDはlogIdのハッシュから生成（互換性のため）
-      const id = item.logId ? generateIdFromUuid(item.logId) : 0;
+      const id = item.logId ? generateIdFromUuid(item.logId as string) : 0;
 
       return {
         id,
@@ -443,7 +484,7 @@ export async function getSecurityAuditLogs(options: {
         ipHash: item.ipHash || null,
         userAgent: item.userAgent || null,
         timestamp: item.timestamp,
-        createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+        createdAt: item.createdAt ? new Date(item.createdAt as string | number) : new Date(),
       };
     }) as SecurityAuditLog[];
 

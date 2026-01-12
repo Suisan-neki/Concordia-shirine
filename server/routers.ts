@@ -286,14 +286,29 @@ export const appRouter = router({
        * 
        * 管理者ダッシュボードでユーザー詳細を表示するために使用される。
        * 削除済みユーザーも取得可能。
+       * PII（個人情報）へのアクセスを監査ログに記録する。
        * 
        * @param input - ユーザーID
        * @returns ユーザーオブジェクト、またはnull（存在しない場合）
        */
       get: adminProcedure
         .input(z.object({ userId: z.number().positive("User ID must be a positive integer") }))
-        .query(async ({ input }) => {
-          return await getUserById(input.userId) || null;
+        .query(async ({ input, ctx }) => {
+          const user = await getUserById(input.userId);
+          
+          if (user) {
+            // PII（個人情報）へのアクセスを監査ログに記録
+            await securityService.logSecurityEvent({
+              userId: ctx.user.id,
+              eventType: 'admin_action',
+              severity: 'info',
+              description: `Admin viewed user details: ${user.email || user.name || user.openId}`,
+              metadata: { viewedUserId: input.userId },
+              timestamp: Date.now(),
+            });
+          }
+          
+          return user || null;
         }),
 
       /**
@@ -301,6 +316,10 @@ export const appRouter = router({
        * 
        * ユーザーのdeletedAtフィールドを現在時刻に設定して論理削除を行う。
        * セキュリティチェック: 自分自身の削除は不可、最後のadminアカウントの削除は不可。
+       * 
+       * Note: DynamoDBはトランザクションサポートが限定的なため、並行削除による
+       * レースコンディションのリスクがある。本番環境では適切なロックメカニズムの
+       * 実装を検討すること。
        * 
        * @param input - ユーザーID
        * @param ctx - コンテキスト（現在のユーザー情報を含む）
@@ -321,6 +340,8 @@ export const appRouter = router({
           }
 
           // 最後のadminアカウントの削除は不可
+          // Note: これは完全にはレースコンディションを防げないが、
+          // 大部分のケースで保護される
           if (targetUser.role === 'admin') {
             const allAdmins = await getAllUsers({ includeDeleted: false });
             const activeAdmins = allAdmins.users.filter(u => u.role === 'admin' && !u.deletedAt);
