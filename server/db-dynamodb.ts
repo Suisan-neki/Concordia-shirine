@@ -37,13 +37,16 @@ export async function getUserByOpenId(openId: string): Promise<User | null> {
     
     // DynamoDBのアイテムをUser型に変換
     const userRole = result.Item.role || "user";
-    console.log("[DynamoDB] User retrieved:", {
-      openId: result.Item.openId,
-      role: userRole,
-      name: result.Item.name,
-      ownerOpenId: ENV.ownerOpenId,
-      isOwner: result.Item.openId === ENV.ownerOpenId,
-    });
+    // デバッグログ（個人情報はマスク）
+    if (process.env.DEBUG_AUTH === "true") {
+      console.log("[DynamoDB] User retrieved:", {
+        openId: result.Item.openId ? `${result.Item.openId.substring(0, 10)}...` : null,
+        role: userRole,
+        name: result.Item.name ? "[REDACTED]" : null,
+        ownerOpenId: ENV.ownerOpenId ? `${ENV.ownerOpenId.substring(0, 10)}...` : null,
+        isOwner: result.Item.openId === ENV.ownerOpenId,
+      });
+    }
     
     // IDはopenIdのハッシュから生成（互換性のため）
     // DynamoDBではidは不要だが、既存のコードとの互換性のために生成
@@ -174,7 +177,14 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       })
     );
     
-    console.log("[DynamoDB] User upserted:", { openId: user.openId, role, name: item.name });
+    // デバッグログ（個人情報はマスク）
+    if (process.env.DEBUG_AUTH === "true") {
+      console.log("[DynamoDB] User upserted:", {
+        openId: user.openId ? `${user.openId.substring(0, 10)}...` : null,
+        role,
+        name: item.name ? "[REDACTED]" : null,
+      });
+    }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     // テーブルが存在しない場合のエラーを特別に処理
@@ -292,7 +302,13 @@ export async function softDeleteUser(userId: number): Promise<boolean> {
       })
     );
     
-    console.log("[DynamoDB] User soft deleted:", { userId, openId: user.openId });
+    // デバッグログ（個人情報はマスク）
+    if (process.env.DEBUG_AUTH === "true") {
+      console.log("[DynamoDB] User soft deleted:", {
+        userId,
+        openId: user.openId ? `${user.openId.substring(0, 10)}...` : null,
+      });
+    }
     return true;
   } catch (error) {
     console.error("[DynamoDB] Failed to soft delete user:", error);
