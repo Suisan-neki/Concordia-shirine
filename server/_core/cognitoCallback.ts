@@ -13,9 +13,33 @@ import * as db from "../db";
 import { ENV } from "./env";
 import { sdk } from "./sdk";
 import { parse as parseCookieHeader } from "cookie";
+import { timingSafeEqual } from "crypto";
 
 const NONCE_COOKIE_NAME = "cognito_auth_nonce";
 const NONCE_COOKIE_MAX_AGE = 10 * 60 * 1000; // 10分（認証フローが完了するまでの時間）
+
+/**
+ * タイミング攻撃に対して安全な文字列比較
+ * 
+ * @param a - 比較する文字列1
+ * @param b - 比較する文字列2
+ * @returns 文字列が一致する場合true、そうでない場合false
+ */
+function safeCompare(a: string, b: string): boolean {
+  // 長さが異なる場合は即座にfalseを返す（タイミング攻撃を防ぐため、常に比較を実行）
+  if (a.length !== b.length) {
+    // ダミー比較を実行してタイミングを均一化
+    timingSafeEqual(Buffer.from(a.padEnd(Math.max(a.length, b.length))), Buffer.from(b.padEnd(Math.max(a.length, b.length))));
+    return false;
+  }
+  
+  // 長さが同じ場合は、Bufferに変換してtimingSafeEqualを使用
+  try {
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
 
 /**
  * CognitoのトークンエンドポイントURLを取得
@@ -156,12 +180,10 @@ export async function handleCognitoCallback(req: Request, res: Response): Promis
       return;
     }
 
-    // stateパラメータのnonceとCookieのnonceを比較
-    if (storedNonce !== stateNonce) {
-      console.error("[Cognito] Nonce mismatch:", {
-        storedNonce: storedNonce.substring(0, 10) + "...",
-        stateNonce: stateNonce.substring(0, 10) + "...",
-      });
+    // stateパラメータのnonceとCookieのnonceを比較（タイミング攻撃に対して安全な比較）
+    if (!safeCompare(storedNonce, stateNonce)) {
+      console.error("[Cognito] Nonce validation failed: nonce mismatch");
+      // セキュリティ上の理由から、詳細な情報はログに出力しない
       res.status(400).json({ error: "Nonce validation failed: nonce mismatch" });
       return;
     }
