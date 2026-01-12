@@ -8,9 +8,11 @@
 import { GetCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { getDynamoClient, getTableName } from "./_core/dynamodb";
 import { ENV } from "./_core/env";
-import type { User, InsertUser } from "../drizzle/schema";
+import type { User, InsertUser, SecurityAuditLog } from "../drizzle/schema";
+import { nanoid } from "nanoid";
 
 const USERS_TABLE = getTableName("users");
+const SECURITY_AUDIT_LOGS_TABLE = getTableName("securityAuditLogs");
 
 /**
  * ユーザーをopenIdで取得する
@@ -320,6 +322,134 @@ export async function softDeleteUser(userId: number): Promise<boolean> {
   } catch (error) {
     console.error("[DynamoDB] Failed to soft delete user:", error);
     throw error;
+  }
+}
+
+// ===== Security Audit Logs =====
+
+/**
+ * セキュリティ監査ログを取得する
+ * 
+ * @param options - 取得オプション
+ * @param options.page - ページ番号（1から開始）
+ * @param options.limit - 1ページあたりの件数（デフォルト: 50、最大: 100）
+ * @param options.eventType - イベントタイプでフィルタリング
+ * @param options.severity - 重要度でフィルタリング
+ * @param options.userId - ユーザーIDでフィルタリング
+ * @param options.sessionId - セッションIDでフィルタリング
+ * @param options.startDate - 開始日時（Unix timestamp in ms）
+ * @param options.endDate - 終了日時（Unix timestamp in ms）
+ * @returns 監査ログ一覧と総件数
+ */
+export async function getSecurityAuditLogs(options: {
+  page?: number;
+  limit?: number;
+  eventType?: string;
+  severity?: "info" | "warning" | "critical";
+  userId?: number;
+  sessionId?: number;
+  startDate?: number;
+  endDate?: number;
+} = {}): Promise<{ logs: SecurityAuditLog[]; total: number; page: number; limit: number; totalPages: number }> {
+  const client = getDynamoClient();
+  const limit = Math.min(options.limit || 50, 100);
+  const page = options.page || 1;
+
+  try {
+    const scanParams: {
+      TableName: string;
+      FilterExpression?: string;
+      ExpressionAttributeValues?: Record<string, unknown>;
+      ExpressionAttributeNames?: Record<string, string>;
+    } = {
+      TableName: SECURITY_AUDIT_LOGS_TABLE,
+    };
+
+    const filterExpressions: string[] = [];
+    const expressionAttributeValues: Record<string, unknown> = {};
+    const expressionAttributeNames: Record<string, string> = {};
+
+    if (options.eventType) {
+      filterExpressions.push("eventType = :eventType");
+      expressionAttributeValues[":eventType"] = options.eventType;
+    }
+    if (options.severity) {
+      filterExpressions.push("severity = :severity");
+      expressionAttributeValues[":severity"] = options.severity;
+    }
+    if (options.userId !== undefined) {
+      filterExpressions.push("userId = :userId");
+      expressionAttributeValues[":userId"] = options.userId;
+    }
+    if (options.sessionId !== undefined) {
+      filterExpressions.push("sessionId = :sessionId");
+      expressionAttributeValues[":sessionId"] = options.sessionId;
+    }
+    if (options.startDate !== undefined) {
+      filterExpressions.push("#ts >= :startDate");
+      expressionAttributeValues[":startDate"] = options.startDate;
+      expressionAttributeNames["#ts"] = "timestamp";
+    }
+    if (options.endDate !== undefined) {
+      filterExpressions.push("#ts <= :endDate");
+      expressionAttributeValues[":endDate"] = options.endDate;
+      expressionAttributeNames["#ts"] = "timestamp";
+    }
+
+    if (filterExpressions.length > 0) {
+      scanParams.FilterExpression = filterExpressions.join(" AND ");
+      scanParams.ExpressionAttributeValues = expressionAttributeValues;
+      if (Object.keys(expressionAttributeNames).length > 0) {
+        scanParams.ExpressionAttributeNames = expressionAttributeNames;
+      }
+    }
+
+    const result = await client.send(new ScanCommand(scanParams));
+    const allLogs = (result.Items || []).map(item => {
+      // IDはlogIdのハッシュから生成（互換性のため）
+      const idHash = (item.logId || "").split('-').slice(0, 2).join('').substring(0, 8);
+      const id = parseInt(idHash, 16) || 0;
+
+      return {
+        id,
+        userId: item.userId || null,
+        sessionId: item.sessionId || null,
+        eventType: item.eventType,
+        severity: item.severity || "info",
+        description: item.description,
+        metadata: item.metadata || null,
+        ipHash: item.ipHash || null,
+        userAgent: item.userAgent || null,
+        timestamp: item.timestamp,
+        createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+      };
+    }) as SecurityAuditLog[];
+
+    // timestampでソート（降順）
+    allLogs.sort((a, b) => b.timestamp - a.timestamp);
+
+    // ページネーション
+    const total = allLogs.length;
+    const offset = (page - 1) * limit;
+    const logs = allLogs.slice(offset, offset + limit);
+
+    return {
+      logs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  } catch (error) {
+    console.error("[DynamoDB] Failed to get security audit logs:", error);
+    // エラーが発生した場合は空の結果を返す
+    return {
+      logs: [],
+      total: 0,
+      page,
+      limit,
+      totalPages: 0,
+    };
   }
 }
 
