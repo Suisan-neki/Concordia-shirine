@@ -51,7 +51,7 @@ export default function AdminDashboard() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-serif-jp text-foreground">管理者ダッシュボード</h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground whitespace-nowrap">
               {user?.name || user?.email || '管理者'}としてログイン中
             </p>
           </div>

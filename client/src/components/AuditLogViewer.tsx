@@ -155,7 +155,7 @@ export function AuditLogViewer() {
       {/* ページネーション */}
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground whitespace-nowrap">
             {data.total}件中 {(page - 1) * limit + 1}-{Math.min(page * limit, data.total)}件を表示
           </div>
           <div className="flex items-center gap-2">
