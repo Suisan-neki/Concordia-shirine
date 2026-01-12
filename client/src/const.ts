@@ -11,24 +11,45 @@ function createNonce(): string {
   return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
+function encodeBase64Url(value: string): string {
+  const base64 = btoa(unescape(encodeURIComponent(value)));
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 // AWS Cognito Hosted UI URL
-export const getLoginUrl = () => {
+export const getLoginUrl = (redirectPath?: string) => {
   const domain = import.meta.env.VITE_COGNITO_DOMAIN; // 例: https://concordia-auth-xxxx.auth.ap-northeast-1.amazoncognito.com
   const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
-  const redirectUri = window.location.origin; // ルートにリダイレクトバック
-  const responseType = "token id_token"; // Implicit Grant (MVPの簡潔さのため)
+
+  if (!domain || !clientId) {
+    console.warn("[Auth] Cognito環境変数が設定されていません。");
+    return "/";
+  }
+
+  const path = redirectPath || window.location.pathname;
   const nonce = createNonce();
 
-  // Cognito Hosted UI URL を構築
-  // https://<domain>/login?client_id=<client_id>&response_type=token&scope=email+openid&redirect_uri=<redirect_uri>
-  const url = new URL(`${domain}/login`);
-  url.searchParams.set("client_id", clientId);
-  url.searchParams.set("response_type", responseType);
-  url.searchParams.set("scope", "email openid");
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("nonce", nonce);
+  const state = encodeBase64Url(
+    JSON.stringify({
+      redirectPath: path !== "/" ? path : "/",
+      nonce,
+    })
+  );
+
+  let cognitoDomain = domain;
+  if (!cognitoDomain.startsWith("https://")) {
+    cognitoDomain = `https://${cognitoDomain}`;
+  }
+
+  const callbackUri = `${window.location.origin}/api/auth/cognito/callback`;
+  const params = new URLSearchParams();
+  params.set("client_id", clientId);
+  params.set("response_type", "code");
+  params.set("scope", "email openid");
+  params.set("redirect_uri", callbackUri);
+  params.set("state", state);
 
   sessionStorage.setItem(NONCE_KEY, nonce);
 
-  return url.toString();
+  return `${cognitoDomain}/login?${params.toString()}`;
 };
