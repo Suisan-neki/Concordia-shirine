@@ -13,9 +13,14 @@ import { UserManagement } from '@/components/UserManagement';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
 
 export default function AdminDashboard() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<'users' | 'audit'>('users');
+
+  // ローディング中は何も表示しない（認証状態の確認中）
+  if (loading) {
+    return null;
+  }
 
   // 管理者チェック
   if (!isAuthenticated || user?.role !== 'admin') {
