@@ -5,8 +5,10 @@
  * リクエストオブジェクト、レスポンスオブジェクト、認証されたユーザー情報を含む。
  */
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
+import { COOKIE_NAME } from "@shared/const";
 import type { User } from "../../drizzle/schema";
 import { authenticateRequest } from "./cognito";
+import { sdk } from "./sdk";
 
 /**
  * tRPCコンテキストの型定義
@@ -58,6 +60,14 @@ export async function createContext(
     user = null;
   }
 
+  if (!user && hasSessionCookie(opts.req)) {
+    try {
+      user = await sdk.authenticateRequest(opts.req);
+    } catch {
+      user = null;
+    }
+  }
+
   // コンテキストを返す
   // req、res、userを含むオブジェクトを返す
   return {
@@ -65,4 +75,12 @@ export async function createContext(
     res: opts.res,
     user,
   };
+}
+
+function hasSessionCookie(req: CreateExpressContextOptions["req"]): boolean {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return false;
+  return cookieHeader
+    .split(";")
+    .some(cookie => cookie.trim().startsWith(`${COOKIE_NAME}=`));
 }
