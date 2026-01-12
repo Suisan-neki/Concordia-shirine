@@ -59,7 +59,7 @@ Concordia Shrineは、会議やミーティングにおける「見えない圧�
 
 - **フロントエンド**: React 19 + TypeScript + Tailwind CSS 4
 - **バックエンド**: Express + tRPC
-- **データベース**: MySQL (TiDB)
+- **データベース**: AWS DynamoDB
 - **認証**: OAuth 2.0 + JWT
 - **波生成**: Perlin Noise Algorithm
 - **音声分析**: Web Audio API + Web Speech API
@@ -72,24 +72,23 @@ Concordia Shrineは、会議やミーティングにおける「見えない圧�
 # 依存関係のインストール
 pnpm install
 
-# MySQLサーバーの起動（macOSの場合）
-brew services start mysql
+# DynamoDBテーブルの作成
+# AWS CLIを使用してテーブルを作成する場合:
+./scripts/create-dynamodb-table.sh
 
-# データベースのセットアップ
-# 自動セットアップスクリプトを使用する場合:
-./scripts/setup-database.sh
-
-# または手動でセットアップする場合:
-mysql -u root < scripts/setup-database.sql
+# または、AWS CDKを使用してインフラをデプロイする場合:
+# cd cdk && cdk deploy
 
 # 環境変数の設定
 # .envファイルを作成し、以下の環境変数を設定してください:
 # - JWT_SECRET: JWT署名用のシークレットキー（必須）
-# - DATABASE_URL: データベース接続URL（必須、例: mysql://root@localhost:3306/concordia）
 # - VITE_APP_ID: アプリケーションID（必須）
-
-# データベースのマイグレーション
-pnpm db:push
+# - AWS_REGION: AWSリージョン（デフォルト: ap-northeast-1）
+# - AWS_ACCESS_KEY_ID: AWSアクセスキーID（AWS CLIまたはIAMロールで認証する場合）
+# - AWS_SECRET_ACCESS_KEY: AWSシークレットアクセスキー（AWS CLIまたはIAMロールで認証する場合）
+# 
+# 注意: AWS認証情報は、AWS CLIの設定（~/.aws/credentials）やIAMロールを使用することもできます。
+# 開発環境では、AWS CLIで `aws configure` を実行して認証情報を設定することを推奨します。
 
 # 開発サーバーの起動
 pnpm dev
