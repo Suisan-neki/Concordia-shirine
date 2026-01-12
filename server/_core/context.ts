@@ -60,10 +60,18 @@ export async function createContext(
     user = null;
   }
 
+  // Cognito認証が成功した場合は、セッションCookie認証をスキップ
+  // セッションCookie認証は、Cognito認証が失敗した場合のみ試行する
   if (!user && hasSessionCookie(opts.req)) {
     try {
+      // セッションCookie認証を試行（Cognitoコールバックで発行したセッションを含む）
       user = await sdk.authenticateRequest(opts.req);
-    } catch {
+    } catch (error) {
+      // セッションCookie認証のエラーは無視（Cognito認証が優先）
+      console.warn(
+        "[Auth] Session authentication failed:",
+        error instanceof Error ? error.message : String(error)
+      );
       user = null;
     }
   }

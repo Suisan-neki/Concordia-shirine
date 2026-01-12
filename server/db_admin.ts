@@ -3,11 +3,11 @@
  * 
  * 管理者ダッシュボードで使用するデータベース関数を定義する。
  * これらの関数は管理者専用のため、通常のユーザーは使用できない。
+ * DynamoDBを使用する。
  */
 
-import { eq, desc, and, or, like, isNull, sql } from "drizzle-orm";
-import { getDb } from "./db";
-import { users, securityAuditLogs } from "../drizzle/schema";
+import type { User } from "../drizzle/schema";
+import { getAllUsers as getAllDynamoUsers } from "./db";
 
 /**
  * 全ユーザーを取得する（管理者専用）
@@ -28,53 +28,40 @@ export async function getAllUsers(options: {
   search?: string;
   includeDeleted?: boolean;
 } = {}) {
-  const db = await getDb();
-  if (!db) {
-    throw new Error("Database not available");
-  }
-
   const page = options.page || 1;
   const limit = Math.min(options.limit || 50, 100);
-  const offset = (page - 1) * limit;
   const search = options.search?.trim();
   const includeDeleted = options.includeDeleted || false;
 
-  // WHERE条件を構築
-  const conditions: Array<ReturnType<typeof eq> | ReturnType<typeof isNull> | ReturnType<typeof or>> = [];
-  
+  // DynamoDBから全ユーザーを取得
+  let allUsers = await getAllDynamoUsers();
+
   // 削除済みユーザーのフィルタリング
   if (!includeDeleted) {
-    conditions.push(isNull(users.deletedAt));
+    allUsers = allUsers.filter(user => !user.deletedAt);
   }
 
-  // 検索条件
+  // 検索条件（名前のみ）
   if (search) {
-    const searchCondition = or(
-      like(users.name, `%${search}%`),
-      like(users.email, `%${search}%`)
-    );
-    if (searchCondition) {
-      conditions.push(searchCondition);
-    }
+    allUsers = allUsers.filter(user => {
+      const nameMatch = user.name?.toLowerCase().includes(search.toLowerCase());
+      return nameMatch;
+    });
   }
 
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  // 作成日時でソート（新しい順）
+  allUsers.sort((a, b) => {
+    const aTime = a.createdAt?.getTime() || 0;
+    const bTime = b.createdAt?.getTime() || 0;
+    return bTime - aTime;
+  });
 
-  // 総件数を取得
-  const countResult = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(users)
-    .where(whereClause);
-  const total = Number(countResult[0]?.count || 0);
+  // 総件数
+  const total = allUsers.length;
 
-  // ユーザー一覧を取得
-  const userList = await db
-    .select()
-    .from(users)
-    .where(whereClause)
-    .orderBy(desc(users.createdAt))
-    .limit(limit)
-    .offset(offset);
+  // ページネーション
+  const offset = (page - 1) * limit;
+  const userList = allUsers.slice(offset, offset + limit);
 
   return {
     users: userList,

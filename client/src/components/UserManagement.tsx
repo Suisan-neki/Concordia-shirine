@@ -68,7 +68,7 @@ export function UserManagement() {
       {/* 検索とフィルター */}
       <div className="flex items-center gap-4">
         <Input
-          placeholder="名前またはメールアドレスで検索..."
+          placeholder="名前で検索..."
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -96,7 +96,6 @@ export function UserManagement() {
             <TableRow>
               <TableHead>ID</TableHead>
               <TableHead>名前</TableHead>
-              <TableHead>メール</TableHead>
               <TableHead>ロール</TableHead>
               <TableHead>最終ログイン</TableHead>
               <TableHead>作成日</TableHead>
@@ -110,7 +109,6 @@ export function UserManagement() {
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-12" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
@@ -120,7 +118,7 @@ export function UserManagement() {
               ))
             ) : data?.users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   ユーザーが見つかりませんでした
                 </TableCell>
               </TableRow>
@@ -129,7 +127,6 @@ export function UserManagement() {
                 <TableRow key={user.id}>
                   <TableCell>{user.id}</TableCell>
                   <TableCell>{user.name || '-'}</TableCell>
-                  <TableCell>{user.email || '-'}</TableCell>
                   <TableCell>
                     <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
                       {user.role}
@@ -221,7 +218,6 @@ export function UserManagement() {
                 <h3 className="text-sm font-medium mb-2">基本情報</h3>
                 <div className="space-y-2 text-sm">
                   <div><span className="text-muted-foreground">名前:</span> {userDetail.name || '-'}</div>
-                  <div><span className="text-muted-foreground">メール:</span> {userDetail.email || '-'}</div>
                   <div><span className="text-muted-foreground">ロール:</span> <Badge>{userDetail.role}</Badge></div>
                   <div><span className="text-muted-foreground">ログイン方法:</span> {userDetail.loginMethod || '-'}</div>
                   <div><span className="text-muted-foreground">作成日:</span> {formatDate(userDetail.createdAt)}</div>

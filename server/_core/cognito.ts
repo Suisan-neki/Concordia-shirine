@@ -149,9 +149,35 @@ export async function authenticateRequest(req: Request): Promise<User> {
     throw ForbiddenError("Invalid token payload");
   }
 
+  // デバッグ: ペイロードの内容を確認
+  console.log("[Cognito] Token payload keys:", Object.keys(payload));
+  console.log("[Cognito] Token payload (name-related):", {
+    name: payload.name,
+    given_name: payload.given_name,
+    family_name: payload.family_name,
+    "cognito:username": payload["cognito:username"],
+    email: payload.email,
+  });
+
   // オプションのユーザー情報を取得
-  const name = typeof payload.name === "string" ? payload.name : null;
+  // CognitoのIDトークンには、name、given_name、family_name、cognito:usernameなどが含まれる可能性がある
+  // 優先順位: name > given_name + family_name > cognito:username
+  let name: string | null = null;
+  if (typeof payload.name === "string" && payload.name) {
+    name = payload.name;
+  } else if (typeof payload.given_name === "string" || typeof payload.family_name === "string") {
+    // given_nameとfamily_nameを組み合わせる
+    const givenName = typeof payload.given_name === "string" ? payload.given_name : "";
+    const familyName = typeof payload.family_name === "string" ? payload.family_name : "";
+    name = `${givenName} ${familyName}`.trim() || null;
+  } else if (typeof payload["cognito:username"] === "string" && payload["cognito:username"]) {
+    // フォールバック: cognito:usernameを使用
+    name = payload["cognito:username"];
+  }
+  
   const email = typeof payload.email === "string" ? payload.email : null;
+  
+  console.log("[Cognito] Extracted user info:", { openId, name, email });
 
   // データベースからユーザーを取得
   let user = await db.getUserByOpenId(openId);
@@ -167,12 +193,12 @@ export async function authenticateRequest(req: Request): Promise<User> {
     user = await db.getUserByOpenId(openId);
   } else {
     // ユーザーが存在する場合は情報を更新
-    // 既存の情報を保持しつつ、新しい情報があれば更新
+    // 新しい情報があれば更新、なければ既存の情報を保持
     await db.upsertUser({
       openId,
-      name: name ?? user.name ?? null,
-      email: email ?? user.email ?? null,
-      loginMethod: user.loginMethod ?? "cognito",
+      name: name || user.name || null, // 新しい名前があれば優先、なければ既存の名前を保持
+      email: email || user.email || null, // 新しいメールがあれば優先、なければ既存のメールを保持
+      loginMethod: user.loginMethod || "cognito",
       lastSignedIn: new Date(),
     });
     user = await db.getUserByOpenId(openId);

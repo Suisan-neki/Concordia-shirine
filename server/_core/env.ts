@@ -29,9 +29,10 @@ function validateEnv(): void {
     errors.push("JWT_SECRET is required");
   }
 
-  if (!process.env.DATABASE_URL || process.env.DATABASE_URL.length === 0) {
-    errors.push("DATABASE_URL is required");
-  }
+  // DATABASE_URLは不要（DynamoDBを使用するため）
+  // if (!process.env.DATABASE_URL || process.env.DATABASE_URL.length === 0) {
+  //   errors.push("DATABASE_URL is required");
+  // }
 
   if (!process.env.VITE_APP_ID || process.env.VITE_APP_ID.length === 0) {
     errors.push("VITE_APP_ID is required");
