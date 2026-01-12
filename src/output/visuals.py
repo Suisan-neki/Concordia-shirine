@@ -98,47 +98,68 @@ class PygameVisualAdapter(VisualAdapter):
         elif effect_name == "stable_calm":
             self.base_mix = 0.2
 
-    def render(self, now: float) -> None:
+    def _handle_events(self) -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.running = False
 
-        # Base color
+    def _draw_base(self) -> Tuple[int, int, int]:
         base_color = self._lerp_color(self.base_calm, self.base_tense, self.base_mix)
         self.screen.fill(base_color)
+        return base_color
 
-        # Breathing circle
+    def _draw_breathing_circle(
+        self, base_color: Tuple[int, int, int], now: float
+    ) -> Tuple[Tuple[int, int], int]:
         breath = (math.sin(now * 0.8) + 1) / 2  # 0..1
         radius = int(130 + 30 * breath + 25 * self.speech_energy)
         center = (self.width // 2, self.height // 2)
-        pygame.draw.circle(self.screen, self._lerp_color(base_color, (255, 255, 255), 0.1), center, radius)
+        pygame.draw.circle(
+            self.screen,
+            self._lerp_color(base_color, (255, 255, 255), 0.1),
+            center,
+            radius,
+        )
+        return center, radius
 
-        # Speech reactive wave ring
-        if self.speech_energy > 0.02:
-            wave_phase = (math.sin(now * 3.0) + 1) / 2
-            ring_radius = radius + int(40 * wave_phase * self.speech_energy)
-            ring_alpha = int(120 * self.speech_energy)
-            ring_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-            pygame.draw.circle(ring_surface, (255, 255, 255, ring_alpha), center, ring_radius, width=4)
-            self.screen.blit(ring_surface, (0, 0))
+    def _draw_wave_ring(self, center: Tuple[int, int], radius: int, now: float) -> None:
+        if self.speech_energy <= 0.02:
+            return
+        wave_phase = (math.sin(now * 3.0) + 1) / 2
+        ring_radius = radius + int(40 * wave_phase * self.speech_energy)
+        ring_alpha = int(120 * self.speech_energy)
+        ring_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        pygame.draw.circle(ring_surface, (255, 255, 255, ring_alpha), center, ring_radius, width=4)
+        self.screen.blit(ring_surface, (0, 0))
 
-        # Pulse overlay
-        if self.pulse_strength > 0.01:
-            pulse_alpha = int(80 * self.pulse_strength)
-            pulse_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-            pygame.draw.circle(pulse_surface, (*self.pulse_color, pulse_alpha), center, radius + 30)
-            self.screen.blit(pulse_surface, (0, 0))
-            self.pulse_strength *= math.exp(-self.clock.get_time() / 1000.0 / self.pulse_decay)
+    def _draw_pulse(self, center: Tuple[int, int], radius: int) -> None:
+        if self.pulse_strength <= 0.01:
+            return
+        pulse_alpha = int(80 * self.pulse_strength)
+        pulse_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        pygame.draw.circle(pulse_surface, (*self.pulse_color, pulse_alpha), center, radius + 30)
+        self.screen.blit(pulse_surface, (0, 0))
+        self.pulse_strength *= math.exp(-self.clock.get_time() / 1000.0 / self.pulse_decay)
 
-        # Flash overlay
-        if self.flash_strength > 0.01:
-            flash_alpha = int(150 * self.flash_strength)
-            flash_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-            flash_surface.fill((255, 200, 120, flash_alpha))
-            self.screen.blit(flash_surface, (0, 0))
-            self.flash_strength *= math.exp(-self.clock.get_time() / 1000.0 / self.flash_decay)
+    def _draw_flash(self) -> None:
+        if self.flash_strength <= 0.01:
+            return
+        flash_alpha = int(150 * self.flash_strength)
+        flash_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        flash_surface.fill((255, 200, 120, flash_alpha))
+        self.screen.blit(flash_surface, (0, 0))
+        self.flash_strength *= math.exp(-self.clock.get_time() / 1000.0 / self.flash_decay)
+
+    def render(self, now: float) -> None:
+        self._handle_events()
+
+        base_color = self._draw_base()
+        center, radius = self._draw_breathing_circle(base_color, now)
+        self._draw_wave_ring(center, radius, now)
+        self._draw_pulse(center, radius)
+        self._draw_flash()
 
         pygame.display.flip()
         self.clock.tick(60)
