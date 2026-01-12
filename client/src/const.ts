@@ -49,7 +49,13 @@ export const getLoginUrl = (redirectPath?: string) => {
   params.set("redirect_uri", callbackUri);
   params.set("state", state);
 
+  // nonceをsessionStorageに保存（クライアント側の検証用）
   sessionStorage.setItem(NONCE_KEY, nonce);
+  
+  // nonceをCookieにも保存（サーバー側の検証用）
+  // 有効期限は10分（認証フローが完了するまでの時間）
+  const cookieMaxAge = 10 * 60; // 10分（秒単位）
+  document.cookie = `cognito_auth_nonce=${nonce}; max-age=${cookieMaxAge}; path=/; SameSite=Lax`;
 
   return `${cognitoDomain}/login?${params.toString()}`;
 };

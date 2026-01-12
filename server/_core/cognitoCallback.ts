@@ -12,6 +12,10 @@ import { authenticateRequest } from "./cognito";
 import * as db from "../db";
 import { ENV } from "./env";
 import { sdk } from "./sdk";
+import { parse as parseCookieHeader } from "cookie";
+
+const NONCE_COOKIE_NAME = "cognito_auth_nonce";
+const NONCE_COOKIE_MAX_AGE = 10 * 60 * 1000; // 10分（認証フローが完了するまでの時間）
 
 /**
  * CognitoのトークンエンドポイントURLを取得
@@ -112,9 +116,11 @@ export async function handleCognitoCallback(req: Request, res: Response): Promis
   }
 
   try {
-    // stateからリダイレクトパスを取得（簡易実装）
-    // 実際には、stateを検証してCSRF攻撃を防ぐ必要がある
+    // stateからリダイレクトパスとnonceを取得
+    // stateを検証してCSRF攻撃を防ぐ
     let redirectPath = "/";
+    let stateNonce: string | undefined;
+    
     try {
       // base64urlデコード（ブラウザでエンコードされたstateをデコード）
       const decoded = Buffer.from(state, "base64url").toString("utf-8");
@@ -122,11 +128,47 @@ export async function handleCognitoCallback(req: Request, res: Response): Promis
       if (parsed.redirectPath) {
         redirectPath = parsed.redirectPath;
       }
-      console.log("[Cognito] State decoded:", { redirectPath, nonce: parsed.nonce });
+      if (parsed.nonce) {
+        stateNonce = parsed.nonce;
+      }
+      console.log("[Cognito] State decoded:", { redirectPath, nonce: stateNonce ? stateNonce.substring(0, 10) + "..." : "N/A" });
     } catch (error) {
-      console.warn("[Cognito] State decode failed:", error);
-      // stateの解析に失敗した場合はデフォルトパスを使用
+      console.error("[Cognito] State decode failed:", error);
+      res.status(400).json({ error: "Invalid state parameter" });
+      return;
     }
+
+    // nonceの検証
+    if (!stateNonce) {
+      console.error("[Cognito] Nonce not found in state parameter");
+      res.status(400).json({ error: "Nonce validation failed: nonce not found in state" });
+      return;
+    }
+
+    // Cookieから保存されたnonceを取得
+    const cookieHeader = req.headers.cookie;
+    const cookies = cookieHeader ? parseCookieHeader(cookieHeader) : {};
+    const storedNonce = cookies[NONCE_COOKIE_NAME];
+    
+    if (!storedNonce) {
+      console.error("[Cognito] Nonce cookie not found");
+      res.status(400).json({ error: "Nonce validation failed: nonce cookie not found" });
+      return;
+    }
+
+    // stateパラメータのnonceとCookieのnonceを比較
+    if (storedNonce !== stateNonce) {
+      console.error("[Cognito] Nonce mismatch:", {
+        storedNonce: storedNonce.substring(0, 10) + "...",
+        stateNonce: stateNonce.substring(0, 10) + "...",
+      });
+      res.status(400).json({ error: "Nonce validation failed: nonce mismatch" });
+      return;
+    }
+
+    // nonce検証成功後、Cookieを削除（ワンタイム使用のため）
+    res.clearCookie(NONCE_COOKIE_NAME);
+    console.log("[Cognito] Nonce validation successful");
 
     // リダイレクトURI（コールバックURL）
     // リクエストのプロトコルとホストを使用（開発環境ではhttp://localhost:5173）
