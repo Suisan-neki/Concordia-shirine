@@ -192,7 +192,14 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       console.warn(`[DynamoDB] Table "${USERS_TABLE}" does not exist. Please create it in AWS Console or using CDK.`);
       console.warn(`[DynamoDB] Table name: ${USERS_TABLE}`);
       console.warn(`[DynamoDB] Region: ${ENV.cognitoRegion || process.env.AWS_REGION || "ap-northeast-1"}`);
-      console.warn(`[DynamoDB] User data that would have been saved:`, { openId: user.openId, role, name: item.name });
+      // スコープ内の変数のみを使用（個人情報はマスク）
+      const maskedOpenId = user.openId ? `${user.openId.substring(0, 10)}...` : null;
+      const maskedName = user.name ? "[REDACTED]" : null;
+      console.warn(`[DynamoDB] User data that would have been saved:`, {
+        openId: maskedOpenId,
+        role,
+        name: maskedName,
+      });
       // エラーを投げずに警告のみを出力（アプリケーションが動作し続けるように）
       return;
     }
