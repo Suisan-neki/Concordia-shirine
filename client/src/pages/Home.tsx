@@ -213,39 +213,6 @@ export default function Home() {
     sessionManager.logIntervention(type, { scene, timestamp: Date.now() });
   }, [sessionManager, scene]);
 
-  // 録音開始
-  const handleStartRecording = useCallback(async () => {
-    try {
-      setSessionSummary(null);
-      setTranscripts([]);
-      setInterimText('');
-
-      // バックエンドセッションを開始
-      await sessionManager.startSession();
-      sessionStartTimeRef.current = Date.now();
-
-      logManagerRef.current?.startSession();
-      await audioAnalyzerRef.current?.start();
-
-      // 音声認識も開始
-      if (speechRecognitionRef.current?.isSupported()) {
-        speechRecognitionRef.current.start();
-      }
-
-      setIsRecording(true);
-
-      if (recordingTimeoutRef.current) {
-        clearTimeout(recordingTimeoutRef.current);
-      }
-      recordingTimeoutRef.current = setTimeout(() => {
-        toast.info('録音は15分までのため自動停止しました');
-        void handleStopRecording();
-      }, MAX_RECORDING_MS);
-    } catch (error) {
-      console.error('Failed to start recording:', error);
-    }
-  }, [handleStopRecording, isAuthenticated, sessionManager]);
-
   // 録音停止
   const handleStopRecording = useCallback(async () => {
     if (recordingTimeoutRef.current) {
@@ -305,6 +272,39 @@ export default function Home() {
       setIsLogExpanded(true);
     }
   }, [isAuthenticated, sessionManager]);
+
+  // 録音開始
+  const handleStartRecording = useCallback(async () => {
+    try {
+      setSessionSummary(null);
+      setTranscripts([]);
+      setInterimText('');
+
+      // バックエンドセッションを開始
+      await sessionManager.startSession();
+      sessionStartTimeRef.current = Date.now();
+
+      logManagerRef.current?.startSession();
+      await audioAnalyzerRef.current?.start();
+
+      // 音声認識も開始
+      if (speechRecognitionRef.current?.isSupported()) {
+        speechRecognitionRef.current.start();
+      }
+
+      setIsRecording(true);
+
+      if (recordingTimeoutRef.current) {
+        clearTimeout(recordingTimeoutRef.current);
+      }
+      recordingTimeoutRef.current = setTimeout(() => {
+        toast.info('録音は15分までのため自動停止しました');
+        void handleStopRecording();
+      }, MAX_RECORDING_MS);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+    }
+  }, [handleStopRecording, isAuthenticated, sessionManager]);
 
   // デモモード切り替え
   const handleToggleDemoMode = useCallback(() => {

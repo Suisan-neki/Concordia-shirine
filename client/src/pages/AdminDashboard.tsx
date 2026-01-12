@@ -7,14 +7,14 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
-import { useNavigate } from 'wouter';
+import { useLocation } from 'wouter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UserManagement } from '@/components/UserManagement';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
 
 export default function AdminDashboard() {
   const { user, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState<'users' | 'audit'>('users');
 
   // 管理者チェック
@@ -79,4 +79,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-

@@ -146,6 +146,26 @@ async function startServer() {
     const { registerOAuthRoutes } = await import("./oauth");
     registerOAuthRoutes(app);
   }
+
+  // Cognito Authorization Code Grant コールバック
+  console.log("[Server] Cognito configuration check:", {
+    cognitoRegion: ENV.cognitoRegion ? `${ENV.cognitoRegion.substring(0, 10)}...` : "未設定",
+    cognitoUserPoolId: ENV.cognitoUserPoolId ? `${ENV.cognitoUserPoolId.substring(0, 10)}...` : "未設定",
+    cognitoClientId: ENV.cognitoClientId ? `${ENV.cognitoClientId.substring(0, 10)}...` : "未設定",
+  });
+
+  if (ENV.cognitoRegion && ENV.cognitoUserPoolId && ENV.cognitoClientId) {
+    const { handleCognitoCallback } = await import("./cognitoCallback");
+    app.get("/api/auth/cognito/callback", handleCognitoCallback);
+    console.log("[Server] Cognito callback endpoint registered: /api/auth/cognito/callback");
+  } else {
+    console.warn("[Server] Cognito callback endpoint not registered: missing configuration");
+    console.warn("[Server] Required environment variables:", {
+      COGNITO_REGION: process.env.COGNITO_REGION || "未設定",
+      COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID || "未設定",
+      COGNITO_CLIENT_ID: process.env.COGNITO_CLIENT_ID || "未設定",
+    });
+  }
   
   // tRPC API
   // /api/trpcパスでtRPCエンドポイントを公開
@@ -166,8 +186,8 @@ async function startServer() {
     serveStatic(app);
   }
 
-  // 環境変数からポート番号を取得（デフォルト: 3000）
-  const preferredPort = parseInt(process.env.PORT || "3000");
+  // 環境変数からポート番号を取得（デフォルト: 5173）
+  const preferredPort = parseInt(process.env.PORT || "5173");
   // 利用可能なポートを見つける（指定されたポートが使用中の場合は別のポートを検索）
   const port = await findAvailablePort(preferredPort);
 
