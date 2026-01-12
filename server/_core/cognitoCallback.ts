@@ -16,7 +16,6 @@ import { parse as parseCookieHeader } from "cookie";
 import { timingSafeEqual } from "crypto";
 
 const NONCE_COOKIE_NAME = "cognito_auth_nonce";
-const NONCE_COOKIE_MAX_AGE = 10 * 60 * 1000; // 10分（認証フローが完了するまでの時間）
 
 /**
  * タイミング攻撃に対して安全な文字列比較
@@ -26,10 +25,8 @@ const NONCE_COOKIE_MAX_AGE = 10 * 60 * 1000; // 10分（認証フローが完了
  * @returns 文字列が一致する場合true、そうでない場合false
  */
 function safeCompare(a: string, b: string): boolean {
-  // 長さが異なる場合は即座にfalseを返す（タイミング攻撃を防ぐため、常に比較を実行）
+  // 長さが異なる場合は即座にfalseを返す
   if (a.length !== b.length) {
-    // ダミー比較を実行してタイミングを均一化
-    timingSafeEqual(Buffer.from(a.padEnd(Math.max(a.length, b.length))), Buffer.from(b.padEnd(Math.max(a.length, b.length))));
     return false;
   }
   
