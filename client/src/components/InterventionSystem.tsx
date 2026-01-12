@@ -31,17 +31,17 @@ const INTERVENTION_COOLDOWN_SEC = 30;
 const INTERVENTION_MESSAGES: Record<string, { title: string; message: string; icon: string }> = {
   monologue: {
     title: '発言のバランス',
-    message: '一方的な発言が続いています。他の方にも発言の機会を設けてみませんか？',
+    message: '一方的な発言が続いています。他の方にも発言の機会を設けてみませんか',
     icon: '🌊',
   },
   silence: {
     title: '沈黙の気づき',
-    message: '沈黙が続いています。発言しやすい雰囲気を作るきっかけを探してみましょう。',
+    message: '沈黙が続いています。発言しやすい雰囲気を作るきっかけを探してみましょう',
     icon: '✨',
   },
   prolonged_tension: {
     title: '空気の変化',
-    message: '緊張した空気が続いています。一度深呼吸して、場の空気を整えてみましょう。',
+    message: '緊張した空気が続いています。一度深呼吸して場の空気を整えてみましょう',
     icon: '🍃',
   },
 };
@@ -264,7 +264,7 @@ export function InterventionSystem({
               {/* アクションヒント */}
               <div className="mt-3 pt-3 border-t border-border/50">
                 <p className="text-[10px] text-muted-foreground/70 text-center">
-                  このヒントは、場の空気を改善するきっかけとしてお使いください
+                  このヒントは場の空気を改善するきっかけとしてお使いください
                 </p>
               </div>
             </div>

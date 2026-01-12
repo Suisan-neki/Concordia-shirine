@@ -69,7 +69,7 @@ export function InterventionSettingsPanel({
               {!isAuthenticated && (
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
                   <p className="text-xs text-amber-500">
-                    ログインすると、設定がサーバーに保存され、複数デバイスで同期されます。
+                    ログインすると設定がサーバーに保存され複数デバイスで同期されます
                   </p>
                 </div>
               )}
@@ -108,7 +108,7 @@ export function InterventionSettingsPanel({
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground">
-                  一方的な発言がこの時間続くと、バランスを促すヒントを表示します
+                  一方的な発言がこの時間続くとバランスを促すヒントを表示します
                 </p>
               </div>
               
@@ -177,12 +177,14 @@ export function InterventionSettingsPanel({
                   介入機能について
                 </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  この機能は、対話の「空気」を監視し、一方的な発言や沈黙が続いた場合に、
-                  穏やかな方法で参加者に気づきを促します。
+                  この機能は対話の「空気」を監視します。
+                  <br />
+                  一方的な発言や沈黙が続いた場合、穏やかな方法で参加者に気づきを促します。
                 </p>
                 <p className="text-xs text-muted-foreground leading-relaxed mt-2">
-                  介入は強制ではなく、あくまで「気づき」のきっかけとして機能します。
-                  最終的な判断は常に参加者自身に委ねられています。
+                  介入は強制ではありません。
+                  <br />
+                  「気づき」のきっかけとして機能し、最終的な判断は参加者自身に委ねられます。
                 </p>
               </div>
             </div>

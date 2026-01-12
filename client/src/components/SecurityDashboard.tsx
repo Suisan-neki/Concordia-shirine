@@ -33,10 +33,10 @@ const securityLayers = [
     name: 'サイバーセキュリティ',
     description: '技術的な防御層',
     items: [
-      { name: '認証', description: 'ユーザーの身元を確認し、不正アクセスを防止', icon: '🔐' },
-      { name: '暗号化', description: '通信とデータを暗号化し、盗聴を防止', icon: '🔒' },
+      { name: '認証', description: 'ユーザーの身元を確認し不正アクセスを防止', icon: '🔐' },
+      { name: '暗号化', description: '通信とデータを暗号化し盗聴を防止', icon: '🔒' },
       { name: 'アクセス制御', description: '権限に基づいたリソースへのアクセス管理', icon: '🛡️' },
-      { name: '監査ログ', description: '操作履歴を記録し、異常を検知', icon: '📋' }
+      { name: '監査ログ', description: '操作履歴を記録し異常を検知', icon: '📋' }
     ]
   },
   {
@@ -45,34 +45,34 @@ const securityLayers = [
     description: '心理的な防御層',
     items: [
       { name: '同意保護', description: '同調圧力から判断の自由を守る', icon: '💚' },
-      { name: '空気の可視化', description: '見えない圧力を可視化し、気づきを促す', icon: '🌊' },
+      { name: '空気の可視化', description: '見えない圧力を可視化し気づきを促す', icon: '🌊' },
       { name: '介入支援', description: '適切なタイミングで場の改善を促す', icon: '✨' },
-      { name: '記録と振り返り', description: '対話を記録し、後から振り返る機会を提供', icon: '📝' }
+      { name: '記録と振り返り', description: '対話を記録し後から振り返る機会を提供', icon: '📝' }
     ]
   }
 ];
 
 // シーンごとの解説
-const sceneExplanations: Record<SceneType, { cyber: string; human: string; relationship: string }> = {
+const sceneExplanations: Record<SceneType, { cyber: string[]; human: string[]; relationship: string }> = {
   '静寂': {
-    cyber: '結界は安定しています。外部からの脅威は検知されていません。',
-    human: '対話は穏やかに進行しています。特別な介入は必要ありません。',
-    relationship: 'サイバーセキュリティが安定した環境を提供し、参加者は安心して対話できています。'
+    cyber: ['結界は安定しています。', '外部からの脅威は検知されていません。'],
+    human: ['対話は穏やかに進行しています。', '特別な介入は必要ありません。'],
+    relationship: 'サイバーセキュリティが安定した環境を提供し参加者は安心して対話できています'
   },
   '調和': {
-    cyber: '結界は最も強固な状態です。聖域は完全に保護されています。',
-    human: '参加者間で良好なコミュニケーションが取れています。心理的安全性が高い状態です。',
-    relationship: '技術的な安全が心理的な安心を生み、それがさらに良い対話を促進しています。理想的な状態です。'
+    cyber: ['結界は最も強固な状態です。', '聖域は完全に保護されています。'],
+    human: ['参加者間で良好なコミュニケーションが取れています', '心理的安全性が高い状態です'],
+    relationship: '技術的な安全が心理的な安心を生みそれがさらに良い対話を促進しています。理想的な状態です'
   },
   '一方的': {
-    cyber: '結界に負荷がかかっています。同調圧力という内部脅威を検知しました。',
-    human: '一方的な発言が続いています。他の参加者の発言機会が奪われている可能性があります。',
-    relationship: '技術は脅威を検知していますが、最終的に状況を改善するのは人間の行動です。波の変化に気づいてください。'
+    cyber: ['結界に負荷がかかっています。', '同調圧力という内部脅威を検知しました。'],
+    human: ['一方的な発言が続いています', '他の参加者の発言機会が奪われている可能性があります'],
+    relationship: '技術は脅威を検知していますが最終的に状況を改善するのは人間の行動です。波の変化に気づいてください'
   },
   '沈黙': {
-    cyber: '結界は機能していますが、沈黙という形の圧力を検知しています。',
-    human: '長い沈黙が続いています。発言しにくい雰囲気がある可能性があります。',
-    relationship: '技術は「見えない圧力」を可視化しています。この気づきが、状況を変える第一歩になります。'
+    cyber: ['結界は機能していますが、沈黙という形の圧力を検知しています。'],
+    human: ['長い沈黙が続いています', '発言しにくい雰囲気がある可能性があります'],
+    relationship: '技術は「見えない圧力」を可視化しています。この気づきが状況を変える第一歩になります'
   }
 };
 
@@ -145,10 +145,11 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                   「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  従来のセキュリティは、データやネットワークを守ることに焦点を当ててきました。
-                  しかし、Concordia Shrineは「人の判断の自由」を守ることを目指します。
-                  技術的な防御（サイバーセキュリティ）が、心理的な安全（ヒューマンセキュリティ）を支え、
-                  その逆もまた真なのです。
+                  従来のセキュリティはデータやネットワークを守ることに焦点を当ててきました。
+                  <br />
+                  しかしConcordia Shrineは「人の判断の自由」を守ることを目指します。
+                  <br />
+                  技術的な防御（サイバーセキュリティ）が心理的な安全（ヒューマンセキュリティ）を支え、その逆もまた真なのです。
                 </p>
               </div>
               
@@ -158,11 +159,25 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                 <div className="grid md:grid-cols-3 gap-4">
                   <div className="p-4 bg-shrine-barrier/10 rounded-lg border border-shrine-barrier/20">
                     <div className="text-xs text-shrine-barrier mb-2">サイバーセキュリティ</div>
-                    <p className="text-sm text-foreground">{explanation.cyber}</p>
+                    <p className="text-sm text-foreground">
+                      {explanation.cyber.map((line, index) => (
+                        <span key={index}>
+                          {line}
+                          {index < explanation.cyber.length - 1 && <br />}
+                        </span>
+                      ))}
+                    </p>
                   </div>
                   <div className="p-4 bg-shrine-jade/10 rounded-lg border border-shrine-jade/20">
                     <div className="text-xs text-shrine-jade mb-2">ヒューマンセキュリティ</div>
-                    <p className="text-sm text-foreground">{explanation.human}</p>
+                    <p className="text-sm text-foreground">
+                      {explanation.human.map((line, index) => (
+                        <span key={index}>
+                          {line}
+                          {index < explanation.human.length - 1 && <br />}
+                        </span>
+                      ))}
+                    </p>
                   </div>
                   <div className="p-4 bg-shrine-gold/10 rounded-lg border border-shrine-gold/20">
                     <div className="text-xs text-shrine-gold mb-2">相互作用</div>
@@ -257,7 +272,7 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                 </div>
                 
                 <p className="text-xs text-muted-foreground text-center mt-4">
-                  技術が安心を生み、安心が自由な対話を促し、自由な対話がより良い判断につながります。
+                  技術が安心を生み安心が自由な対話を促し自由な対話がより良い判断につながります
                 </p>
               </div>
             </div>

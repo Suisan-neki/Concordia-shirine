@@ -332,12 +332,12 @@ export const appRouter = router({
           // 論理削除を実行
           await softDeleteUser(input.userId);
 
-          // 監査ログに記録
+          // 監査ログに記録（個人情報は含めない）
           await securityService.logSecurityEvent({
             userId: ctx.user.id,
             eventType: 'access_granted',
             severity: 'info',
-            description: `User deleted by admin: ${targetUser.email || targetUser.name || targetUser.openId}`,
+            description: 'User deleted by admin',
             metadata: { deletedUserId: input.userId },
             timestamp: Date.now(),
           });

@@ -26,7 +26,7 @@ const sceneConfigs: Record<SceneType, {
 }> = {
   '静寂': {
     label: '静寂',
-    description: '声と静けさが、ゆっくり行き来しています。',
+    description: '声と静けさがゆっくり行き来しています',
     guidance: '会話が始まる準備ができています。',
     color: 'text-foreground',
     bgColor: 'bg-muted/30',
@@ -34,24 +34,24 @@ const sceneConfigs: Record<SceneType, {
   },
   '調和': {
     label: '調和',
-    description: '声の出入りが穏やかで、バランスの良い対話が続いています。',
-    guidance: 'この状態を保ちましょう。全員が発言しやすい雰囲気です。',
+    description: '声の出入りが穏やかでバランスの良い対話が続いています',
+    guidance: 'この状態を保ちましょう。全員が発言しやすい雰囲気です',
     color: 'text-shrine-jade',
     bgColor: 'bg-shrine-jade/10',
     icon: '◎'
   },
   '一方的': {
     label: '一方的',
-    description: 'ひとつの方向からの声が、長く続いています。',
-    guidance: '他の参加者にも発言の機会を設けてみましょう。',
+    description: 'ひとつの方向からの声が長く続いています',
+    guidance: '他の参加者にも発言の機会を設けてみましょう',
     color: 'text-shrine-vermilion',
     bgColor: 'bg-shrine-vermilion/10',
     icon: '▶'
   },
   '沈黙': {
     label: '沈黙',
-    description: '静かな時間が、長めに続いています。',
-    guidance: '発言しやすい雰囲気を作るきっかけを探してみましょう。',
+    description: '静かな時間が長めに続いています',
+    guidance: '発言しやすい雰囲気を作るきっかけを探してみましょう',
     color: 'text-shrine-wave-deep',
     bgColor: 'bg-shrine-wave-deep/10',
     icon: '◇'

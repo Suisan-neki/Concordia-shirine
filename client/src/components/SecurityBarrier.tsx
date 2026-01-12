@@ -168,7 +168,7 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
                   <div className="text-xs font-medium text-foreground">
                     {indicator.label}
                   </div>
-                  <div className="text-[10px] text-muted-foreground truncate">
+                  <div className="text-[10px] text-muted-foreground truncate whitespace-nowrap">
                     {indicator.description}
                   </div>
                 </div>
@@ -189,7 +189,7 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
           >
             <div className="bg-shrine-vermilion/20 border border-shrine-vermilion/30 rounded-lg px-4 py-2 backdrop-blur-sm">
               <p className="text-sm text-shrine-vermilion font-serif-jp">
-                同調圧力が検出されています。判断の自由を守ってください。
+                同調圧力が検出されています。判断の自由を守ってください
               </p>
             </div>
           </motion.div>
