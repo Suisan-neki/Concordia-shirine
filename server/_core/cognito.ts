@@ -153,14 +153,16 @@ export async function authenticateRequest(
   }
 
   // デバッグ: ペイロードの内容を確認
-  console.log("[Cognito] Token payload keys:", Object.keys(payload));
-  console.log("[Cognito] Token payload (name-related):", {
-    name: payload.name,
-    given_name: payload.given_name,
-    family_name: payload.family_name,
-    "cognito:username": payload["cognito:username"],
-    email: payload.email,
-  });
+  if (process.env.DEBUG_AUTH === "true") {
+    console.log("[Cognito] Token payload keys:", Object.keys(payload));
+    console.log("[Cognito] Token payload (name-related):", {
+      name: payload.name ? "[REDACTED]" : undefined,
+      given_name: payload.given_name ? "[REDACTED]" : undefined,
+      family_name: payload.family_name ? "[REDACTED]" : undefined,
+      "cognito:username": payload["cognito:username"] ? "[REDACTED]" : undefined,
+      email: payload.email ? "[REDACTED]" : undefined,
+    });
+  }
 
   // オプションのユーザー情報を取得
   // CognitoのIDトークンには、name、given_name、family_name、cognito:usernameなどが含まれる可能性がある
@@ -180,7 +182,14 @@ export async function authenticateRequest(
   
   const email = typeof payload.email === "string" ? payload.email : null;
   
-  console.log("[Cognito] Extracted user info:", { openId, name, email });
+  // デバッグ: 抽出されたユーザー情報を確認（個人情報はマスク）
+  if (process.env.DEBUG_AUTH === "true") {
+    console.log("[Cognito] Extracted user info:", {
+      openId: openId ? `${openId.substring(0, 10)}...` : null,
+      name: name ? "[REDACTED]" : null,
+      email: email ? "[REDACTED]" : null,
+    });
+  }
 
   const shouldUpdateUser = options.updateUser === true;
 
