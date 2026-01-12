@@ -9,7 +9,6 @@ import { GetCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { getDynamoClient, getTableName } from "./_core/dynamodb";
 import { ENV } from "./_core/env";
 import type { User, InsertUser, SecurityAuditLog } from "../drizzle/schema";
-import { nanoid } from "nanoid";
 
 const USERS_TABLE = getTableName("users");
 const SECURITY_AUDIT_LOGS_TABLE = getTableName("securityAuditLogs");

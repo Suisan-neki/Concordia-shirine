@@ -12,7 +12,13 @@ function createNonce(): string {
 }
 
 function encodeBase64Url(value: string): string {
-  const base64 = btoa(unescape(encodeURIComponent(value)));
+  // TextEncoderを使用してUTF-8バイト配列に変換
+  const utf8Bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (let i = 0; i < utf8Bytes.length; i++) {
+    binary += String.fromCharCode(utf8Bytes[i]);
+  }
+  const base64 = btoa(binary);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 

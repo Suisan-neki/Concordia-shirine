@@ -19,7 +19,7 @@ import { getAllUsers as getAllDynamoUsersDirect, getSecurityAuditLogs } from "./
  * @param options - 取得オプション
  * @param options.page - ページ番号（1から開始）
  * @param options.limit - 1ページあたりの件数（デフォルト: 50、最大: 100）
- * @param options.search - 検索文字列（名前またはメールアドレスで検索）
+ * @param options.search - 検索文字列（名前で検索）
  * @param options.includeDeleted - 削除済みユーザーを含めるかどうか（デフォルト: false）
  * @returns ユーザー一覧と総件数
  */

@@ -291,7 +291,7 @@ export const appRouter = router({
        * @returns ユーザーオブジェクト、またはnull（存在しない場合）
        */
       get: adminProcedure
-        .input(z.object({ userId: z.number() }))
+        .input(z.object({ userId: z.number().positive("User ID must be a positive integer") }))
         .query(async ({ input }) => {
           return await getUserById(input.userId) || null;
         }),
@@ -307,7 +307,7 @@ export const appRouter = router({
        * @returns 削除成功フラグ
        */
       delete: adminProcedure
-        .input(z.object({ userId: z.number() }))
+        .input(z.object({ userId: z.number().positive("User ID must be a positive integer") }))
         .mutation(async ({ input, ctx }) => {
           // 自分自身の削除は不可
           if (input.userId === ctx.user.id) {
@@ -335,7 +335,7 @@ export const appRouter = router({
           // 監査ログに記録
           await securityService.logSecurityEvent({
             userId: ctx.user.id,
-            eventType: 'access_granted',
+            eventType: 'admin_action',
             severity: 'info',
             description: `User deleted by admin: ${targetUser.email || targetUser.name || targetUser.openId}`,
             metadata: { deletedUserId: input.userId },
