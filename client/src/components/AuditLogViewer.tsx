@@ -21,6 +21,17 @@ export function AuditLogViewer() {
 
   const limit = 50;
 
+  // フィルター変更時にページをリセット
+  const handleEventTypeChange = (value: string) => {
+    setEventType(value);
+    setPage(1);
+  };
+
+  const handleSeverityChange = (value: string) => {
+    setSeverity(value as typeof severity);
+    setPage(1);
+  };
+
   // 監査ログ取得
   const { data, isLoading } = trpc.admin.audit.getLogs.useQuery({
     page,
@@ -43,7 +54,7 @@ export function AuditLogViewer() {
     <div className="space-y-4">
       {/* フィルター */}
       <div className="flex items-center gap-4">
-        <Select value={eventType} onValueChange={setEventType}>
+        <Select value={eventType} onValueChange={handleEventTypeChange}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="イベントタイプ" />
           </SelectTrigger>
@@ -62,7 +73,7 @@ export function AuditLogViewer() {
           </SelectContent>
         </Select>
 
-        <Select value={severity} onValueChange={(v) => setSeverity(v as typeof severity)}>
+        <Select value={severity} onValueChange={handleSeverityChange}>
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="重要度" />
           </SelectTrigger>
