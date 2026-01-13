@@ -306,7 +306,7 @@ export class SessionEntity {
       insights.push('一方的な発言が多く見られました。対話のバランスを意識してみてください。');
     }
     if ((eventCounts['SilenceLong'] || 0) > 2) {
-      insights.push('長い沈黙が複数回ありました。発言しやすい雰囲気作りを心がけてみてください。');
+      insights.push('長い沈黙が複数回ありました。沈黙は自然です。焦らず、場の空気を整えてみてください。');
     }
     if ((eventCounts['StableCalm'] || 0) > 3) {
       insights.push('安定した対話が続きました。良いコミュニケーションが取れています。');

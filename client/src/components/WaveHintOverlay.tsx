@@ -91,10 +91,10 @@ export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
                     <p className="text-xs text-muted-foreground mb-2">発言の偏りが検出されています</p>
                     <p className="text-[10px] text-foreground font-medium">他の参加者にも発言の機会を設けましょう</p>
                   </div>
-                  <div className="p-3 bg-shrine-wave-deep/10 rounded-lg border border-shrine-wave-deep/20">
-                    <div className="text-xs font-medium text-foreground mb-1">沈黙</div>
-                    <p className="text-xs text-muted-foreground mb-2">長い沈黙が続いています</p>
-                    <p className="text-[10px] text-foreground font-medium">発言しやすい雰囲気を作るきっかけを探しましょう</p>
+                  <div className="p-3 bg-shrine-wave-light/10 rounded-lg border border-shrine-wave-light/20">
+                    <div className="text-xs font-medium text-shrine-wave-light mb-1">沈黙</div>
+                    <p className="text-xs text-muted-foreground mb-2">静かな間が続いています</p>
+                    <p className="text-[10px] text-foreground font-medium">沈黙は自然です。焦らず、場の空気をゆるやかに整えましょう</p>
                   </div>
                   <div className="p-3 bg-shrine-wave/10 rounded-lg border border-shrine-wave/20">
                     <div className="text-xs font-medium text-foreground mb-1">静寂</div>
@@ -123,4 +123,3 @@ export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
 }
 
 export default WaveHintOverlay;
-

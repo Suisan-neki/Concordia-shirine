@@ -92,7 +92,7 @@ export const interventionSettings = mysqlTable("interventionSettings", {
   /** 一方的状態の閾値（秒） */
   monologueThreshold: int("monologueThreshold").default(30).notNull(),
   /** 沈黙状態の閾値（秒） */
-  silenceThreshold: int("silenceThreshold").default(15).notNull(),
+  silenceThreshold: int("silenceThreshold").default(8).notNull(),
   /** 通知音の有効/無効 */
   soundEnabled: int("soundEnabled").default(1).notNull(),
   /** 視覚的ヒントの有効/無効 */

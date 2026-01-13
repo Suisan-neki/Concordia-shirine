@@ -55,13 +55,13 @@ export const SCENE_WAVE_PARAMS: Record<SceneType, WaveParams> = {
     }
   },
   '沈黙': {
-    amplitude: 0.6,
-    frequency: 0.006,
-    speed: 0.15,
-    turbulence: 0.4,
+    amplitude: 0.38,
+    frequency: 0.007,
+    speed: 0.22,
+    turbulence: 0.2,
     color: {
-      top: 'rgba(40, 50, 80, 0.6)',      // 暗い藍色
-      bottom: 'rgba(15, 20, 35, 0.95)'
+      top: 'rgba(85, 135, 125, 0.55)',      // 柔らかな藍緑
+      bottom: 'rgba(30, 70, 70, 0.88)'
     }
   }
 };

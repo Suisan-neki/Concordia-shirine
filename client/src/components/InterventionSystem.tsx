@@ -26,6 +26,8 @@ interface InterventionSystemProps {
 
 // 介入のクールダウン時間（秒）
 const INTERVENTION_COOLDOWN_SEC = 30;
+// シーン判定は発話/沈黙が一定時間続いてから切り替わるため補正を入れる
+const SCENE_ENTRY_DELAY_SEC = 8;
 
 // 介入メッセージの定義
 const INTERVENTION_MESSAGES: Record<string, { title: string; message: string; icon: string }> = {
@@ -35,8 +37,8 @@ const INTERVENTION_MESSAGES: Record<string, { title: string; message: string; ic
     icon: '🌊',
   },
   silence: {
-    title: '沈黙の気づき',
-    message: '沈黙が続いています。発言しやすい雰囲気を作るきっかけを探してみましょう',
+    title: '静かな余白',
+    message: '少し静かな間が続いています。沈黙は自然で、祠はその余白を受け止めています。焦らず、場の空気をゆるやかに整えてみてください',
     icon: '✨',
   },
   prolonged_tension: {
@@ -157,12 +159,14 @@ export function InterventionSystem({
 
       let interventionType: string | null = null;
 
+      const adjustedDuration = sceneDuration + SCENE_ENTRY_DELAY_SEC;
+
       // 一方的状態のチェック
-      if (scene === '一方的' && sceneDuration >= settings.monologueThreshold) {
+      if (scene === '一方的' && adjustedDuration >= settings.monologueThreshold) {
         interventionType = 'monologue';
       }
       // 沈黙状態のチェック
-      else if (scene === '沈黙' && sceneDuration >= settings.silenceThreshold) {
+      else if (scene === '沈黙' && adjustedDuration >= settings.silenceThreshold) {
         interventionType = 'silence';
       }
 

@@ -176,7 +176,7 @@ export const appRouter = router({
      * 
      * 入力バリデーション:
      * - monologueThreshold: 5から120秒の範囲
-     * - silenceThreshold: 5から60秒の範囲
+     * - silenceThreshold: 8から60秒の範囲
      * 
      * @param input - 更新する設定（部分的更新をサポート）
      * @returns 成功フラグ
@@ -185,7 +185,7 @@ export const appRouter = router({
       .input(z.object({
         enabled: z.boolean().optional(),
         monologueThreshold: z.number().min(5).max(120).optional(),
-        silenceThreshold: z.number().min(5).max(60).optional(),
+        silenceThreshold: z.number().min(8).max(60).optional(),
         soundEnabled: z.boolean().optional(),
         visualHintEnabled: z.boolean().optional(),
       }))

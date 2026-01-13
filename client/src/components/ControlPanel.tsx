@@ -104,7 +104,7 @@ export function ControlPanel({
                         : scene === '一方的'
                         ? 'bg-shrine-vermilion hover:bg-shrine-vermilion/90'
                         : scene === '沈黙'
-                        ? 'bg-shrine-wave-deep hover:bg-shrine-wave-deep/90'
+                        ? 'bg-shrine-wave-light hover:bg-shrine-wave-light/90'
                         : ''
                       : ''
                   }`}

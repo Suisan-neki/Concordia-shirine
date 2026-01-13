@@ -24,7 +24,7 @@ const sceneColors: Record<SceneType, string> = {
   '静寂': 'bg-muted',
   '調和': 'bg-shrine-jade',
   '一方的': 'bg-shrine-vermilion',
-  '沈黙': 'bg-shrine-wave-deep'
+  '沈黙': 'bg-shrine-wave-light'
 };
 
 export function SessionHistory({ isOpen, onClose, onLoadSessions, onDeleteSession }: SessionHistoryProps) {

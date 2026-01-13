@@ -50,10 +50,10 @@ const sceneConfigs: Record<SceneType, {
   },
   '沈黙': {
     label: '沈黙',
-    description: '静かな時間が長めに続いています',
-    guidance: '発言しやすい雰囲気を作るきっかけを探してみましょう',
-    color: 'text-shrine-wave-deep',
-    bgColor: 'bg-shrine-wave-deep/10',
+    description: '静かな間が少し続いています',
+    guidance: '沈黙は自然です。焦らず、場の空気をゆるやかに整えてみてください',
+    color: 'text-shrine-wave-light',
+    bgColor: 'bg-shrine-wave-light/10',
     icon: '◇'
   }
 };

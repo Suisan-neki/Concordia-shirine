@@ -19,7 +19,7 @@ export interface InterventionSettings {
 const DEFAULT_SETTINGS: InterventionSettings = {
   enabled: true,
   monologueThreshold: 30,
-  silenceThreshold: 15,
+  silenceThreshold: 8,
   soundEnabled: true,
   visualHintEnabled: true,
 };

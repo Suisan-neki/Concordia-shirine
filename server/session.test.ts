@@ -49,7 +49,7 @@ vi.mock("./db", () => ({
     userId: 1,
     enabled: 1,
     monologueThreshold: 30,
-    silenceThreshold: 15,
+    silenceThreshold: 8,
     soundEnabled: 1,
     visualHintEnabled: 1,
     createdAt: new Date(),

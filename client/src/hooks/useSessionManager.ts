@@ -120,7 +120,7 @@ export function useSessionManager() {
       insights.push('一方的な発言が多い傾向がありました。発言機会の均等化を意識してみてください。');
     }
     if (sceneCountsRef.current['沈黙'] > 5) {
-      insights.push('沈黙が多く検出されました。発言しやすい雰囲気づくりを心がけてみてください。');
+      insights.push('沈黙が多く検出されました。沈黙は自然です。焦らず、場の空気を整えて話しやすさを支えてみてください。');
     }
 
     const sceneDistribution = { ...sceneCountsRef.current };

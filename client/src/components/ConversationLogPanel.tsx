@@ -25,7 +25,7 @@ const sceneConfig: Record<SceneType, { label: string; color: string }> = {
   '静寂': { label: '静寂', color: 'text-muted-foreground' },
   '調和': { label: '調和', color: 'text-shrine-jade' },
   '一方的': { label: '一方的', color: 'text-shrine-vermilion' },
-  '沈黙': { label: '沈黙', color: 'text-shrine-wave-deep' }
+  '沈黙': { label: '沈黙', color: 'text-shrine-wave-light' }
 };
 
 // ログエントリの表示
@@ -180,7 +180,7 @@ function SummaryView({ summary }: { summary: SessionSummary }) {
                     className={`h-full rounded-full ${
                       scene === '調和' ? 'bg-shrine-jade' :
                       scene === '一方的' ? 'bg-shrine-vermilion' :
-                      scene === '沈黙' ? 'bg-shrine-wave-deep' :
+                      scene === '沈黙' ? 'bg-shrine-wave-light' :
                       'bg-muted-foreground'
                     }`}
                     style={{ width: `${percentage}%` }}

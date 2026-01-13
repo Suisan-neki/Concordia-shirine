@@ -352,7 +352,7 @@ export default function Home() {
             description: newScene === '一方的'
               ? '同調圧力が検出されています'
               : newScene === '沈黙'
-                ? '発言しにくい空気を検出'
+                ? '静かな間の継続を検出'
                 : '判断の自由を守っています'
           };
         }

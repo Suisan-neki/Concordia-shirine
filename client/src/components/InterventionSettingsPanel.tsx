@@ -123,14 +123,14 @@ export function InterventionSettingsPanel({
                 <Slider
                   value={[settings.silenceThreshold]}
                   onValueChange={([value]) => onUpdateSettings({ silenceThreshold: value })}
-                  min={5}
+                  min={8}
                   max={60}
-                  step={5}
+                  step={1}
                   disabled={!settings.enabled}
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground">
-                  沈黙がこの時間続くと、発言しやすい雰囲気づくりのヒントを表示します
+                  沈黙がこの時間続くと、必要に応じて場の空気づくりのヒントを表示します
                 </p>
               </div>
               
@@ -179,7 +179,7 @@ export function InterventionSettingsPanel({
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   この機能は対話の「空気」を監視します。
                   <br />
-                  一方的な発言や沈黙が続いた場合、穏やかな方法で参加者に気づきを促します。
+                  一方的な発言や沈黙が続いた場合、必要なときだけ穏やかな方法で参加者に気づきを促します。
                 </p>
                 <p className="text-xs text-muted-foreground leading-relaxed mt-2">
                   介入は強制ではありません。

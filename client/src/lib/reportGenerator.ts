@@ -39,7 +39,7 @@ function getSceneDescription(scene: string): string {
     '静寂': '穏やかで落ち着いた状態。参加者が思考を整理している時間です。',
     '調和': '参加者間で活発かつバランスの取れた対話が行われている理想的な状態です。',
     '一方的': '特定の参加者の発言が支配的な状態。他の参加者の発言機会が制限されている可能性があります。',
-    '沈黙': '発言が途絶えている状態。緊張や不安、または発言しにくい雰囲気が存在する可能性があります。',
+    '沈黙': '発言の間が生まれている状態。考える時間や整理の時間になっている可能性があります。',
   };
   return descriptions[scene] || '不明な状態';
 }
@@ -88,7 +88,7 @@ function analyzeSecurityFactors(
     factors.push('一方的な発言が多く見られました');
   }
   if (silenceRatio > 0.2) {
-    factors.push('沈黙の時間が長く、発言しにくい雰囲気があった可能性があります');
+    factors.push('沈黙の時間が長めでした。焦らず場の空気を整えると話しやすさが増します');
   }
   if (score >= 80) {
     factors.push('参加者の判断の自由が守られていました');
@@ -124,8 +124,8 @@ function generateRecommendations(
   }
   
   if (silenceRatio > 0.2) {
-    recommendations.push('アイスブレイクや雑談の時間を設け、発言しやすい雰囲気を作りましょう');
-    recommendations.push('「正解はない」「どんな意見も歓迎」というメッセージを明確に伝えましょう');
+    recommendations.push('沈黙が続くことも自然です。必要ならアイスブレイクや雑談で入り口を作ってみてください');
+    recommendations.push('「正解はない」「どんな意見も歓迎」というメッセージを共有すると安心して話しやすくなります');
   }
   
   if (harmonyRatio < 0.3) {
@@ -167,9 +167,9 @@ function generateOverallAssessment(
   if (score >= 80) {
     return `${durationMinutes}分間のセッションにおいて、対話の質は「${level}」でした。参加者間のバランスが取れており、全員が発言しやすい環境が維持されていました。調和の取れた対話が全体の${Math.round(harmonyRatio * 100)}%を占めており、ヒューマンセキュリティの観点から理想的な状態でした。`;
   } else if (score >= 60) {
-    return `${durationMinutes}分間のセッションにおいて、対話の質は「${level}」でした。概ね良好な対話が行われましたが、一部で発言の偏りや沈黙が見られました。調和の取れた対話は全体の${Math.round(harmonyRatio * 100)}%でした。`;
+    return `${durationMinutes}分間のセッションにおいて、対話の質は「${level}」でした。概ね良好な対話が行われましたが、一部で発言の偏りや静かな間が見られました。調和の取れた対話は全体の${Math.round(harmonyRatio * 100)}%でした。`;
   } else {
-    return `${durationMinutes}分間のセッションにおいて、対話の質は「${level}」でした。発言の偏りや沈黙が多く見られ、参加者の中に発言しにくさを感じている方がいた可能性があります。次回は介入機能を活用し、早めの気づきを促すことをお勧めします。`;
+    return `${durationMinutes}分間のセッションにおいて、対話の質は「${level}」でした。発言の偏りや静かな間が多く見られました。沈黙は自然ですが、必要なら介入機能を活用して早めに気づけるようにしましょう。`;
   }
 }
 
