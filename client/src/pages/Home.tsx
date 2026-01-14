@@ -448,11 +448,10 @@ export default function Home() {
     setIsLogExpanded(prev => !prev);
   }, []);
 
-  // セッション履歴の読み込み（バックエンドから取得）
+  // セッション履歴の読み込み
   const handleLoadSessions = useCallback(async (): Promise<Session[]> => {
-    // バックエンドからのセッションをローカル形式に変換
-    const backendSessions = sessionManager.sessions;
-    return backendSessions.map(s => ({
+    const localSessions = await logManagerRef.current?.getPastSessions();
+    const backendSessions = sessionManager.sessions.map(s => ({
       id: s.sessionId,
       startTime: s.startTime,
       endTime: s.endTime || undefined,
@@ -467,10 +466,18 @@ export default function Home() {
         insights: s.insights || [],
       } : undefined,
     }));
+
+    const backendIds = new Set(backendSessions.map(session => session.id));
+    const mergedLocal = (localSessions ?? []).filter(session => !backendIds.has(session.id));
+    return [...backendSessions, ...mergedLocal];
   }, [sessionManager.sessions]);
 
   // セッションの削除
   const handleDeleteSession = useCallback(async (id: string): Promise<void> => {
+    if (id.startsWith('session_') || id.startsWith('local_')) {
+      await logManagerRef.current?.deleteSession(id);
+      return;
+    }
     await sessionManager.deleteSession(id);
   }, [sessionManager]);
 
