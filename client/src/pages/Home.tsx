@@ -103,7 +103,7 @@ export default function Home() {
   const audioAnalyzerRef = useRef<AudioAnalyzer | null>(null);
   const logManagerRef = useRef<ConversationLogManager | null>(null);
   const speechRecognitionRef = useRef<SpeechRecognitionManager | null>(null);
-  const lastSceneRef = useRef<SceneType>('静寂');
+  const lastSceneRef = useRef<SceneType | null>(null);
   const sessionStartTimeRef = useRef<number>(0);
   const recordingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speechStartRef = useRef<number | null>(null);
@@ -166,7 +166,7 @@ export default function Home() {
     audioAnalyzerRef.current.setCallbacks({
       onEnergyUpdate: (e) => setEnergy(e),
       onSceneChange: (s) => {
-        if (!isDemoModeRef.current && s !== lastSceneRef.current) {
+        if (!isDemoModeRef.current && (lastSceneRef.current === null || s !== lastSceneRef.current)) {
           lastSceneRef.current = s;
           setScene(s);
           logManagerRef.current?.logSceneChange(s);
@@ -355,6 +355,7 @@ export default function Home() {
       setTranscripts([]);
       setInterimText('');
       speechStartRef.current = null;
+      lastSceneRef.current = null;
 
       // バックエンドセッションを開始
       await sessionManager.startSession();
