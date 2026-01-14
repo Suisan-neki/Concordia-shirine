@@ -49,6 +49,23 @@ const securityLayers = [
       { name: '介入支援', description: '適切なタイミングで場の改善を促す', icon: '✨' },
       { name: '記録と振り返り', description: '対話を記録し後から振り返る機会を提供', icon: '📝' }
     ]
+  },
+  {
+    id: 'ai',
+    name: 'AI時代のセキュリティ',
+    description: 'AI特有の脅威に対する防御層',
+    items: [
+      { name: 'プロンプトインジェクション対策', description: 'LLMへの悪意ある指示を検出・ブロック', icon: '🛡️' },
+      { name: 'モデルポイズニング対策', description: '外部APIの信頼性とレスポンスの整合性を検証', icon: '🔍' },
+      { name: 'データポイズニング対策', description: '外部データの信頼性を検証', icon: '✅' },
+      { name: 'メンバーシップ推論攻撃対策', description: '学習データの漏洩を防止', icon: '🔒' },
+      { name: 'モデル反転攻撃対策', description: '機密情報の漏洩を防止', icon: '🛡️' },
+      { name: 'シャドウモデル対策', description: 'モデル出力の異常を検知', icon: '👁️' },
+      { name: 'AIサプライチェーン攻撃対策', description: '外部依存関係の信頼性を検証', icon: '🔗' },
+      { name: 'アライメント破壊対策', description: '安全制約の検証と違反検出', icon: '⚖️' },
+      { name: 'ソーシャルエンジニアリング対策', description: 'AI生成コンテンツの検証', icon: '🎭' },
+      { name: 'AIガバナンス / AIセーフティ', description: '監査と運用フレームワーク', icon: '📊' }
+    ]
   }
 ];
 
@@ -96,7 +113,7 @@ const sceneExplanations: Record<SceneType, { cyber: string[]; human: string[]; r
  * @returns SecurityDashboardコンポーネント
  */
 export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityDashboardProps) {
-  const [activeLayer, setActiveLayer] = useState<'cyber' | 'human' | null>(null);
+  const [activeLayer, setActiveLayer] = useState<'cyber' | 'human' | 'ai' | null>(null);
   const explanation = sceneExplanations[scene];
   
   return (
@@ -196,7 +213,7 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                         ? 'bg-primary/10 border-primary/30'
                         : 'bg-muted/20 border-border/50 hover:bg-muted/30'
                     }`}
-                    onClick={() => setActiveLayer(activeLayer === layer.id ? null : layer.id as 'cyber' | 'human')}
+                    onClick={() => setActiveLayer(activeLayer === layer.id ? null : layer.id as 'cyber' | 'human' | 'ai')}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm font-medium text-foreground">{layer.name}</h4>
