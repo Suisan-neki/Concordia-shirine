@@ -16,7 +16,7 @@ interface SceneIndicatorProps {
 }
 
 // シーンの設定
-const sceneConfigs: Record<SceneType, {
+export const sceneConfigs: Record<SceneType, {
   label: string;
   description: string;
   guidance: string;

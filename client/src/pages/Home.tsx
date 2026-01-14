@@ -13,11 +13,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { WaveCanvas } from '@/components/WaveCanvas';
 import { WaveHintOverlay } from '@/components/WaveHintOverlay';
 import { SecurityBarrier } from '@/components/SecurityBarrier';
-import { SceneIndicator } from '@/components/SceneIndicator';
+import { SceneIndicator, sceneConfigs } from '@/components/SceneIndicator';
 import { ControlPanel } from '@/components/ControlPanel';
 import { ConversationLogPanel } from '@/components/ConversationLogPanel';
 import { TranscriptDisplay } from '@/components/TranscriptDisplay';
@@ -32,6 +32,7 @@ import { ConversationLogManager, type SecurityMetrics, type LogEntry, type Sessi
 import { SpeechRecognitionManager, type SpeechRecognitionResult } from '@/lib/speechRecognition';
 import { useSessionManager } from '@/hooks/useSessionManager';
 import { useInterventionSettings } from '@/hooks/useInterventionSettings';
+import { useIsMobile } from '@/hooks/useMobile';
 import type { SceneType } from '@/lib/waveEngine';
 import type { SessionData } from '@/lib/reportGenerator';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,9 @@ export default function Home() {
   const [, navigate] = useLocation();
   // 認証状態を取得
   const { user, isAuthenticated, logout } = useAuth();
+
+  // モバイル判定
+  const isMobile = useIsMobile();
 
   // セッション管理フック
   const sessionManager = useSessionManager();
@@ -76,6 +80,7 @@ export default function Home() {
   const [isInterventionSettingsOpen, setIsInterventionSettingsOpen] = useState(false);
   const [isReportPanelOpen, setIsReportPanelOpen] = useState(false);
   const [reportSession, setReportSession] = useState<SessionData | null>(null);
+  const [isMobileInfoOpen, setIsMobileInfoOpen] = useState(false);
   const [securityMetrics, setSecurityMetrics] = useState<SecurityMetrics>({
     overallScore: 85,
     barrierStrength: 0.8,
@@ -413,8 +418,89 @@ export default function Home() {
       {/* セキュリティバリア（結界） */}
       <SecurityBarrier metrics={securityMetrics} />
 
-      {/* シーンインジケーター */}
-      <SceneIndicator scene={scene} isRecording={isRecording} />
+      {/* シーンインジケーター（PCのみ表示） */}
+      {!isMobile && (
+        <SceneIndicator scene={scene} isRecording={isRecording} />
+      )}
+
+      {/* スマホ用情報パネル */}
+      {isMobile && (
+        <div className="fixed top-12 left-2 right-2 z-20">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-card/90 backdrop-blur-sm border border-border/50 rounded-lg p-3"
+          >
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <span className={`text-base sm:text-lg ${sceneConfigs[scene].color} shrink-0`}>
+                  {sceneConfigs[scene].icon}
+                </span>
+                <span className={`text-sm sm:text-base font-serif-jp ${sceneConfigs[scene].color} truncate`}>
+                  {scene}
+                </span>
+                {isRecording && (
+                  <motion.div
+                    animate={{ opacity: [1, 0.5, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="flex items-center gap-1 shrink-0"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-shrine-vermilion" />
+                    <span className="text-[9px] sm:text-[10px] text-shrine-vermilion hidden sm:inline">録音中</span>
+                  </motion.div>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
+                  スコア: {securityMetrics.overallScore}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsMobileInfoOpen(!isMobileInfoOpen)}
+                  className="h-6 w-6 p-0 shrink-0"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    {isMobileInfoOpen ? (
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    ) : (
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    )}
+                  </svg>
+                </Button>
+              </div>
+            </div>
+            {/* シーンの説明文（常に表示） */}
+            <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+              {sceneConfigs[scene].description}
+            </p>
+            <AnimatePresence>
+              {isMobileInfoOpen && (
+                <motion.div
+                  key="mobile-info-details"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-3 pt-3 border-t border-border/30 space-y-2"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">結界強度</span>
+                    <span>{Math.round(securityMetrics.barrierStrength * 100)}%</span>
+                  </div>
+                  <div className="h-1 bg-muted rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-shrine-jade rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${securityMetrics.barrierStrength * 100}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+      )}
 
       {/* 介入システム */}
       <InterventionSystem
@@ -425,103 +511,109 @@ export default function Home() {
       />
 
       {/* ナビゲーションボタン */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 flex-wrap justify-center">
+      <div className={`fixed ${isMobile ? 'top-10' : 'top-4'} left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center max-w-[calc(100vw-1rem)] sm:max-w-none px-1 sm:px-0`}>
         {isAuthenticated && user?.role === 'admin' && (
           <Button
             variant="outline"
             size="sm"
             onClick={() => navigate('/admin')}
-            className="bg-card/60 backdrop-blur-sm text-xs border-primary/30 hover:border-primary/50"
+            className="bg-card/60 backdrop-blur-sm text-xs border-primary/30 hover:border-primary/50 px-2 sm:px-3"
           >
-            <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 2L2 7l10 5 10-5-10-5z" />
               <path d="M2 17l10 5 10-5" />
               <path d="M2 12l10 5 10-5" />
             </svg>
-            管理者
+            <span className="hidden sm:inline">管理者</span>
           </Button>
         )}
         <Button
           variant="outline"
           size="sm"
           onClick={() => setIsSecurityDashboardOpen(true)}
-          className="bg-card/60 backdrop-blur-sm text-xs"
+          className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
         >
-          <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          セキュリティ
+          <span className="hidden sm:inline">セキュリティ</span>
         </Button>
         {isAuthenticated && (
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsSecurityDetailOpen(true)}
-            className="bg-card/60 backdrop-blur-sm text-xs border-primary/30 hover:border-primary/50"
+            className="bg-card/60 backdrop-blur-sm text-xs border-primary/30 hover:border-primary/50 px-2 sm:px-3"
           >
-            <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               <path d="M9 12l2 2 4-4" />
             </svg>
-            詳細
+            <span className="hidden sm:inline">詳細</span>
           </Button>
         )}
         <Button
           variant="outline"
           size="sm"
           onClick={() => setIsSessionHistoryOpen(true)}
-          className="bg-card/60 backdrop-blur-sm text-xs"
+          className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
         >
-          <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-          履歴
+          <span className="hidden sm:inline">履歴</span>
         </Button>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setIsInterventionSettingsOpen(true)}
-          className="bg-card/60 backdrop-blur-sm text-xs"
+          className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
         >
-          <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
-          介入設定
+          <span className="hidden sm:inline">介入設定</span>
         </Button>
         {reportSession && (
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleOpenReport()}
-            className="bg-card/60 backdrop-blur-sm text-xs"
+            className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
           >
-            <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
               <line x1="16" y1="13" x2="8" y2="13" />
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
-            レポート
+            <span className="hidden sm:inline">レポート</span>
           </Button>
         )}
       </div>
 
       {/* ログイン/ログアウトボタン */}
-      <div className="fixed top-4 right-4 z-20">
+      <div className={`fixed ${isMobile ? 'top-2' : 'top-4'} right-2 sm:right-4 z-30`}>
         {isAuthenticated ? (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground bg-card/60 backdrop-blur-sm px-2 py-1 rounded">
-              {user?.name || 'ユーザー'}
+            <span className="text-xs text-muted-foreground bg-card/60 backdrop-blur-sm px-1.5 sm:px-2 py-1 rounded">
+              <span className="hidden sm:inline">{user?.name || 'ユーザー'}</span>
+              <span className="sm:hidden">{user?.name?.charAt(0) || 'U'}</span>
             </span>
             <Button
               variant="outline"
               size="sm"
               onClick={() => logout()}
-              className="bg-card/60 backdrop-blur-sm text-xs"
+              className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
             >
-              ログアウト
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span className="hidden sm:inline">ログアウト</span>
             </Button>
           </div>
         ) : (
@@ -529,14 +621,14 @@ export default function Home() {
             variant="outline"
             size="sm"
             onClick={() => window.location.href = getLoginUrl()}
-            className="bg-card/60 backdrop-blur-sm text-xs"
+            className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
           >
-            <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
               <polyline points="10 17 15 12 10 7" />
               <line x1="15" y1="12" x2="3" y2="12" />
             </svg>
-            ログイン
+            <span className="hidden sm:inline">ログイン</span>
           </Button>
         )}
       </div>
@@ -546,12 +638,12 @@ export default function Home() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 text-center z-10"
+        className={`absolute ${isMobile ? 'top-32' : 'top-1/4'} left-1/2 -translate-x-1/2 text-center z-10 px-4 w-full max-w-2xl`}
       >
-        <h1 className="text-3xl md:text-4xl font-serif-jp text-foreground/90 mb-2 tracking-wider">
+        <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl md:text-4xl'} font-serif-jp text-foreground/90 mb-2 tracking-wider`}>
           Concordia Shrine
         </h1>
-        <p className="text-sm text-muted-foreground font-light">
+        <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground font-light`}>
           空気だけを聴き、判断の自由をそっと守る祠
         </p>
       </motion.div>
@@ -561,13 +653,15 @@ export default function Home() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
-        className="absolute top-1/3 left-1/2 -translate-x-1/2 mt-8 text-center z-10 max-w-lg px-4"
+        className={`absolute ${isMobile ? 'top-44' : 'top-1/3'} left-1/2 -translate-x-1/2 ${isMobile ? 'mt-4' : 'mt-8'} text-center z-10 max-w-lg px-4`}
       >
-        <p className="text-xs text-muted-foreground/70 leading-relaxed">
-          「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」
+        <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground/70 leading-relaxed`}>
+          「ヒューマンセキュリティなくして
+          <br />
+          サイバーセキュリティは実現しない」
         </p>
-        <p className="text-xs text-muted-foreground/50 mt-2">
-          この聖域では、技術が人の心を守ります。
+        <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground/50 mt-2`}>
+          この聖域では技術が人の心を守ります。
           <br />
           結界が展開され、あなたの判断の自由が守られています。
         </p>

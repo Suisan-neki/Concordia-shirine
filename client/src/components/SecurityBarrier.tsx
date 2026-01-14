@@ -8,6 +8,8 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useIsMobile } from '@/hooks/useMobile';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { SecurityMetrics, SecurityIndicator } from '@/lib/conversationLog';
 
 interface SecurityBarrierProps {
@@ -58,6 +60,7 @@ function IndicatorIcon({ type, status }: { type: SecurityIndicator['type']; stat
 }
 
 export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProps) {
+  const isMobile = useIsMobile();
   const [pulseIntensity, setPulseIntensity] = useState(0);
   
   // 結界の脈動
@@ -96,8 +99,9 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
         transition={{ duration: 1.5, ease: 'easeInOut' }}
       />
       
-      {/* セキュリティステータスパネル */}
-      <div className="fixed top-4 right-4 z-20">
+      {/* セキュリティステータスパネル（PCのみ表示、スマホは非表示） */}
+      {!isMobile && (
+      <div className="fixed top-[41px] right-4 z-20">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -105,9 +109,19 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
         >
           {/* ヘッダー */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-muted-foreground font-serif-jp">
-              聖域の守護
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-xs font-medium text-muted-foreground font-serif-jp cursor-help underline decoration-dotted underline-offset-2">
+                  聖域の守護
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs bg-card border border-border">
+                <p className="text-sm font-medium mb-1 text-foreground">聖域の守護</p>
+                <p className="text-xs text-muted-foreground">
+                  このアプリケーションが提供するセキュリティ機能の総合的な状態を表します。認証・暗号化・プライバシー保護・同意保護の4つの要素から構成されています。
+                </p>
+              </TooltipContent>
+            </Tooltip>
             <div className={`shrine-status-dot ${metrics.protectionStatus === 'warning' ? 'warning' : metrics.protectionStatus === 'active' ? 'active' : ''}`} />
           </div>
           
@@ -122,7 +136,17 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
           {/* 結界強度バー */}
           <div className="mb-3">
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>結界強度</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help underline decoration-dotted underline-offset-2">結界強度</span>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs bg-card border border-border">
+                  <p className="text-sm font-medium mb-1 text-foreground">結界強度</p>
+                  <p className="text-xs text-muted-foreground">
+                    現在のセキュリティ保護の強度を表します。値が高いほど対話の安全性が高く、参加者の判断の自由が守られています。
+                  </p>
+                </TooltipContent>
+              </Tooltip>
               <span>{Math.round(metrics.barrierStrength * 100)}%</span>
             </div>
             <div className="h-1 bg-muted rounded-full overflow-hidden">
@@ -138,7 +162,17 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
           {/* 脅威レベルバー */}
           <div className="mb-4">
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>脅威検知</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help underline decoration-dotted underline-offset-2">脅威検知</span>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs bg-card border border-border">
+                  <p className="text-sm font-medium mb-1 text-foreground">脅威検知</p>
+                  <p className="text-xs text-muted-foreground">
+                    対話における同調圧力や一方的な発言など、参加者の判断の自由を脅かす可能性のある要素を検知したレベルを表します。値が高いほど注意が必要です。
+                  </p>
+                </TooltipContent>
+              </Tooltip>
               <span>{Math.round(metrics.threatLevel * 100)}%</span>
             </div>
             <div className="h-1 bg-muted rounded-full overflow-hidden">
@@ -177,6 +211,7 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
           </div>
         </motion.div>
       </div>
+      )}
       
       {/* 警告メッセージ */}
       <AnimatePresence>
