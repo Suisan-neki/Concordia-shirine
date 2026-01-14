@@ -306,7 +306,7 @@ export class SessionEntity {
       insights.push('一方的な発言が多く見られました。対話のバランスを意識してみてください。');
     }
     if ((eventCounts['SilenceLong'] || 0) > 2) {
-      insights.push('長い沈黙が複数回ありました。沈黙は自然です。焦らず、場の空気を整えてみてください。');
+      insights.push('長い沈黙が複数回ありました。沈黙は自然な余白です。急がず、場をあたためる時間として活かせます。');
     }
     if ((eventCounts['StableCalm'] || 0) > 3) {
       insights.push('安定した対話が続きました。良いコミュニケーションが取れています。');
@@ -421,9 +421,12 @@ export class ConversationLogManager {
       if (scene === '調和') {
         updates.threatLevel = Math.max(0, currentThreat - 0.05);
         updates.barrierStrength = Math.min(1, currentBarrier + 0.02);
-      } else if (scene === '一方的' || scene === '沈黙') {
+      } else if (scene === '一方的') {
         updates.threatLevel = Math.min(1, currentThreat + 0.03);
         updates.barrierStrength = Math.max(0, currentBarrier - 0.01);
+      } else if (scene === '沈黙') {
+        updates.threatLevel = Math.max(0, currentThreat - 0.01);
+        updates.barrierStrength = Math.min(1, currentBarrier + 0.01);
       }
     }
 

@@ -141,7 +141,10 @@ export default function About() {
                 </p>
                 <p className="text-muted-foreground leading-relaxed mb-4">
                   会議で、誰かの意見に押されて本当は違うと思っていることに賛成してしまったことはありませんか？
-                  沈黙が続いて、言いたいことを飲み込んでしまったことは？
+                  沈黙が続き、言葉を探しているのに声にできなかったことは？
+                </p>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  沈黙そのものは自然な余白です。ただ、その余白の中で言いづらさが続くこともあります。
                 </p>
                 <p className="text-muted-foreground leading-relaxed mb-4">
                   これらは、サイバー攻撃ではありません。
@@ -158,7 +161,7 @@ export default function About() {
                   </p>
                   <ul className="text-xs text-muted-foreground space-y-1">
                     <li>• 一方的な発言が続くと、波は赤く、荒々しくなります</li>
-                    <li>• 沈黙が続くと、波は柔らかく整い、余白を示します</li>
+                    <li>• 沈黙が続くと、波は柔らかく整い、余白をやさしくあたためます</li>
                     <li>• 調和が取れていると、波は穏やかに、美しく流れます</li>
                   </ul>
                 </div>
@@ -280,6 +283,7 @@ export default function About() {
                     </p>
                   </CardContent>
                 </Card>
+
               </div>
 
               <div className="space-y-6">

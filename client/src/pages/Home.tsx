@@ -341,7 +341,7 @@ export default function Home() {
       '静寂': { barrierStrength: 0.8, threatLevel: 0.1, protectionStatus: 'active' },
       '調和': { barrierStrength: 0.9, threatLevel: 0.05, protectionStatus: 'active' },
       '一方的': { barrierStrength: 0.5, threatLevel: 0.6, protectionStatus: 'warning' },
-      '沈黙': { barrierStrength: 0.6, threatLevel: 0.4, protectionStatus: 'warning' }
+      '沈黙': { barrierStrength: 0.75, threatLevel: 0.2, protectionStatus: 'active' }
     };
 
     const newMetrics = metricsMap[newScene];
@@ -353,11 +353,11 @@ export default function Home() {
         if (ind.type === 'consent') {
           return {
             ...ind,
-            status: newScene === '一方的' || newScene === '沈黙' ? 'warning' : 'active',
+            status: newScene === '一方的' ? 'warning' : 'active',
             description: newScene === '一方的'
               ? '同調圧力が検出されています'
               : newScene === '沈黙'
-                ? '静かな間の継続を検出'
+                ? '静かな余白を見守っています'
                 : '判断の自由を守っています'
           };
         }

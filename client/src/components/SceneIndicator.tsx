@@ -35,7 +35,7 @@ export const sceneConfigs: Record<SceneType, {
   '調和': {
     label: '調和',
     description: '声の出入りが穏やかでバランスの良い対話が続いています',
-    guidance: 'この状態を保ちましょう。全員が発言しやすい雰囲気です',
+    guidance: 'この状態を保ちましょう。\n全員が発言しやすい雰囲気です',
     color: 'text-shrine-jade',
     bgColor: 'bg-shrine-jade/10',
     icon: '◎'
@@ -43,15 +43,15 @@ export const sceneConfigs: Record<SceneType, {
   '一方的': {
     label: '一方的',
     description: 'ひとつの方向からの声が長く続いています',
-    guidance: '他の参加者にも発言の機会を設けてみましょう',
+    guidance: '他の参加者にも\n発言の機会を設けてみましょう',
     color: 'text-shrine-vermilion',
     bgColor: 'bg-shrine-vermilion/10',
     icon: '▶'
   },
   '沈黙': {
     label: '沈黙',
-    description: '静かな間が少し続いています',
-    guidance: '沈黙は自然です。焦らず、場の空気をゆるやかに整えてみてください',
+    description: '静かな余白がゆっくり流れています',
+    guidance: '沈黙は自然な余白です。\n急がなくて大丈夫。\n場の空気をゆるやかにあたためていきましょう。',
     color: 'text-shrine-wave-light',
     bgColor: 'bg-shrine-wave-light/10',
     icon: '◇'
@@ -66,7 +66,7 @@ export function SceneIndicator({ scene, isRecording, className = '' }: SceneIndi
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        className={`${config.bgColor} backdrop-blur-sm border border-border/50 rounded-lg p-4 min-w-[240px]`}
+        className={`${config.bgColor} backdrop-blur-sm border border-border/50 rounded-lg p-4 w-64 max-w-[80vw]`}
       >
         {/* ヘッダー */}
         <div className="flex items-center justify-between mb-2">
@@ -111,7 +111,7 @@ export function SceneIndicator({ scene, isRecording, className = '' }: SceneIndi
             <p className="text-sm text-muted-foreground leading-relaxed">
               {config.description}
             </p>
-            <p className="text-xs text-foreground mt-2 font-medium">
+            <p className="text-xs text-foreground mt-2 font-medium whitespace-pre-line">
               {config.guidance}
             </p>
           </motion.div>

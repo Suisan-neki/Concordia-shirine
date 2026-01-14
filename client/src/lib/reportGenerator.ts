@@ -39,7 +39,7 @@ function getSceneDescription(scene: string): string {
     '静寂': '穏やかで落ち着いた状態。参加者が思考を整理している時間です。',
     '調和': '参加者間で活発かつバランスの取れた対話が行われている理想的な状態です。',
     '一方的': '特定の参加者の発言が支配的な状態。他の参加者の発言機会が制限されている可能性があります。',
-    '沈黙': '発言の間が生まれている状態。考える時間や整理の時間になっている可能性があります。',
+    '沈黙': '発言の間が生まれている状態。考えを整える余白になっている可能性があります。',
   };
   return descriptions[scene] || '不明な状態';
 }
@@ -88,7 +88,7 @@ function analyzeSecurityFactors(
     factors.push('一方的な発言が多く見られました');
   }
   if (silenceRatio > 0.2) {
-    factors.push('沈黙の時間が長めでした。焦らず場の空気を整えると話しやすさが増します');
+    factors.push('沈黙の時間が長めでした。余白をあたためる工夫があると話しやすさが増します');
   }
   if (score >= 80) {
     factors.push('参加者の判断の自由が守られていました');
@@ -124,7 +124,7 @@ function generateRecommendations(
   }
   
   if (silenceRatio > 0.2) {
-    recommendations.push('沈黙が続くことも自然です。必要ならアイスブレイクや雑談で入り口を作ってみてください');
+    recommendations.push('沈黙は自然な余白です。必要ならアイスブレイクや雑談で入り口を作ってみてください');
     recommendations.push('「正解はない」「どんな意見も歓迎」というメッセージを共有すると安心して話しやすくなります');
   }
   
@@ -169,7 +169,7 @@ function generateOverallAssessment(
   } else if (score >= 60) {
     return `${durationMinutes}分間のセッションにおいて、対話の質は「${level}」でした。概ね良好な対話が行われましたが、一部で発言の偏りや静かな間が見られました。調和の取れた対話は全体の${Math.round(harmonyRatio * 100)}%でした。`;
   } else {
-    return `${durationMinutes}分間のセッションにおいて、対話の質は「${level}」でした。発言の偏りや静かな間が多く見られました。沈黙は自然ですが、必要なら介入機能を活用して早めに気づけるようにしましょう。`;
+    return `${durationMinutes}分間のセッションにおいて、対話の質は「${level}」でした。発言の偏りや静かな間が多く見られました。沈黙は自然な余白ですが、必要なら介入機能で場の変化に気づけるようにしましょう。`;
   }
 }
 
