@@ -6,6 +6,7 @@
 
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { SceneType } from '@/lib/waveEngine';
 
 interface ControlPanelProps {
@@ -16,6 +17,9 @@ interface ControlPanelProps {
   onStopRecording: () => void;
   onToggleDemoMode: () => void;
   onDemoSceneChange: (scene: SceneType) => void;
+  audioInputDevices?: MediaDeviceInfo[];
+  selectedAudioDeviceId?: string;
+  onSelectAudioDevice?: (deviceId: string) => void;
   className?: string;
 }
 
@@ -27,6 +31,9 @@ export function ControlPanel({
   onStopRecording,
   onToggleDemoMode,
   onDemoSceneChange,
+  audioInputDevices = [],
+  selectedAudioDeviceId,
+  onSelectAudioDevice,
   className = ''
 }: ControlPanelProps) {
   const scenes: SceneType[] = ['静寂', '調和', '一方的', '沈黙'];
@@ -78,7 +85,32 @@ export function ControlPanel({
             </Button>
           </div>
         </div>
-        
+
+        {/* マイク入力選択 */}
+        {audioInputDevices.length > 0 && onSelectAudioDevice && (
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <div className="text-xs text-muted-foreground mb-2 text-center">
+              マイク入力
+            </div>
+            <Select
+              value={selectedAudioDeviceId || undefined}
+              onValueChange={onSelectAudioDevice}
+              disabled={isRecording}
+            >
+              <SelectTrigger size="sm" className="w-full">
+                <SelectValue placeholder="マイクを選択" />
+              </SelectTrigger>
+              <SelectContent>
+                {audioInputDevices.map((device, index) => (
+                  <SelectItem key={device.deviceId} value={device.deviceId}>
+                    {device.label || `マイク ${index + 1}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* デモモード時のシーン選択 */}
         {isDemoMode && (
           <motion.div
