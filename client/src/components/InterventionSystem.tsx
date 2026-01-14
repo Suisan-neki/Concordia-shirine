@@ -38,7 +38,7 @@ const INTERVENTION_MESSAGES: Record<string, { title: string; message: string; ic
   },
   silence: {
     title: '静かな余白',
-    message: '少し静かな間が続いています。沈黙は自然で、祠はその余白を受け止めています。焦らず、場の空気をゆるやかに整えてみてください',
+    message: '少し静かな間が続いています。沈黙は自然な余白で、祠はその余白をあたためています。急がなくて大丈夫。必要なら、ひと呼吸おいて場の空気を整えてみてください',
     icon: '✨',
   },
   prolonged_tension: {

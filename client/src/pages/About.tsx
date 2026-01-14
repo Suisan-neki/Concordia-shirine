@@ -141,7 +141,10 @@ export default function About() {
                 </p>
                 <p className="text-muted-foreground leading-relaxed mb-4">
                   会議で、誰かの意見に押されて本当は違うと思っていることに賛成してしまったことはありませんか？
-                  沈黙が続いて、言いたいことを飲み込んでしまったことは？
+                  沈黙が続き、言葉を探しているのに声にできなかったことは？
+                </p>
+                <p className="text-muted-foreground leading-relaxed mb-4">
+                  沈黙そのものは自然な余白です。ただ、その余白の中で言いづらさが続くこともあります。
                 </p>
                 <p className="text-muted-foreground leading-relaxed mb-4">
                   これらは、サイバー攻撃ではありません。
@@ -158,7 +161,7 @@ export default function About() {
                   </p>
                   <ul className="text-xs text-muted-foreground space-y-1">
                     <li>• 一方的な発言が続くと、波は赤く、荒々しくなります</li>
-                    <li>• 沈黙が続くと、波は柔らかく整い、余白を示します</li>
+                    <li>• 沈黙が続くと、波は柔らかく整い、余白をやさしくあたためます</li>
                     <li>• 調和が取れていると、波は穏やかに、美しく流れます</li>
                   </ul>
                 </div>
@@ -277,6 +280,28 @@ export default function About() {
                     <p className="text-sm text-muted-foreground">
                       リアルタイムの音声波形分析(Web Audio API)と、LLMによる文脈分析を融合。
                       「空気」という抽象的な概念を、数学的なモデルを通じて可視化しています。
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="md:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="font-serif-jp text-lg">波の生成システム</CardTitle>
+                    <CardDescription>Perlin Noise + Sine + Breath</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      波はシーンごとのパラメータ（振幅・周波数・速度・乱流・色）を基に、複数の要素を合成して描画しています。
+                    </p>
+                    <ol className="text-sm text-muted-foreground list-decimal pl-4 space-y-1">
+                      <li>複数の正弦波を合成して基調のうねりを作る</li>
+                      <li>Perlin Noiseで有機的な揺らぎを加える</li>
+                      <li>8秒周期の呼吸リズムで全体の脈動を整える</li>
+                      <li>音声エネルギーを滑らかに反映してリアルタイムに反応</li>
+                      <li>シーンの切り替えは約2秒で色と動きを滑らかに遷移</li>
+                    </ol>
+                    <p className="text-xs text-muted-foreground">
+                      数学的にはシンプルでも、視覚的には「空気感」を感じられるように設計しています。
                     </p>
                   </CardContent>
                 </Card>

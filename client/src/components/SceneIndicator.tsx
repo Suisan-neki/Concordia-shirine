@@ -50,8 +50,8 @@ const sceneConfigs: Record<SceneType, {
   },
   '沈黙': {
     label: '沈黙',
-    description: '静かな間が少し続いています',
-    guidance: '沈黙は自然です。焦らず、場の空気をゆるやかに整えてみてください',
+    description: '静かな余白がゆっくり流れています',
+    guidance: '沈黙は自然な余白です。急がなくて大丈夫。場の空気をゆるやかにあたためていきましょう',
     color: 'text-shrine-wave-light',
     bgColor: 'bg-shrine-wave-light/10',
     icon: '◇'
