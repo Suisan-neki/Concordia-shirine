@@ -79,6 +79,16 @@ export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
                 <p className="text-sm text-foreground leading-relaxed">
                   この画面の波は、会話の状態を視覚化しています。対話のバランス（調和、一方的、沈黙、静寂）が波の色や動きとして表示されます。
                 </p>
+
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                  <div className="text-xs font-medium text-foreground mb-2">波の仕組み</div>
+                  <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                    <li>複数の正弦波で骨格を作り</li>
+                    <li>Perlin Noiseで有機的な揺らぎを加え</li>
+                    <li>呼吸リズム（8秒周期）と音声エネルギーで動きを調整</li>
+                    <li>シーンごとの色と速度に滑らかに遷移</li>
+                  </ul>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <div className="p-3 bg-shrine-jade/10 rounded-lg border border-shrine-jade/20">
@@ -93,8 +103,8 @@ export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
                   </div>
                   <div className="p-3 bg-shrine-wave-light/10 rounded-lg border border-shrine-wave-light/20">
                     <div className="text-xs font-medium text-shrine-wave-light mb-1">沈黙</div>
-                    <p className="text-xs text-muted-foreground mb-2">静かな間が続いています</p>
-                    <p className="text-[10px] text-foreground font-medium">沈黙は自然です。焦らず、場の空気をゆるやかに整えましょう</p>
+                    <p className="text-xs text-muted-foreground mb-2">静かな余白が続いています</p>
+                    <p className="text-[10px] text-foreground font-medium">沈黙は自然な余白です。急がなくて大丈夫。場の空気をあたためていきましょう</p>
                   </div>
                   <div className="p-3 bg-shrine-wave/10 rounded-lg border border-shrine-wave/20">
                     <div className="text-xs font-medium text-foreground mb-1">静寂</div>
