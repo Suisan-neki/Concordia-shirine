@@ -27,8 +27,10 @@ export interface AudioAnalyzerConfig {
   overlapSwitchThreshold: number; // 切り替え回数の閾値
   stableMinDurationSec: number;   // 安定状態の最小持続時間（秒）
   stableSpeakerSwitchMin: number; // 安定状態で必要な話者切替数
+  monologueGapToleranceSec: number; // 一人語りの短い間を許容する秒数
   cooldownSec: number;         // イベント間のクールダウン（秒）
   vadThreshold: number;        // VAD閾値
+  speakerSwitchMinIntervalSec: number; // 話者切替の最小間隔（秒）
 }
 
 const DEFAULT_CONFIG: AudioAnalyzerConfig = {
@@ -39,7 +41,9 @@ const DEFAULT_CONFIG: AudioAnalyzerConfig = {
   stableMinDurationSec: 15.0,
   cooldownSec: 10.0,
   vadThreshold: 0.005,
-  stableSpeakerSwitchMin: 2
+  stableSpeakerSwitchMin: 2,
+  monologueGapToleranceSec: 2.5,
+  speakerSwitchMinIntervalSec: 1.2
 };
 
 /**
@@ -55,9 +59,11 @@ export class EventDetector {
   private windowBuffer: Array<{ timestamp: number; isSpeech: boolean }> = [];
   private speakerSwitchBuffer: number[] = [];
   private speakerSwitchTotal: number = 0;
+  private lastSpeakerSwitchTime: number = 0;
   private lastLabel: boolean | null = null;
   private lastEventTime: number = 0;
   private lastProcessTime: number = 0;
+  private lastSpeechTime: number = 0;
   private frameDuration: number = 0.02; // 20ms
   
   constructor(config: Partial<AudioAnalyzerConfig> = {}) {
@@ -87,6 +93,7 @@ export class EventDetector {
     if (isSpeech) {
       this.speechRunLength += this.frameDuration;
       this.silenceRunLength = 0;
+      this.lastSpeechTime = now;
     } else {
       this.silenceRunLength += this.frameDuration;
       this.speechRunLength = 0;
@@ -161,8 +168,12 @@ export class EventDetector {
   }
 
   markSpeakerChange(now: number): void {
+    if (now - this.lastSpeakerSwitchTime < this.config.speakerSwitchMinIntervalSec) {
+      return;
+    }
     this.speakerSwitchBuffer.push(now);
     this.speakerSwitchTotal += 1;
+    this.lastSpeakerSwitchTime = now;
     this.pruneSpeakerSwitchBuffer(now);
   }
   
@@ -182,10 +193,15 @@ export class EventDetector {
   getScene(): SceneType {
     const speakerSwitchCount = this.calculateSpeakerSwitchCount();
     const speechRatio = this.calculateSpeechRatio();
+    const timeSinceSpeech = this.lastProcessTime - this.lastSpeechTime;
     
     if (this.silenceRunLength > 8) {
       return '沈黙';
-    } else if (this.speechRunLength > 8 || (speechRatio > 0.65 && speakerSwitchCount <= 1)) {
+    } else if (
+      this.speechRunLength > 8 ||
+      ((speechRatio > 0.55 && speakerSwitchCount <= 1) &&
+        timeSinceSpeech <= this.config.monologueGapToleranceSec)
+    ) {
       return '一方的';
     } else if (speakerSwitchCount >= 2) {
       return '調和';
@@ -232,9 +248,11 @@ export class EventDetector {
     this.windowBuffer = [];
     this.speakerSwitchBuffer = [];
     this.speakerSwitchTotal = 0;
+    this.lastSpeakerSwitchTime = 0;
     this.lastLabel = null;
     this.lastEventTime = 0;
     this.lastProcessTime = 0;
+    this.lastSpeechTime = 0;
   }
 }
 
@@ -264,7 +282,7 @@ export class AudioAnalyzer {
   private pitchFrameSkip: number = 2;
   private lastPitchHz: number | null = null;
   private lastPitchTime: number = 0;
-  private pitchChangeThreshold: number = 0.18;
+  private pitchChangeThreshold: number = 0.28;
   
   // コールバック
   private onEnergyUpdate?: (energy: number) => void;
