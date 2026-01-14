@@ -6,13 +6,14 @@ import { Construct } from "constructs";
 
 export interface StorageStackProps extends cdk.StackProps {
     environment: string;
+    useExistingTables?: boolean;
 }
 
 export class StorageStack extends cdk.Stack {
     public readonly inputBucket: s3.Bucket;
     public readonly outputBucket: s3.Bucket;
     public readonly interviewsTable: dynamodb.Table;
-    public readonly usersTable: dynamodb.Table;
+    public readonly usersTable: dynamodb.ITable;
     public readonly securityAuditLogsTable: dynamodb.Table;
     public readonly sessionsTable: dynamodb.Table;
     public readonly sessionLogsTable: dynamodb.Table;
@@ -21,7 +22,7 @@ export class StorageStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props: StorageStackProps) {
         super(scope, id, props);
 
-        const { environment } = props;
+        const { environment, useExistingTables } = props;
 
         // 動画アップロード用の入力バケット
         this.inputBucket = new s3.Bucket(this, "InputBucket", {
@@ -124,29 +125,39 @@ export class StorageStack extends cdk.Stack {
         });
 
         // ユーザー管理用の DynamoDB テーブル
-        this.usersTable = new dynamodb.Table(this, "UsersTable", {
-            tableName: `concordia-users-${environment}`,
-            partitionKey: {
-                name: "openId",
-                type: dynamodb.AttributeType.STRING,
-            },
-            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-            removalPolicy:
-                environment === "prod"
-                    ? cdk.RemovalPolicy.RETAIN
-                    : cdk.RemovalPolicy.DESTROY,
-            pointInTimeRecovery: environment === "prod",
-        });
+        if (useExistingTables) {
+            this.usersTable = dynamodb.Table.fromTableName(
+                this,
+                "UsersTable",
+                `concordia-users-${environment}`
+            );
+        } else {
+            const usersTable = new dynamodb.Table(this, "UsersTable", {
+                tableName: `concordia-users-${environment}`,
+                partitionKey: {
+                    name: "openId",
+                    type: dynamodb.AttributeType.STRING,
+                },
+                billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+                removalPolicy:
+                    environment === "prod"
+                        ? cdk.RemovalPolicy.RETAIN
+                        : cdk.RemovalPolicy.DESTROY,
+                pointInTimeRecovery: environment === "prod",
+            });
 
-        // ユーザーIDによる検索用のGSI
-        this.usersTable.addGlobalSecondaryIndex({
-            indexName: "id-index",
-            partitionKey: {
-                name: "id",
-                type: dynamodb.AttributeType.NUMBER,
-            },
-            projectionType: dynamodb.ProjectionType.ALL,
-        });
+            // ユーザーIDによる検索用のGSI
+            usersTable.addGlobalSecondaryIndex({
+                indexName: "id-index",
+                partitionKey: {
+                    name: "id",
+                    type: dynamodb.AttributeType.NUMBER,
+                },
+                projectionType: dynamodb.ProjectionType.ALL,
+            });
+
+            this.usersTable = usersTable;
+        }
 
         // セキュリティ監査ログ用の DynamoDB テーブル
         // Table name: concordia-securityAuditLogs-{environment}

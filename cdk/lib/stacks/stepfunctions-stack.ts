@@ -6,6 +6,8 @@ import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as s3n from "aws-cdk-lib/aws-s3-notifications";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as events from "aws-cdk-lib/aws-events";
+import * as targets from "aws-cdk-lib/aws-events-targets";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as path from "path";
@@ -13,9 +15,8 @@ import { Construct } from "constructs";
 
 export interface StepFunctionsStackProps extends cdk.StackProps {
     environment: string;
-    inputBucket: s3.Bucket;
-    outputBucket: s3.IBucket;
-    interviewsTable: dynamodb.ITable;
+    inputBucketName: string;
+    interviewsTableName: string;
     extractAudioFn: lambda.IFunction;
     chunkAudioFn: lambda.IFunction;
     diarizeFn: lambda.IFunction;
@@ -34,9 +35,8 @@ export class StepFunctionsStack extends cdk.Stack {
 
         const {
             environment,
-            inputBucket,
-            outputBucket,
-            interviewsTable,
+            inputBucketName,
+            interviewsTableName,
             extractAudioFn,
             chunkAudioFn,
             diarizeFn,
@@ -46,6 +46,13 @@ export class StepFunctionsStack extends cdk.Stack {
             aggregateResultsFn,
             llmAnalysisFn,
         } = props;
+
+        const inputBucket = s3.Bucket.fromBucketName(this, "InputBucket", inputBucketName);
+        const interviewsTable = dynamodb.Table.fromTableName(
+            this,
+            "InterviewsTable",
+            interviewsTableName
+        );
 
         // ステートマシンのロググループ
         const logGroup = new logs.LogGroup(this, "StateMachineLogGroup", {

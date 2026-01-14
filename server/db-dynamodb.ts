@@ -379,6 +379,12 @@ export async function getUserById(userId: number): Promise<User | undefined> {
       lastSignedIn: item.lastSignedIn ? new Date(item.lastSignedIn as string | number) : new Date(),
     } as User;
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("id-index") || message.includes("specified index")) {
+      const allUsers = await getAllUsers(true);
+      return allUsers.find(user => user.id === userId);
+    }
+
     console.error("[DynamoDB] Failed to get user by id:", error);
     return undefined;
   }
