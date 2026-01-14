@@ -220,6 +220,8 @@ export class AudioAnalyzer {
   private rmsSmooth: number = 0;
   private isSpeech: boolean = false;
   private noiseFloor: number = 0;
+  private lastSpeechTime: number = 0;
+  private speechHoldSec: number = 0.4;
   
   // コールバック
   private onEnergyUpdate?: (energy: number) => void;
@@ -332,6 +334,7 @@ export class AudioAnalyzer {
     this.isSpeech = false;
     this.rmsSmooth = 0;
     this.noiseFloor = 0;
+    this.lastSpeechTime = 0;
     
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach(track => track.stop());
@@ -363,7 +366,7 @@ export class AudioAnalyzer {
     
     // VAD（音声活動検出）
     const threshold = this.getAdaptiveThreshold();
-    const newIsSpeech = this.detectSpeech(rms, threshold);
+    const newIsSpeech = this.detectSpeech(rms, threshold, now);
     this.updateNoiseFloor(rms, newIsSpeech);
     
     if (newIsSpeech !== this.isSpeech) {
@@ -401,11 +404,23 @@ export class AudioAnalyzer {
   /**
    * 音声活動を検出
    */
-  private detectSpeech(rms: number, threshold: number): boolean {
+  private detectSpeech(rms: number, threshold: number, now: number): boolean {
     const rise = 1.2;
     const target = rms / Math.max(threshold, 0.001);
     this.rmsSmooth = this.rmsSmooth * (1 - rise * 0.05) + Math.min(target, 3) * (rise * 0.05);
-    return this.rmsSmooth > 1.0;
+
+    const startThreshold = 1.05;
+    const endThreshold = 0.85;
+    const isAbove = this.isSpeech
+      ? this.rmsSmooth > endThreshold
+      : this.rmsSmooth > startThreshold;
+
+    if (isAbove) {
+      this.lastSpeechTime = now;
+      return true;
+    }
+
+    return now - this.lastSpeechTime <= this.speechHoldSec;
   }
 
   private getAdaptiveThreshold(): number {
