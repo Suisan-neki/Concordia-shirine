@@ -317,6 +317,9 @@ export class AudioAnalyzer {
    */
   stop(): void {
     this.isRunning = false;
+    this.isSpeech = false;
+    this.rmsSmooth = 0;
+    this.noiseFloor = 0;
     
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach(track => track.stop());
