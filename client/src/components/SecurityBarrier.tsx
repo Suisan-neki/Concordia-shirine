@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useIsMobile } from '@/hooks/useMobile';
 import type { SecurityMetrics, SecurityIndicator } from '@/lib/conversationLog';
 
 interface SecurityBarrierProps {
@@ -58,6 +59,7 @@ function IndicatorIcon({ type, status }: { type: SecurityIndicator['type']; stat
 }
 
 export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProps) {
+  const isMobile = useIsMobile();
   const [pulseIntensity, setPulseIntensity] = useState(0);
   
   // 結界の脈動
@@ -96,7 +98,8 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
         transition={{ duration: 1.5, ease: 'easeInOut' }}
       />
       
-      {/* セキュリティステータスパネル */}
+      {/* セキュリティステータスパネル（PCのみ表示、スマホは非表示） */}
+      {!isMobile && (
       <div className="fixed top-4 right-4 z-20">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
@@ -177,6 +180,7 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
           </div>
         </motion.div>
       </div>
+      )}
       
       {/* 警告メッセージ */}
       <AnimatePresence>
