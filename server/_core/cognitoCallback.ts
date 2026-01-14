@@ -14,6 +14,7 @@ import { ENV } from "./env";
 import { sdk } from "./sdk";
 import { parse as parseCookieHeader } from "cookie";
 import { timingSafeEqual } from "crypto";
+import { securityService } from "../security";
 
 const NONCE_COOKIE_NAME = "cognito_auth_nonce";
 
@@ -213,6 +214,17 @@ export async function handleCognitoCallback(req: Request, res: Response): Promis
       name: sessionName,
       expiresInMs: ONE_YEAR_MS,
     });
+
+    // セッションハイジャック対策: セッション固定攻撃を検出
+    const sessionValidation = await securityService.detectSessionFixation(
+      sessionToken,
+      user.id
+    );
+    if (!sessionValidation.safe) {
+      console.warn("[Cognito] Session fixation detected:", sessionValidation.threats);
+      // セッション固定攻撃が検出された場合でも、セッションは作成する（警告のみ）
+      // 本番環境では、より厳格な対策（セッションIDの再生成など）を検討
+    }
 
     // Cookieにセッショントークンを設定
     const cookieOptions = getSessionCookieOptions(req);

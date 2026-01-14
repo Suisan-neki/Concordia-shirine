@@ -2311,6 +2311,231 @@ export class SecurityService {
   }
   
   /**
+   * セッションハイジャック対策: セッション固定攻撃を検出
+   * 
+   * セッション固定攻撃（Session Fixation）を検出します。
+   * セッションIDが予測可能な場合や、異常なパターンが検出された場合に警告を発します。
+   * 
+   * @param sessionId - 検証するセッションID
+   * @param userId - ユーザーID（オプション）
+   * @returns セッションが安全かどうか、検出された脅威のリスト
+   */
+  async detectSessionFixation(
+    sessionId: string,
+    userId?: number
+  ): Promise<{ safe: boolean; threats: string[] }> {
+    const threats: string[] = [];
+    
+    // セッションIDの長さと複雑さを検証
+    if (sessionId.length < 32) {
+      threats.push('session_id_too_short');
+    }
+    
+    // セッションIDが予測可能なパターン（連続した文字や数字など）を含む場合
+    if (/^(.)\1+$/.test(sessionId) || /^\d+$/.test(sessionId) || /^[a-z]+$/i.test(sessionId)) {
+      threats.push('session_id_predictable');
+    }
+    
+    // セッションIDのエントロピーを計算（簡易版）
+    const uniqueChars = new Set(sessionId).size;
+    const entropy = Math.log2(uniqueChars) * sessionId.length;
+    if (entropy < 100) {
+      threats.push('session_id_low_entropy');
+    }
+    
+    if (threats.length > 0 && userId) {
+      await this.logSecurityEvent({
+        userId,
+        eventType: 'session_fixation_detected',
+        severity: 'warning',
+        description: 'セッション固定攻撃の可能性が検出されました',
+        metadata: { 
+          sessionIdHash: this.hashIdentifier(sessionId),
+          threats,
+        },
+        timestamp: Date.now(),
+      }, true);
+    }
+    
+    return { safe: threats.length === 0, threats };
+  }
+  
+  /**
+   * セッションハイジャック対策: セッションタイムアウトを検証
+   * 
+   * セッションの有効期限を検証し、期限切れのセッションを拒否します。
+   * 
+   * @param sessionTimestamp - セッションが作成されたタイムスタンプ（ミリ秒）
+   * @param maxAgeMs - セッションの最大有効期限（ミリ秒、デフォルト: 24時間）
+   * @returns セッションが有効かどうか
+   */
+  validateSessionTimeout(
+    sessionTimestamp: number,
+    maxAgeMs: number = 24 * 60 * 60 * 1000 // 24時間
+  ): boolean {
+    const now = Date.now();
+    const age = now - sessionTimestamp;
+    return age <= maxAgeMs;
+  }
+  
+  /**
+   * CORSの誤設定対策: CORS設定を検証
+   * 
+   * CORS設定が適切かどうかを検証します。
+   * ワイルドカード（*）の使用や、過度に広いオリジン許可を検出します。
+   * 
+   * @param allowedOrigins - 許可されたオリジンのリスト
+   * @param requestOrigin - リクエストのオリジン
+   * @returns CORS設定が安全かどうか、検出された脅威のリスト
+   */
+  validateCorsConfiguration(
+    allowedOrigins: string[],
+    requestOrigin?: string
+  ): { safe: boolean; threats: string[] } {
+    const threats: string[] = [];
+    
+    // ワイルドカード（*）の使用を検出
+    if (allowedOrigins.includes('*')) {
+      threats.push('cors_wildcard_allowed');
+    }
+    
+    // 過度に広いオリジン許可（例: *.com、*.net）を検出
+    for (const origin of allowedOrigins) {
+      if (origin.startsWith('*.')) {
+        const domain = origin.substring(2);
+        // トップレベルドメインのみの場合は危険
+        if (domain.split('.').length <= 2) {
+          threats.push('cors_overly_permissive');
+        }
+      }
+    }
+    
+    // リクエストオリジンが許可リストに含まれているか確認
+    if (requestOrigin && !allowedOrigins.includes(requestOrigin)) {
+      threats.push('cors_origin_not_allowed');
+    }
+    
+    if (threats.length > 0) {
+      this.logSecurityEvent({
+        eventType: 'cors_misconfiguration_detected',
+        severity: 'warning',
+        description: 'CORS設定の誤設定が検出されました',
+        metadata: { 
+          allowedOrigins: allowedOrigins.length,
+          threats,
+        },
+        timestamp: Date.now(),
+      }, true);
+    }
+    
+    return { safe: threats.length === 0, threats };
+  }
+  
+  /**
+   * ファイルアップロード脆弱性対策: ファイルタイプとサイズを検証
+   * 
+   * アップロードされたファイルのタイプ、サイズ、拡張子を検証します。
+   * 危険なファイルタイプや過度に大きなファイルを拒否します。
+   * 
+   * @param fileName - ファイル名
+   * @param fileSize - ファイルサイズ（バイト）
+   * @param mimeType - MIMEタイプ（オプション）
+   * @param maxSizeBytes - 最大ファイルサイズ（バイト、デフォルト: 10MB）
+   * @returns ファイルが安全かどうか、検出された脅威のリスト
+   */
+  validateFileUpload(
+    fileName: string,
+    fileSize: number,
+    mimeType?: string,
+    maxSizeBytes: number = 10 * 1024 * 1024 // 10MB
+  ): { safe: boolean; threats: string[] } {
+    const threats: string[] = [];
+    
+    // ファイルサイズの検証
+    if (fileSize > maxSizeBytes) {
+      threats.push('file_too_large');
+    }
+    
+    // 危険な拡張子の検証
+    const dangerousExtensions = [
+      '.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.js', '.jar',
+      '.sh', '.ps1', '.php', '.asp', '.aspx', '.jsp', '.py', '.rb', '.pl'
+    ];
+    const fileExtension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+    if (dangerousExtensions.includes(fileExtension)) {
+      threats.push('dangerous_file_extension');
+    }
+    
+    // 危険なMIMEタイプの検証
+    const dangerousMimeTypes = [
+      'application/x-executable',
+      'application/x-msdownload',
+      'application/x-sh',
+      'application/x-msdos-program',
+      'application/javascript',
+      'text/javascript',
+      'application/x-php',
+    ];
+    if (mimeType && dangerousMimeTypes.includes(mimeType.toLowerCase())) {
+      threats.push('dangerous_mime_type');
+    }
+    
+    // ファイル名に危険な文字列が含まれているか検証（ディレクトリトラバーサル対策）
+    if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+      threats.push('path_traversal_in_filename');
+    }
+    
+    // ファイル名が長すぎる場合（DoS攻撃対策）
+    if (fileName.length > 255) {
+      threats.push('filename_too_long');
+    }
+    
+    return { safe: threats.length === 0, threats };
+  }
+  
+  /**
+   * ディレクトリトラバーサル対策: パスを検証
+   * 
+   * パストラバーサル攻撃（Directory Traversal）を防ぐため、パスを検証します。
+   * ../ や ..\\ などの危険なパターンを検出します。
+   * 
+   * @param path - 検証するパス
+   * @param basePath - ベースパス（許可されるディレクトリ）
+   * @returns パスが安全かどうか、正規化されたパス
+   */
+  validatePath(
+    path: string,
+    basePath?: string
+  ): { safe: boolean; normalizedPath: string; threats: string[] } {
+    const threats: string[] = [];
+    let normalizedPath = path;
+    
+    // パストラバーサルパターンの検出
+    if (path.includes('..') || path.includes('../') || path.includes('..\\')) {
+      threats.push('path_traversal_detected');
+    }
+    
+    // 絶対パスの検出（basePathが指定されている場合）
+    if (basePath && (path.startsWith('/') || /^[A-Za-z]:\\/.test(path))) {
+      threats.push('absolute_path_detected');
+    }
+    
+    // パスの正規化（危険な文字を削除）
+    normalizedPath = path
+      .replace(/\.\./g, '') // .. を削除
+      .replace(/[\/\\]+/g, '/') // 連続するスラッシュを1つに
+      .replace(/^\/+/, '') // 先頭のスラッシュを削除
+      .replace(/\/+$/, ''); // 末尾のスラッシュを削除
+    
+    // basePathが指定されている場合、basePath内に収まっているか確認
+    if (basePath && !normalizedPath.startsWith(basePath)) {
+      threats.push('path_outside_base');
+    }
+    
+    return { safe: threats.length === 0, normalizedPath, threats };
+  }
+  
+  /**
    * 手動でログバッファをフラッシュする（テスト用）
    * 
    * テスト時に、バッファに蓄積されたログを強制的にデータベースに書き込むために使用します。
