@@ -2388,10 +2388,10 @@ export class SecurityService {
    * @param requestOrigin - リクエストのオリジン
    * @returns CORS設定が安全かどうか、検出された脅威のリスト
    */
-  validateCorsConfiguration(
+  async validateCorsConfiguration(
     allowedOrigins: string[],
     requestOrigin?: string
-  ): { safe: boolean; threats: string[] } {
+  ): Promise<{ safe: boolean; threats: string[] }> {
     const threats: string[] = [];
     
     // ワイルドカード（*）の使用を検出
@@ -2416,7 +2416,7 @@ export class SecurityService {
     }
     
     if (threats.length > 0) {
-      this.logSecurityEvent({
+      await this.logSecurityEvent({
         eventType: 'cors_misconfiguration_detected',
         severity: 'warning',
         description: 'CORS設定の誤設定が検出されました',
@@ -2461,9 +2461,18 @@ export class SecurityService {
       '.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.js', '.jar',
       '.sh', '.ps1', '.php', '.asp', '.aspx', '.jsp', '.py', '.rb', '.pl'
     ];
-    const fileExtension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
-    if (dangerousExtensions.includes(fileExtension)) {
-      threats.push('dangerous_file_extension');
+    
+    // ファイル名の前後の空白を削除
+    const trimmedFileName = fileName.trim();
+    
+    // 拡張子を抽出（ドットが存在し、末尾でない場合のみ）
+    const idx = trimmedFileName.lastIndexOf('.');
+    if (idx > -1 && idx < trimmedFileName.length - 1) {
+      // ドット以降を拡張子として取得（小文字に変換）
+      const fileExtension = trimmedFileName.slice(idx).toLowerCase();
+      if (dangerousExtensions.includes(fileExtension)) {
+        threats.push('dangerous_file_extension');
+      }
     }
     
     // 危険なMIMEタイプの検証
@@ -2507,6 +2516,7 @@ export class SecurityService {
     path: string,
     basePath?: string
   ): { safe: boolean; normalizedPath: string; threats: string[] } {
+    const pathModule = require('path');
     const threats: string[] = [];
     let normalizedPath = path;
     
@@ -2528,8 +2538,27 @@ export class SecurityService {
       .replace(/\/+$/, ''); // 末尾のスラッシュを削除
     
     // basePathが指定されている場合、basePath内に収まっているか確認
-    if (basePath && !normalizedPath.startsWith(basePath)) {
-      threats.push('path_outside_base');
+    // Node.jsのpath.resolveとpath.relativeを使用して、正しく検証
+    if (basePath) {
+      try {
+        // ベースパスを正規化（先頭のスラッシュを削除）
+        const normalizedBasePath = basePath.replace(/^\/+/, '').replace(/\/+$/, '');
+        
+        // 両方のパスを絶対パスとして解決
+        const resolvedBase = pathModule.resolve('/', normalizedBasePath);
+        const resolvedPath = pathModule.resolve('/', normalizedPath);
+        
+        // 相対パスを計算（basePathからの相対パス）
+        const relativePath = pathModule.relative(resolvedBase, resolvedPath);
+        
+        // 相対パスが'..'で始まる、または絶対パス（異なるドライブなど）の場合はbasePath外
+        if (relativePath.startsWith('..') || pathModule.isAbsolute(relativePath)) {
+          threats.push('path_outside_base');
+        }
+      } catch (error) {
+        // パス解決に失敗した場合は安全側に倒して拒否
+        threats.push('path_resolution_failed');
+      }
     }
     
     return { safe: threats.length === 0, normalizedPath, threats };

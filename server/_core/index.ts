@@ -117,15 +117,20 @@ async function startServer() {
       const allowedOrigins = new Set(ENV.allowedOrigins);
       
       // CORS設定の検証（Webアプリケーションのセキュリティ対策）
+      // 非同期処理のため、警告のみ記録（ブロッキングしない）
       if (ENV.isProduction) {
-        const corsValidation = securityService.validateCorsConfiguration(
+        securityService.validateCorsConfiguration(
           ENV.allowedOrigins,
           origin
-        );
-        if (!corsValidation.safe && corsValidation.threats.includes('cors_wildcard_allowed')) {
-          // ワイルドカードが使用されている場合は警告をログに記録
-          console.warn('[Security] CORS wildcard detected in production');
-        }
+        ).then(corsValidation => {
+          if (!corsValidation.safe && corsValidation.threats.includes('cors_wildcard_allowed')) {
+            // ワイルドカードが使用されている場合は警告をログに記録
+            console.warn('[Security] CORS wildcard detected in production');
+          }
+        }).catch(error => {
+          // エラーが発生した場合はログに記録（処理は継続）
+          console.error('[Security] CORS validation error:', error);
+        });
       }
       
       // 許可リストに含まれているオリジンは許可
