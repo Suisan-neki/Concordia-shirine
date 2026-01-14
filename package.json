@@ -114,7 +114,8 @@
     },
     "overrides": {
       "tailwindcss>nanoid": "3.3.7",
-      "qs": "6.14.1"
+      "qs": "6.14.1",
+      "mdast-util-to-hast": "^13.2.1"
     }
   }
 }

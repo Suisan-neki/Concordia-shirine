@@ -13,6 +13,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { ENV } from "./env";
+import { securityService } from "../security";
 
 /**
  * ローカルホストのホスト名のセット
@@ -114,6 +115,23 @@ async function startServer() {
     try {
       const originUrl = new URL(origin);
       const allowedOrigins = new Set(ENV.allowedOrigins);
+      
+      // CORS設定の検証（Webアプリケーションのセキュリティ対策）
+      // 非同期処理のため、警告のみ記録（ブロッキングしない）
+      if (ENV.isProduction) {
+        securityService.validateCorsConfiguration(
+          ENV.allowedOrigins,
+          origin
+        ).then(corsValidation => {
+          if (!corsValidation.safe && corsValidation.threats.includes('cors_wildcard_allowed')) {
+            // ワイルドカードが使用されている場合は警告をログに記録
+            console.warn('[Security] CORS wildcard detected in production');
+          }
+        }).catch(error => {
+          // エラーが発生した場合はログに記録（処理は継続）
+          console.error('[Security] CORS validation error:', error);
+        });
+      }
       
       // 許可リストに含まれているオリジンは許可
       if (allowedOrigins.has(origin)) {
