@@ -1,4 +1,5 @@
 import { ENV } from "./env";
+import { securityService } from "../security";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -279,9 +280,70 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     response_format,
   } = params;
 
+  // AI時代のセキュリティ対策: プロンプトインジェクション検出とサニタイズ
+  const validatedMessages = await Promise.all(
+    messages.map(async (msg) => {
+      // ユーザーとアシスタントのメッセージのみ検証（システムメッセージは信頼）
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        const content = typeof msg.content === 'string' 
+          ? msg.content 
+          : Array.isArray(msg.content)
+            ? msg.content
+                .filter((c): c is { type: 'text'; text: string } => 
+                  typeof c === 'object' && 'type' in c && c.type === 'text')
+                .map(c => c.text)
+                .join(' ')
+            : '';
+        
+        if (content) {
+          const validation = await securityService.validateLLMInput(content);
+          
+          // 自動ブロックされた場合はエラーを投げる
+          if (validation.blocked) {
+            throw new Error('LLMリクエストがセキュリティ上の理由でブロックされました');
+          }
+          
+          if (!validation.safe) {
+            // 脅威が検出された場合は、サニタイズされたバージョンを使用
+            if (typeof msg.content === 'string') {
+              return { ...msg, content: validation.sanitized };
+            } else if (Array.isArray(msg.content)) {
+              return {
+                ...msg,
+                content: msg.content.map(c => 
+                  typeof c === 'object' && 'type' in c && c.type === 'text'
+                    ? { ...c, text: validation.sanitized }
+                    : c
+                ),
+              };
+            }
+          }
+        }
+      }
+      return msg;
+    })
+  );
+
+  // AIサプライチェーン攻撃対策: 外部APIの検証
+  const apiUrl = resolveApiUrl();
+  const apiKey = ENV.forgeApiKey;
+  const supplyChainValidation = await securityService.validateAISupplyChain(apiUrl, apiKey);
+  if (!supplyChainValidation.safe) {
+    console.warn('[LLM] AIサプライチェーンの検証に問題が検出されました:', supplyChainValidation.issues);
+  }
+
+  // AIガバナンス: LLMリクエストの記録
+  await securityService.recordAIGovernanceEvent({
+    type: 'llm_request',
+    details: {
+      model: 'gemini-2.5-flash',
+      inputLength: JSON.stringify(validatedMessages).length,
+    },
+  });
+
   const payload: Record<string, unknown> = {
     model: "gemini-2.5-flash",
-    messages: messages.map(normalizeMessage),
+    messages: validatedMessages.map(normalizeMessage),
   };
 
   if (tools && tools.length > 0) {
@@ -328,5 +390,101 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     );
   }
 
-  return (await response.json()) as InvokeResult;
+  const result = (await response.json()) as InvokeResult;
+
+  // AI時代のセキュリティ対策: 包括的な出力検証
+  if (result.choices && result.choices.length > 0) {
+    for (const choice of result.choices) {
+      const content = typeof choice.message.content === 'string'
+        ? choice.message.content
+        : Array.isArray(choice.message.content)
+          ? choice.message.content
+              .filter((c): c is { type: 'text'; text: string } => 
+                typeof c === 'object' && 'type' in c && c.type === 'text')
+              .map(c => c.text)
+              .join(' ')
+          : '';
+      
+      if (content) {
+        // 1. モデル反転攻撃対策: 機密情報の検出
+        const sensitivePatterns = [
+          /(api[_-]?key|apikey)\s*[:=]\s*['"]?[a-zA-Z0-9_-]{20,}['"]?/i,
+          /(token|secret|password|passwd|pwd)\s*[:=]\s*['"]?[a-zA-Z0-9_-]{10,}['"]?/i,
+          /(aws[_-]?access[_-]?key|aws[_-]?secret)/i,
+          /(private[_-]?key|ssh[_-]?key)/i,
+          /(bearer|basic)\s+[a-zA-Z0-9_-]{20,}/i,
+        ];
+        
+        const hasSensitiveData = sensitivePatterns.some(pattern => pattern.test(content));
+        if (hasSensitiveData) {
+          await securityService.logSecurityEvent({
+            eventType: 'llm_output_sensitive_data_detected',
+            severity: 'warning',
+            description: 'LLM出力に機密情報の可能性があるデータが検出されました',
+            metadata: { contentLength: content.length },
+            timestamp: Date.now(),
+          }, true);
+        }
+
+        // 2. モデルポイズニング対策: レスポンスの信頼性検証
+        const modelValidation = await securityService.validateModelResponse(
+          { content, model: result.model, choices: result.choices },
+          { minLength: 0, maxLength: 100000, allowedModels: ['gemini-2.5-flash'] }
+        );
+        if (!modelValidation.safe) {
+          console.warn('[LLM] モデルレスポンスの検証に問題が検出されました:', modelValidation.issues);
+        }
+
+        // 3. メンバーシップ推論攻撃対策: 学習データの漏洩検出
+        const membershipCheck = await securityService.detectMembershipInference(content);
+        if (!membershipCheck.safe) {
+          console.warn('[LLM] メンバーシップ推論攻撃の可能性が検出されました');
+        }
+
+        // 4. シャドウモデル対策: 出力の異常検知
+        const expectedFormat = outputSchema || output_schema 
+          ? { type: 'json' as const, schema: outputSchema?.schema || output_schema?.schema }
+          : { type: 'text' as const };
+        const shadowModelCheck = await securityService.detectShadowModel(content, expectedFormat);
+        if (!shadowModelCheck.normal) {
+          console.warn('[LLM] シャドウモデルの可能性が検出されました');
+        }
+
+        // 5. アライメント破壊対策: 安全制約の検証
+        const alignmentCheck = await securityService.validateAlignment(content);
+        if (!alignmentCheck.safe) {
+          console.error('[LLM] アライメント破壊が検出されました:', alignmentCheck.violations);
+        }
+
+        // 6. 生成AIによるソーシャルエンジニアリング対策
+        const socialEngineeringCheck = await securityService.detectSocialEngineering(content, 'text');
+        if (!socialEngineeringCheck.safe) {
+          console.warn('[LLM] ソーシャルエンジニアリングの可能性が検出されました:', socialEngineeringCheck.threats);
+        }
+
+        // 7. ベースライン比較: 正常な出力との統計的比較
+        const baselineCheck = await securityService.compareWithBaseline(
+          content,
+          result.model,
+          undefined, // userIdは後で追加可能
+          undefined  // sessionIdは後で追加可能
+        );
+        if (!baselineCheck.normal) {
+          console.warn('[LLM] ベースラインとの比較で異常が検出されました:', baselineCheck.anomalyScore);
+        }
+
+        // 8. AIガバナンス: LLMレスポンスの記録
+        await securityService.recordAIGovernanceEvent({
+          type: 'llm_response',
+          details: {
+            model: result.model,
+            outputLength: content.length,
+            tokensUsed: result.usage?.total_tokens,
+          },
+        });
+      }
+    }
+  }
+
+  return result;
 }
