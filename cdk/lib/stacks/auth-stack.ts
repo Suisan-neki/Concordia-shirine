@@ -20,13 +20,13 @@ export class AuthStack extends cdk.Stack {
 
         // 1. User Pool の定義
         this.userPool = new cognito.UserPool(this, "ConcordiaUserPool", {
-            userPoolName: `concordia-user-pool-${environment}`,
+            userPoolName: `concordia-users-${environment}`,
             selfSignUpEnabled: true, // 招待ベースまたは自己登録
 
             // サインインエイリアス
             signInAliases: {
                 email: true,
-                username: false,
+                username: true,
             },
 
             // パスワードポリシー
@@ -35,33 +35,14 @@ export class AuthStack extends cdk.Stack {
                 requireLowercase: true,
                 requireUppercase: true,
                 requireDigits: true,
-                requireSymbols: true,
-                tempPasswordValidity: cdk.Duration.days(7),
             },
 
             // アカウント回復
-            accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+            accountRecovery: cognito.AccountRecovery.PHONE_WITHOUT_MFA_AND_EMAIL,
 
             // 検証メール
             autoVerify: {
                 email: true,
-            },
-            userVerification: {
-                emailSubject: "Concordia アカウントの検証",
-                emailBody: "あなたの検証コードは {####} です。",
-                emailStyle: cognito.VerificationEmailStyle.CODE,
-            },
-
-            // 標準属性
-            standardAttributes: {
-                email: {
-                    required: true,
-                    mutable: true,
-                },
-                fullname: {
-                    required: true,
-                    mutable: true,
-                },
             },
 
             // 削除ポリシー
@@ -75,36 +56,70 @@ export class AuthStack extends cdk.Stack {
             userPoolClientName: `concordia-client-${environment}`,
             generateSecret: false, // SPA (Single Page App) のため false
 
-            // 認証フロー
-            authFlows: {
-                userSrp: true,
-                custom: true,
+            // OAuth 設定
+            oAuth: {
+                flows: {
+                    implicitCodeGrant: true,
+                },
+                scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL],
+                callbackUrls: [
+                    "http://localhost:5173",
+                    "http://localhost:5173/",
+                    "http://localhost:5173/api/auth/cognito/callback",
+                    "https://d3c6naoshv8a7s.cloudfront.net",
+                    "https://d3c6naoshv8a7s.cloudfront.net/",
+                ],
+                logoutUrls: [
+                    "http://localhost:5173",
+                    "https://d3c6naoshv8a7s.cloudfront.net",
+                ],
             },
-
-            // トークンの有効性
-            accessTokenValidity: cdk.Duration.minutes(60),
-            idTokenValidity: cdk.Duration.minutes(60),
-            refreshTokenValidity: cdk.Duration.days(30),
-
-            // 属性の読み書き権限
-            readAttributes: new cognito.ClientAttributes().withStandardAttributes({
-                email: true,
-                emailVerified: true,
-                fullname: true,
-            }),
-            writeAttributes: new cognito.ClientAttributes().withStandardAttributes({
-                email: true,
-                fullname: true,
-            }),
         });
 
         // 3. User Pool Domain (ホステッドUI用)
         // 必要に応じて有効化。今回の要件では必須ではないかもしれないが、あると便利。
-        const userPoolDomain = this.userPool.addDomain("ConcordiaDomain", {
+        const userPoolDomain = this.userPool.addDomain("ConcordiaAuthDomain", {
             cognitoDomain: {
-                domainPrefix: `concordia-${environment}-${this.account}`, // グローバルに一意である必要がある
+                domainPrefix: `concordia-auth-${this.account}-${environment}`, // グローバルに一意である必要がある
             },
         });
+
+        new cognito.CfnUserPoolUICustomizationAttachment(
+            this,
+            "UiCustomization",
+            {
+                clientId: this.userPoolClient.userPoolClientId,
+                userPoolId: this.userPool.userPoolId,
+                css: `
+            .background-customizable {
+                background-color: #0c1020 !important;
+                font-family: "Segoe UI", sans-serif;
+            }
+            .submitButton-customizable {
+                background-color: #667eea !important;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            .label-customizable {
+                color: #e6f2ff !important;
+            }
+            .textDescription-customizable {
+                color: #b0c4de !important;
+            }
+            .inputField-customizable {
+                background-color: #2a3b55 !important;
+                color: #ffffff !important;
+                border: 1px solid #777;
+            }
+            .redirect-customizable {
+                color: #7bd6ff !important;
+            }
+            .legalText-customizable {
+                color: #7bd6ff !important;
+            }
+        `,
+            }
+        );
 
         // 4. オーナーのOpenID (SSMパラメータストアから取得するなど)
         // ここではデモ用にハードコードするか、環境変数から取得
@@ -116,17 +131,14 @@ export class AuthStack extends cdk.Stack {
         // Outputs
         new cdk.CfnOutput(this, "UserPoolId", {
             value: this.userPool.userPoolId,
-            exportName: `${id}-UserPoolId`,
         });
 
         new cdk.CfnOutput(this, "UserPoolClientId", {
             value: this.userPoolClient.userPoolClientId,
-            exportName: `${id}-UserPoolClientId`,
         });
 
-        new cdk.CfnOutput(this, "UserPoolDomain", {
-            value: userPoolDomain.domainName,
-            exportName: `${id}-UserPoolDomain`,
+        new cdk.CfnOutput(this, "AuthDomain", {
+            value: userPoolDomain.baseUrl(),
         });
     }
 }

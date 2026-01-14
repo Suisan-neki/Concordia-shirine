@@ -11,12 +11,16 @@ const app = new cdk.App();
 
 // Get environment from context or default to 'dev'
 const environment = app.node.tryGetContext("env") || "dev";
+const useExistingTables = app.node.tryGetContext("useExistingTables") === "true";
 
 // Common props
 const env = {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: process.env.CDK_DEFAULT_REGION || "ap-northeast-1",
 };
+const accountId = env.account || cdk.Aws.ACCOUNT_ID;
+const inputBucketName = `concordia-input-${environment}-${accountId}`;
+const interviewsTableName = `concordia-interviews-${environment}`;
 
 // 0. Frontend Stack (Website Hosting)
 const frontendStack = new FrontendStack(app, `ConcordiaFrontend-${environment}`, {
@@ -28,13 +32,13 @@ const frontendStack = new FrontendStack(app, `ConcordiaFrontend-${environment}`,
 const storageStack = new StorageStack(app, `ConcordiaStorage-${environment}`, {
     env,
     environment,
+    useExistingTables,
 });
 
 // 2. Auth Stack (Cognito)
 const authStack = new AuthStack(app, `ConcordiaAuth-${environment}`, {
     env,
     environment,
-    frontendUrl: frontendStack.distributionDomain,
 });
 
 // 3. Lambda Stack (Now Dockerless / ARM64)
@@ -56,9 +60,8 @@ const stepFunctionsStack = new StepFunctionsStack(
     {
         env,
         environment,
-        inputBucket: storageStack.inputBucket,
-        outputBucket: storageStack.outputBucket,
-        interviewsTable: storageStack.interviewsTable,
+        inputBucketName,
+        interviewsTableName,
         extractAudioFn: lambdaStack.extractAudioFn,
         chunkAudioFn: lambdaStack.chunkAudioFn,
         diarizeFn: lambdaStack.diarizeFn,
