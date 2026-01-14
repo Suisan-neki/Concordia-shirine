@@ -80,16 +80,6 @@ export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
                   この画面の波は、会話の状態を視覚化しています。対話のバランス（調和、一方的、沈黙、静寂）が波の色や動きとして表示されます。
                 </p>
 
-                <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
-                  <div className="text-xs font-medium text-foreground mb-2">波の仕組み</div>
-                  <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
-                    <li>複数の正弦波で骨格を作り</li>
-                    <li>Perlin Noiseで有機的な揺らぎを加え</li>
-                    <li>呼吸リズム（8秒周期）と音声エネルギーで動きを調整</li>
-                    <li>シーンごとの色と速度に滑らかに遷移</li>
-                  </ul>
-                </div>
-                
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <div className="p-3 bg-shrine-jade/10 rounded-lg border border-shrine-jade/20">
                     <div className="text-xs font-medium text-shrine-jade mb-1">調和</div>

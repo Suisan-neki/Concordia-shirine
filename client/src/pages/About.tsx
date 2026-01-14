@@ -284,27 +284,6 @@ export default function About() {
                   </CardContent>
                 </Card>
 
-                <Card className="md:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="font-serif-jp text-lg">波の生成システム</CardTitle>
-                    <CardDescription>Perlin Noise + Sine + Breath</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      波はシーンごとのパラメータ（振幅・周波数・速度・乱流・色）を基に、複数の要素を合成して描画しています。
-                    </p>
-                    <ol className="text-sm text-muted-foreground list-decimal pl-4 space-y-1">
-                      <li>複数の正弦波を合成して基調のうねりを作る</li>
-                      <li>Perlin Noiseで有機的な揺らぎを加える</li>
-                      <li>8秒周期の呼吸リズムで全体の脈動を整える</li>
-                      <li>音声エネルギーを滑らかに反映してリアルタイムに反応</li>
-                      <li>シーンの切り替えは約2秒で色と動きを滑らかに遷移</li>
-                    </ol>
-                    <p className="text-xs text-muted-foreground">
-                      数学的にはシンプルでも、視覚的には「空気感」を感じられるように設計しています。
-                    </p>
-                  </CardContent>
-                </Card>
               </div>
 
               <div className="space-y-6">
