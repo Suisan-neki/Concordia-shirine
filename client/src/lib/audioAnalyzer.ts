@@ -270,18 +270,30 @@ export class AudioAnalyzer {
    * 
    * @throws {Error} マイクアクセスの取得に失敗した場合、またはAudioContextの作成に失敗した場合
    */
-  async start(): Promise<void> {
+  async start(deviceId?: string): Promise<void> {
     if (this.isRunning) return;
     
     try {
       // マイクアクセスを取得
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
+      const baseAudioConstraints: MediaTrackConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
+      const audioConstraints: MediaTrackConstraints = deviceId
+        ? { ...baseAudioConstraints, deviceId: { exact: deviceId } }
+        : baseAudioConstraints;
+
+      try {
+        this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      } catch (error) {
+        if (deviceId) {
+          console.warn('Failed to getUserMedia with selected device, falling back to default:', error);
+          this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: baseAudioConstraints });
+        } else {
+          throw error;
         }
-      });
+      }
       
       // AudioContextを作成
       this.audioContext = new AudioContext();

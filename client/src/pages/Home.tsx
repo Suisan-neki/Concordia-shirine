@@ -80,6 +80,11 @@ export default function Home() {
   const [isInterventionSettingsOpen, setIsInterventionSettingsOpen] = useState(false);
   const [isReportPanelOpen, setIsReportPanelOpen] = useState(false);
   const [reportSession, setReportSession] = useState<SessionData | null>(null);
+  const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('concordia-selected-mic') ?? '';
+  });
   const [isMobileInfoOpen, setIsMobileInfoOpen] = useState(false);
   const [securityMetrics, setSecurityMetrics] = useState<SecurityMetrics>({
     overallScore: 85,
@@ -124,6 +129,24 @@ export default function Home() {
       })
     }));
   }, [isAuthenticated, user]);
+
+  const loadAudioDevices = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputs = devices.filter(device => device.kind === 'audioinput');
+      setAudioInputDevices(inputs);
+
+      if (inputs.length === 0) return;
+      if (!selectedAudioDeviceId || !inputs.some(d => d.deviceId === selectedAudioDeviceId)) {
+        const fallbackId = inputs[0].deviceId;
+        setSelectedAudioDeviceId(fallbackId);
+        localStorage.setItem('concordia-selected-mic', fallbackId);
+      }
+    } catch (error) {
+      console.warn('Failed to enumerate audio devices:', error);
+    }
+  }, [selectedAudioDeviceId]);
 
   // 初期化
   useEffect(() => {
@@ -177,6 +200,13 @@ export default function Home() {
       speechRecognitionRef.current?.stop();
     };
   }, [isDemoMode, sessionManager]);
+
+  useEffect(() => {
+    loadAudioDevices();
+    if (!navigator.mediaDevices?.addEventListener) return;
+    navigator.mediaDevices.addEventListener('devicechange', loadAudioDevices);
+    return () => navigator.mediaDevices.removeEventListener('devicechange', loadAudioDevices);
+  }, [loadAudioDevices]);
 
   // 音声認識結果のハンドラ
   const handleSpeechResult = useCallback((result: SpeechRecognitionResult) => {
@@ -290,7 +320,8 @@ export default function Home() {
       sessionStartTimeRef.current = Date.now();
 
       logManagerRef.current?.startSession();
-      await audioAnalyzerRef.current?.start();
+      await audioAnalyzerRef.current?.start(selectedAudioDeviceId || undefined);
+      await loadAudioDevices();
 
       // 音声認識も開始
       if (speechRecognitionRef.current?.isSupported()) {
@@ -310,6 +341,11 @@ export default function Home() {
       console.error('Failed to start recording:', error);
     }
   }, [handleStopRecording, isAuthenticated, sessionManager]);
+
+  const handleSelectAudioDevice = useCallback((deviceId: string) => {
+    setSelectedAudioDeviceId(deviceId);
+    localStorage.setItem('concordia-selected-mic', deviceId);
+  }, []);
 
   // デモモード切り替え
   const handleToggleDemoMode = useCallback(() => {
@@ -684,6 +720,9 @@ export default function Home() {
         onStopRecording={handleStopRecording}
         onToggleDemoMode={handleToggleDemoMode}
         onDemoSceneChange={handleDemoSceneChange}
+        audioInputDevices={audioInputDevices}
+        selectedAudioDeviceId={selectedAudioDeviceId}
+        onSelectAudioDevice={handleSelectAudioDevice}
       />
 
       {/* 会話ログパネル */}
