@@ -37,7 +37,7 @@ const DEFAULT_CONFIG: AudioAnalyzerConfig = {
   overlapSwitchThreshold: 8,
   stableMinDurationSec: 15.0,
   cooldownSec: 10.0,
-  vadThreshold: 0.008
+  vadThreshold: 0.005
 };
 
 /**
@@ -397,8 +397,8 @@ export class AudioAnalyzer {
   }
 
   private getAdaptiveThreshold(): number {
-    const minThreshold = Math.max(0.003, this.config.vadThreshold * 0.6);
-    return Math.max(minThreshold, this.noiseFloor * 3);
+    const minThreshold = Math.max(0.0015, this.config.vadThreshold * 0.3);
+    return Math.max(minThreshold, this.noiseFloor * 2.2);
   }
 
   private updateNoiseFloor(rms: number, isSpeech: boolean): void {
