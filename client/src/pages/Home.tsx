@@ -106,6 +106,7 @@ export default function Home() {
   const lastSceneRef = useRef<SceneType>('静寂');
   const sessionStartTimeRef = useRef<number>(0);
   const recordingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechStartRef = useRef<number | null>(null);
 
   // 認証状態が変わったらセキュリティメトリクスを更新
   useEffect(() => {
@@ -167,8 +168,22 @@ export default function Home() {
         sessionManager.logEvent(event.type, event.metadata);
         handleEvent(event);
       },
-      onSpeechChange: () => {
-        // 発話状態の変化
+      onSpeechChange: (isSpeech) => {
+        const now = Date.now();
+        if (isSpeech) {
+          if (speechStartRef.current === null) {
+            speechStartRef.current = now;
+          }
+          return;
+        }
+
+        if (speechStartRef.current !== null) {
+          const duration = (now - speechStartRef.current) / 1000;
+          speechStartRef.current = null;
+          if (duration >= 0.2) {
+            logManagerRef.current?.logSpeech('', duration);
+          }
+        }
       }
     });
 
@@ -255,6 +270,14 @@ export default function Home() {
       recordingTimeoutRef.current = null;
     }
 
+    if (speechStartRef.current !== null) {
+      const duration = (Date.now() - speechStartRef.current) / 1000;
+      speechStartRef.current = null;
+      if (duration >= 0.2) {
+        logManagerRef.current?.logSpeech('', duration);
+      }
+    }
+
     audioAnalyzerRef.current?.stop();
     speechRecognitionRef.current?.stop();
     setIsRecording(false);
@@ -269,36 +292,43 @@ export default function Home() {
     if (isAuthenticated) {
       if (!backendSummary) {
         toast.error('保存失敗しました');
-        return;
       }
 
-      const summary: SessionSummary = localSummary
-        ? {
-            ...localSummary,
-            securityScore: backendSummary.securityScore,
-          }
-        : {
-            totalDuration: backendSummary.totalDuration,
-            speechDuration: 0,
-            silenceDuration: 0,
-            securityScore: backendSummary.securityScore,
-            sceneDistribution: (backendSummary.sceneDistribution || {}) as Record<SceneType, number>,
-            eventCounts: backendSummary.eventCounts || {},
-            insights: backendSummary.insights || [],
-          };
-      setSessionSummary(summary);
-      setIsLogExpanded(true);
+      if (localSummary) {
+        const summary: SessionSummary = backendSummary
+          ? {
+              ...localSummary,
+              securityScore: backendSummary.securityScore,
+            }
+          : localSummary;
+        setSessionSummary(summary);
+        setIsLogExpanded(true);
+      } else if (backendSummary) {
+        const summary: SessionSummary = {
+          totalDuration: backendSummary.totalDuration,
+          speechDuration: 0,
+          silenceDuration: 0,
+          securityScore: backendSummary.securityScore,
+          sceneDistribution: (backendSummary.sceneDistribution || {}) as Record<SceneType, number>,
+          eventCounts: backendSummary.eventCounts || {},
+          insights: backendSummary.insights || [],
+        };
+        setSessionSummary(summary);
+        setIsLogExpanded(true);
+      }
 
-      setReportSession({
-        sessionId: sessionManager.currentSessionId || `local_${Date.now()}`,
-        startTime: sessionStartTimeRef.current,
-        endTime: Date.now(),
-        duration: backendSummary.totalDuration,
-        securityScore: backendSummary.securityScore,
-        sceneDistribution: backendSummary.sceneDistribution,
-        eventCounts: backendSummary.eventCounts,
-        insights: backendSummary.insights,
-      });
+      if (backendSummary) {
+        setReportSession({
+          sessionId: sessionManager.currentSessionId || `local_${Date.now()}`,
+          startTime: sessionStartTimeRef.current,
+          endTime: Date.now(),
+          duration: backendSummary.totalDuration,
+          securityScore: backendSummary.securityScore,
+          sceneDistribution: backendSummary.sceneDistribution,
+          eventCounts: backendSummary.eventCounts,
+          insights: backendSummary.insights,
+        });
+      }
       return;
     }
 
@@ -314,6 +344,7 @@ export default function Home() {
       setSessionSummary(null);
       setTranscripts([]);
       setInterimText('');
+      speechStartRef.current = null;
 
       // バックエンドセッションを開始
       await sessionManager.startSession();
