@@ -1971,9 +1971,11 @@ export class SecurityService {
       if (url.protocol !== 'https:') {
         issues.push('insecure_protocol');
       }
-      // 信頼できるドメインの検証（簡易的）
+      // 信頼できるドメインの検証（サブドメインバイパス攻撃対策）
       const trustedDomains = ['forge.manus.im', 'api.openai.com', 'api.anthropic.com'];
-      const isTrusted = trustedDomains.some(domain => url.hostname.includes(domain));
+      const isTrusted = trustedDomains.some(domain => 
+        url.hostname === domain || url.hostname.endsWith('.' + domain)
+      );
       if (!isTrusted) {
         issues.push('untrusted_domain');
       }
