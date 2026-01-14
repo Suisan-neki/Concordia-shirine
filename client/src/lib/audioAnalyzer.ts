@@ -26,6 +26,7 @@ export interface AudioAnalyzerConfig {
   overlapWindowSec: number;    // 切り替え検出のウィンドウ（秒）
   overlapSwitchThreshold: number; // 切り替え回数の閾値
   stableMinDurationSec: number;   // 安定状態の最小持続時間（秒）
+  stableSpeakerSwitchMin: number; // 安定状態で必要な話者切替数
   cooldownSec: number;         // イベント間のクールダウン（秒）
   vadThreshold: number;        // VAD閾値
 }
@@ -37,7 +38,8 @@ const DEFAULT_CONFIG: AudioAnalyzerConfig = {
   overlapSwitchThreshold: 8,
   stableMinDurationSec: 15.0,
   cooldownSec: 10.0,
-  vadThreshold: 0.005
+  vadThreshold: 0.005,
+  stableSpeakerSwitchMin: 2
 };
 
 /**
@@ -52,6 +54,7 @@ export class EventDetector {
   private silenceRunLength: number = 0;
   private windowBuffer: Array<{ timestamp: number; isSpeech: boolean }> = [];
   private speakerSwitchBuffer: number[] = [];
+  private speakerSwitchTotal: number = 0;
   private lastLabel: boolean | null = null;
   private lastEventTime: number = 0;
   private lastProcessTime: number = 0;
@@ -140,6 +143,7 @@ export class EventDetector {
       } else if (
         now >= this.config.stableMinDurationSec &&
         switchCount >= 1 &&
+        this.speakerSwitchTotal >= this.config.stableSpeakerSwitchMin &&
         switchCount <= Math.floor(this.config.overlapSwitchThreshold / 2) &&
         this.speechRunLength < this.config.monologueLongSec &&
         this.silenceRunLength < this.config.silenceLongSec
@@ -158,6 +162,7 @@ export class EventDetector {
 
   markSpeakerChange(now: number): void {
     this.speakerSwitchBuffer.push(now);
+    this.speakerSwitchTotal += 1;
     this.pruneSpeakerSwitchBuffer(now);
   }
   
@@ -226,6 +231,7 @@ export class EventDetector {
     this.silenceRunLength = 0;
     this.windowBuffer = [];
     this.speakerSwitchBuffer = [];
+    this.speakerSwitchTotal = 0;
     this.lastLabel = null;
     this.lastEventTime = 0;
     this.lastProcessTime = 0;
@@ -375,6 +381,7 @@ export class AudioAnalyzer {
     this.frameCounter = 0;
     this.lastPitchHz = null;
     this.lastPitchTime = 0;
+    this.eventDetector.reset();
     
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach(track => track.stop());
@@ -388,7 +395,6 @@ export class AudioAnalyzer {
     
     this.analyser = null;
     this.dataArray = null;
-    this.eventDetector.reset();
   }
   
   /**
