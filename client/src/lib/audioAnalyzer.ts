@@ -58,7 +58,6 @@ export class EventDetector {
   private silenceRunLength: number = 0;
   private windowBuffer: Array<{ timestamp: number; isSpeech: boolean }> = [];
   private speakerSwitchBuffer: number[] = [];
-  private speakerSwitchTotal: number = 0;
   private lastSpeakerSwitchTime: number = 0;
   private lastLabel: boolean | null = null;
   private lastEventTime: number = 0;
@@ -118,6 +117,7 @@ export class EventDetector {
         switchCount++;
       }
     }
+    const speakerSwitchCount = this.calculateSpeakerSwitchCount();
     
     this.lastLabel = isSpeech;
     
@@ -150,7 +150,7 @@ export class EventDetector {
       } else if (
         now >= this.config.stableMinDurationSec &&
         switchCount >= 1 &&
-        this.speakerSwitchTotal >= this.config.stableSpeakerSwitchMin &&
+        speakerSwitchCount >= this.config.stableSpeakerSwitchMin &&
         switchCount <= Math.floor(this.config.overlapSwitchThreshold / 2) &&
         this.speechRunLength < this.config.monologueLongSec &&
         this.silenceRunLength < this.config.silenceLongSec
@@ -172,7 +172,6 @@ export class EventDetector {
       return;
     }
     this.speakerSwitchBuffer.push(now);
-    this.speakerSwitchTotal += 1;
     this.lastSpeakerSwitchTime = now;
     this.pruneSpeakerSwitchBuffer(now);
   }
@@ -247,7 +246,6 @@ export class EventDetector {
     this.silenceRunLength = 0;
     this.windowBuffer = [];
     this.speakerSwitchBuffer = [];
-    this.speakerSwitchTotal = 0;
     this.lastSpeakerSwitchTime = 0;
     this.lastLabel = null;
     this.lastEventTime = 0;
@@ -280,9 +278,14 @@ export class AudioAnalyzer {
   private speechHoldSec: number = 0.4;
   private frameCounter: number = 0;
   private pitchFrameSkip: number = 2;
-  private lastPitchHz: number | null = null;
-  private lastPitchTime: number = 0;
-  private pitchChangeThreshold: number = 0.28;
+  private lastSegmentPitchHz: number | null = null;
+  private lastSegmentEndTime: number = 0;
+  private segmentPitchSum: number = 0;
+  private segmentPitchCount: number = 0;
+  private segmentStartTime: number = 0;
+  private segmentSpeakerChecked: boolean = false;
+  private pitchChangeThreshold: number = 0.4;
+  private segmentMinDurationSec: number = 0.35;
   
   // コールバック
   private onEnergyUpdate?: (energy: number) => void;
@@ -397,8 +400,12 @@ export class AudioAnalyzer {
     this.noiseFloor = 0;
     this.lastSpeechTime = 0;
     this.frameCounter = 0;
-    this.lastPitchHz = null;
-    this.lastPitchTime = 0;
+    this.lastSegmentPitchHz = null;
+    this.lastSegmentEndTime = 0;
+    this.segmentPitchSum = 0;
+    this.segmentPitchCount = 0;
+    this.segmentStartTime = 0;
+    this.segmentSpeakerChecked = false;
     this.eventDetector.reset();
     
     if (this.mediaStream) {
@@ -433,8 +440,21 @@ export class AudioAnalyzer {
     const newIsSpeech = this.detectSpeech(rms, threshold, now);
     this.updateNoiseFloor(rms, newIsSpeech);
     
-    if (newIsSpeech !== this.isSpeech) {
+    const wasSpeech = this.isSpeech;
+    if (newIsSpeech !== wasSpeech) {
       this.isSpeech = newIsSpeech;
+      if (this.isSpeech) {
+        this.segmentStartTime = now;
+        this.segmentPitchSum = 0;
+        this.segmentPitchCount = 0;
+        this.segmentSpeakerChecked = false;
+      } else if (wasSpeech && this.segmentPitchCount > 0) {
+        const segmentDuration = now - this.segmentStartTime;
+        if (segmentDuration >= this.segmentMinDurationSec) {
+          this.lastSegmentPitchHz = this.segmentPitchSum / this.segmentPitchCount;
+          this.lastSegmentEndTime = now;
+        }
+      }
       this.onSpeechChange?.(this.isSpeech);
     }
     
@@ -442,19 +462,28 @@ export class AudioAnalyzer {
     const normalizedEnergy = Math.min(1, rms / Math.max(threshold, 0.001));
     this.onEnergyUpdate?.(normalizedEnergy);
     
-    // 話者の揺らぎを推定（簡易ピッチ差分）
+    // 話者の揺らぎを推定（発話セグメントの平均ピッチで比較）
     this.frameCounter += 1;
     if (newIsSpeech && this.frameCounter % this.pitchFrameSkip === 0 && this.audioContext) {
       const pitch = this.estimatePitchHz(this.dataArray, this.audioContext.sampleRate);
       if (pitch) {
-        if (this.lastPitchHz !== null && now - this.lastPitchTime < 1.5) {
-          const ratio = Math.abs(pitch - this.lastPitchHz) / this.lastPitchHz;
-          if (ratio > this.pitchChangeThreshold) {
+        this.segmentPitchSum += pitch;
+        this.segmentPitchCount += 1;
+
+        if (
+          !this.segmentSpeakerChecked &&
+          this.segmentPitchCount >= 6 &&
+          now - this.segmentStartTime >= this.segmentMinDurationSec &&
+          this.lastSegmentPitchHz !== null
+        ) {
+          const avgPitch = this.segmentPitchSum / this.segmentPitchCount;
+          const ratio = Math.abs(avgPitch - this.lastSegmentPitchHz) / this.lastSegmentPitchHz;
+          const gap = this.segmentStartTime - this.lastSegmentEndTime;
+          if (gap >= 0.2 && ratio > this.pitchChangeThreshold) {
             this.eventDetector.markSpeakerChange(now);
           }
+          this.segmentSpeakerChecked = true;
         }
-        this.lastPitchHz = this.lastPitchHz ? this.lastPitchHz * 0.7 + pitch * 0.3 : pitch;
-        this.lastPitchTime = now;
       }
     }
 
