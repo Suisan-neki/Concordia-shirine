@@ -51,8 +51,10 @@ export class EventDetector {
   private speechRunLength: number = 0;
   private silenceRunLength: number = 0;
   private windowBuffer: Array<{ timestamp: number; isSpeech: boolean }> = [];
+  private speakerSwitchBuffer: number[] = [];
   private lastLabel: boolean | null = null;
   private lastEventTime: number = 0;
+  private lastProcessTime: number = 0;
   private frameDuration: number = 0.02; // 20ms
   
   constructor(config: Partial<AudioAnalyzerConfig> = {}) {
@@ -76,6 +78,7 @@ export class EventDetector {
    */
   process(isSpeech: boolean, now: number): ConcordiaEvent[] {
     const events: ConcordiaEvent[] = [];
+    this.lastProcessTime = now;
     
     // 連続時間の更新
     if (isSpeech) {
@@ -88,6 +91,7 @@ export class EventDetector {
     
     // ウィンドウバッファの更新
     this.windowBuffer.push({ timestamp: now, isSpeech });
+    this.pruneSpeakerSwitchBuffer(now);
     
     // 古いエントリを削除
     while (
@@ -151,6 +155,11 @@ export class EventDetector {
     
     return events;
   }
+
+  markSpeakerChange(now: number): void {
+    this.speakerSwitchBuffer.push(now);
+    this.pruneSpeakerSwitchBuffer(now);
+  }
   
   /**
    * 現在の状態からシーンを判定する
@@ -159,20 +168,21 @@ export class EventDetector {
    * 
    * 判定ロジック:
    * - 沈黙: 沈黙が8秒以上続いている場合
-   * - 一方的: 発話が8秒以上続いている場合
-   * - 調和: 切り替えが6回以上ある場合（活発な対話）
+   * - 一方的: 発話が8秒以上続く/発話比率が高く話者切替が少ない場合
+   * - 調和: 話者の切り替えが複数回ある場合（活発な対話）
    * - 静寂: 上記以外の場合
    * 
    * @returns 判定されたシーン（'静寂'、'調和'、'一方的'、'沈黙'）
    */
   getScene(): SceneType {
-    const switchCount = this.calculateSwitchCount();
+    const speakerSwitchCount = this.calculateSpeakerSwitchCount();
+    const speechRatio = this.calculateSpeechRatio();
     
     if (this.silenceRunLength > 8) {
       return '沈黙';
-    } else if (this.speechRunLength > 8) {
+    } else if (this.speechRunLength > 8 || (speechRatio > 0.65 && speakerSwitchCount <= 1)) {
       return '一方的';
-    } else if (switchCount >= 6) {
+    } else if (speakerSwitchCount >= 2) {
       return '調和';
     }
     return '静寂';
@@ -187,6 +197,26 @@ export class EventDetector {
     }
     return count;
   }
+
+  private calculateSpeakerSwitchCount(): number {
+    this.pruneSpeakerSwitchBuffer(this.lastProcessTime);
+    return this.speakerSwitchBuffer.length;
+  }
+
+  private calculateSpeechRatio(): number {
+    if (this.windowBuffer.length === 0) return 0;
+    const speechFrames = this.windowBuffer.filter(entry => entry.isSpeech).length;
+    return speechFrames / this.windowBuffer.length;
+  }
+
+  private pruneSpeakerSwitchBuffer(now: number): void {
+    while (
+      this.speakerSwitchBuffer.length > 0 &&
+      now - this.speakerSwitchBuffer[0] > this.config.overlapWindowSec
+    ) {
+      this.speakerSwitchBuffer.shift();
+    }
+  }
   
   /**
    * 状態をリセット
@@ -195,8 +225,10 @@ export class EventDetector {
     this.speechRunLength = 0;
     this.silenceRunLength = 0;
     this.windowBuffer = [];
+    this.speakerSwitchBuffer = [];
     this.lastLabel = null;
     this.lastEventTime = 0;
+    this.lastProcessTime = 0;
   }
 }
 
@@ -222,6 +254,11 @@ export class AudioAnalyzer {
   private noiseFloor: number = 0;
   private lastSpeechTime: number = 0;
   private speechHoldSec: number = 0.4;
+  private frameCounter: number = 0;
+  private pitchFrameSkip: number = 2;
+  private lastPitchHz: number | null = null;
+  private lastPitchTime: number = 0;
+  private pitchChangeThreshold: number = 0.18;
   
   // コールバック
   private onEnergyUpdate?: (energy: number) => void;
@@ -335,6 +372,9 @@ export class AudioAnalyzer {
     this.rmsSmooth = 0;
     this.noiseFloor = 0;
     this.lastSpeechTime = 0;
+    this.frameCounter = 0;
+    this.lastPitchHz = null;
+    this.lastPitchTime = 0;
     
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach(track => track.stop());
@@ -378,6 +418,22 @@ export class AudioAnalyzer {
     const normalizedEnergy = Math.min(1, rms / Math.max(threshold, 0.001));
     this.onEnergyUpdate?.(normalizedEnergy);
     
+    // 話者の揺らぎを推定（簡易ピッチ差分）
+    this.frameCounter += 1;
+    if (newIsSpeech && this.frameCounter % this.pitchFrameSkip === 0 && this.audioContext) {
+      const pitch = this.estimatePitchHz(this.dataArray, this.audioContext.sampleRate);
+      if (pitch) {
+        if (this.lastPitchHz !== null && now - this.lastPitchTime < 1.5) {
+          const ratio = Math.abs(pitch - this.lastPitchHz) / this.lastPitchHz;
+          if (ratio > this.pitchChangeThreshold) {
+            this.eventDetector.markSpeakerChange(now);
+          }
+        }
+        this.lastPitchHz = this.lastPitchHz ? this.lastPitchHz * 0.7 + pitch * 0.3 : pitch;
+        this.lastPitchTime = now;
+      }
+    }
+
     // イベント検出
     const events = this.eventDetector.process(this.isSpeech, now);
     events.forEach(event => this.onEvent?.(event));
@@ -421,6 +477,45 @@ export class AudioAnalyzer {
     }
 
     return now - this.lastSpeechTime <= this.speechHoldSec;
+  }
+
+  private estimatePitchHz(buffer: Float32Array, sampleRate: number): number | null {
+    const size = buffer.length;
+    let mean = 0;
+    for (let i = 0; i < size; i++) {
+      mean += buffer[i];
+    }
+    mean /= size;
+
+    let energy = 0;
+    for (let i = 0; i < size; i++) {
+      const v = buffer[i] - mean;
+      energy += v * v;
+    }
+    if (energy < 1e-6) return null;
+
+    const minLag = Math.floor(sampleRate / 300);
+    const maxLag = Math.floor(sampleRate / 80);
+    let bestLag = -1;
+    let bestCorr = 0;
+
+    for (let lag = minLag; lag <= maxLag; lag += 2) {
+      let corr = 0;
+      for (let i = 0; i < size - lag; i += 2) {
+        const a = buffer[i] - mean;
+        const b = buffer[i + lag] - mean;
+        corr += a * b;
+      }
+      if (corr > bestCorr) {
+        bestCorr = corr;
+        bestLag = lag;
+      }
+    }
+
+    if (bestLag === -1) return null;
+    const confidence = bestCorr / energy;
+    if (confidence < 0.2) return null;
+    return sampleRate / bestLag;
   }
 
   private getAdaptiveThreshold(): number {
