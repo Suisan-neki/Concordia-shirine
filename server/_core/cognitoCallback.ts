@@ -13,7 +13,7 @@ import * as db from "../db";
 import { ENV } from "./env";
 import { sdk } from "./sdk";
 import { parse as parseCookieHeader } from "cookie";
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, createHash } from "crypto";
 import { securityService } from "../security";
 
 const NONCE_COOKIE_NAME = "cognito_auth_nonce";
@@ -210,20 +210,72 @@ export async function handleCognitoCallback(req: Request, res: Response): Promis
 
     // セッショントークンを生成（有効期限: 1年）
     const sessionName = user.name || user.email || user.openId;
-    const sessionToken = await sdk.createSessionToken(user.openId, {
+    let sessionToken = await sdk.createSessionToken(user.openId, {
       name: sessionName,
       expiresInMs: ONE_YEAR_MS,
     });
 
     // セッションハイジャック対策: セッション固定攻撃を検出
-    const sessionValidation = await securityService.detectSessionFixation(
+    // 本番環境では、検出された場合にセッションIDを再生成（最大3回まで試行）
+    const isProduction = ENV.isProduction;
+    const maxRetries = isProduction ? 3 : 0; // 本番環境のみ再生成を試行
+    let sessionValidation = await securityService.detectSessionFixation(
       sessionToken,
       user.id
     );
+    
     if (!sessionValidation.safe) {
       console.warn("[Cognito] Session fixation detected:", sessionValidation.threats);
-      // セッション固定攻撃が検出された場合でも、セッションは作成する（警告のみ）
-      // 本番環境では、より厳格な対策（セッションIDの再生成など）を検討
+      
+      // 本番環境では、セッションIDを再生成して再検証
+      if (isProduction && maxRetries > 0) {
+        let retryCount = 0;
+        while (!sessionValidation.safe && retryCount < maxRetries) {
+          retryCount++;
+          console.warn(`[Cognito] Regenerating session token (attempt ${retryCount}/${maxRetries})`);
+          
+          // セッショントークンを再生成
+          sessionToken = await sdk.createSessionToken(user.openId, {
+            name: sessionName,
+            expiresInMs: ONE_YEAR_MS,
+          });
+          
+          // 再検証
+          sessionValidation = await securityService.detectSessionFixation(
+            sessionToken,
+            user.id
+          );
+        }
+        
+        // 再生成後も問題が解決しない場合は、認証フローを中断
+        if (!sessionValidation.safe) {
+          console.error("[Cognito] Session fixation detected after retries, aborting authentication");
+          
+          // セッションIDをハッシュ化（プライバシー保護）
+          const sessionIdHash = createHash('sha256').update(sessionToken).digest('hex').substring(0, 16);
+          
+          await securityService.logSecurityEvent({
+            userId: user.id,
+            eventType: 'session_fixation_abort',
+            severity: 'critical',
+            description: 'セッション固定攻撃が検出され、認証が中断されました',
+            metadata: { 
+              sessionIdHash,
+              threats: sessionValidation.threats,
+              retryCount,
+            },
+            timestamp: Date.now(),
+          }, true);
+          
+          // 認証エラーページにリダイレクト
+          const isDevelopment = process.env.NODE_ENV === "development";
+          const errorUrl = isDevelopment
+            ? `http://localhost:5173/?error=session_fixation_detected`
+            : `${req.protocol}://${req.get("host")}/?error=session_fixation_detected`;
+          res.redirect(302, errorUrl);
+          return;
+        }
+      }
     }
 
     // Cookieにセッショントークンを設定
