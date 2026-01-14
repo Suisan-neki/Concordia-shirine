@@ -107,6 +107,8 @@ export default function Home() {
   const sessionStartTimeRef = useRef<number>(0);
   const recordingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speechStartRef = useRef<number | null>(null);
+  const sessionManagerRef = useRef(sessionManager);
+  const isDemoModeRef = useRef(isDemoMode);
 
   // 認証状態が変わったらセキュリティメトリクスを更新
   useEffect(() => {
@@ -130,6 +132,14 @@ export default function Home() {
       })
     }));
   }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    sessionManagerRef.current = sessionManager;
+  }, [sessionManager]);
+
+  useEffect(() => {
+    isDemoModeRef.current = isDemoMode;
+  }, [isDemoMode]);
 
   const loadAudioDevices = useCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) return;
@@ -156,16 +166,16 @@ export default function Home() {
     audioAnalyzerRef.current.setCallbacks({
       onEnergyUpdate: (e) => setEnergy(e),
       onSceneChange: (s) => {
-        if (!isDemoMode && s !== lastSceneRef.current) {
+        if (!isDemoModeRef.current && s !== lastSceneRef.current) {
           lastSceneRef.current = s;
           setScene(s);
           logManagerRef.current?.logSceneChange(s);
-          sessionManager.logSceneChange(s);
+          sessionManagerRef.current.logSceneChange(s);
         }
       },
       onEvent: (event) => {
         logManagerRef.current?.logEvent(event);
-        sessionManager.logEvent(event.type, event.metadata);
+        sessionManagerRef.current.logEvent(event.type, event.metadata);
         handleEvent(event);
       },
       onSpeechChange: (isSpeech) => {
@@ -214,7 +224,7 @@ export default function Home() {
       audioAnalyzerRef.current?.stop();
       speechRecognitionRef.current?.stop();
     };
-  }, [isDemoMode, sessionManager]);
+  }, []);
 
   useEffect(() => {
     loadAudioDevices();
@@ -239,11 +249,11 @@ export default function Home() {
 
       // ログに記録
       logManagerRef.current?.logSpeech(result.text);
-      sessionManager.logSpeech(result.text);
+      sessionManagerRef.current.logSpeech(result.text);
 
       // 感情分析によるシーン更新
       const sentiment = analyzeSentiment(result.text);
-      if (sentiment && !isDemoMode) {
+      if (sentiment && !isDemoModeRef.current) {
         setScene(sentiment);
         lastSceneRef.current = sentiment;
       }
@@ -251,7 +261,7 @@ export default function Home() {
       // 暫定テキスト
       setInterimText(result.text);
     }
-  }, [isDemoMode, sessionManager]);
+  }, []);
 
   // イベントハンドラ
   const handleEvent = useCallback((event: ConcordiaEvent) => {
@@ -260,8 +270,8 @@ export default function Home() {
 
   // 介入イベントのハンドラ
   const handleIntervention = useCallback((type: string) => {
-    sessionManager.logIntervention(type, { scene, timestamp: Date.now() });
-  }, [sessionManager, scene]);
+    sessionManagerRef.current.logIntervention(type, { scene, timestamp: Date.now() });
+  }, [scene]);
 
   // 録音停止
   const handleStopRecording = useCallback(async () => {
