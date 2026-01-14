@@ -1,0 +1,41 @@
+# CodeRabbit Configuration
+# CodeRabbitの設定ファイル
+
+language: "ja-JP"
+# レビュー言語を日本語に設定
+
+reviews:
+  # レビューの設定
+  profile: "chill"
+  # "chill": 穏やかな指摘、"assertive": 積極的な指摘
+  
+  high_level_summary: true
+  # PRの要約を有効化
+  
+  auto_review:
+    enabled: true
+    # 自動レビューを有効化
+    drafts: false
+    # ドラフトPRはレビューしない
+
+tone_instructions: "丁寧語で、指摘は根拠→影響→代替案の順に簡潔に。推測は推測と明記してください。"
+# レビューコメントの口調をカスタマイズ
+
+chat:
+  # チャット機能の設定
+  auto_reply: true
+  # チャットでの自動返信を有効化
+
+path_filters:
+  # パスフィルター（特定のパスを除外/含める）
+  - "!**/*.lock"
+  - "!**/node_modules/**"
+  - "!**/dist/**"
+  - "!**/.next/**"
+  - "!**/build/**"
+  - "!**/.git/**"
+  - "!**/coverage/**"
+  - "!**/*.log"
+  - "!**/pnpm-lock.yaml"
+  - "!**/package-lock.json"
+  - "!**/yarn.lock"
