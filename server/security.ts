@@ -690,7 +690,6 @@ export class SecurityService {
       /(print|output|return)\s+(your|the)\s+(system|internal|private)/i,
       /<\|(system|user|assistant)\|>/i,
       /\[INST\]/i,
-      /\[/INST\]/i,
       /\x1b\[/i,
       /(BEGIN|START)\s+(NEW|REAL)\s+(INSTRUCTION|PROMPT|TASK)/i,
       /(END|STOP)\s+(CURRENT|PREVIOUS)\s+(INSTRUCTION|PROMPT|TASK)/i,
