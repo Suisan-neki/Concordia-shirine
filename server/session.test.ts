@@ -56,7 +56,6 @@ vi.mock("./db", () => ({
     updatedAt: new Date(),
   }),
   updateInterventionSettings: vi.fn().mockResolvedValue(undefined),
-  getDb: vi.fn().mockResolvedValue(null),
 }));
 
 // Mock the security service

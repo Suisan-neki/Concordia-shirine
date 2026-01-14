@@ -13,8 +13,8 @@ if (existsSync(envPath)) {
 
 const connectionString = process.env.DATABASE_URL;
 
-// DynamoDBに移行したため、DATABASE_URLは開発環境でのみ必要
-// 本番環境ではDrizzleコマンドは使用されない
+// DynamoDBに移行したため、DATABASE_URLはDrizzleの型/スキーマ用途のみ
+// 本番環境でDBマイグレーションは行わない
 if (!connectionString) {
   console.warn("Warning: DATABASE_URL is not set. Drizzle commands will not work.");
   console.warn("This is expected if you are using DynamoDB instead of MySQL.");

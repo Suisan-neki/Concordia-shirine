@@ -6,14 +6,28 @@
  */
 
 import type { 
-  InsertUser, 
+  InsertInterventionSettings,
+  InsertLogEntry,
+  InsertSession,
+  InsertUser,
+  Session,
   User
 } from "../drizzle/schema";
-import { ENV } from './_core/env';
 
 // DynamoDBの実装をインポート
 import { 
+  addLogEntry as addDynamoLogEntry,
+  createSession as createDynamoSession,
+  deleteSession as deleteDynamoSession,
+  getOrCreateInterventionSettings as getDynamoInterventionSettings,
+  getSessionById as getDynamoSessionById,
+  getSessionBySessionId as getDynamoSessionBySessionId,
+  getSessionLogEntries as getDynamoSessionLogEntries,
+  getUserById as getDynamoUserById,
   getUserByOpenId as getDynamoUserByOpenId,
+  getUserSessions as getDynamoUserSessions,
+  updateInterventionSettings as updateDynamoInterventionSettings,
+  updateSession as updateDynamoSession,
   upsertUser as upsertDynamoUser,
   getAllUsers as getAllDynamoUsers,
 } from "./db-dynamodb";
@@ -109,21 +123,11 @@ export async function getAllUsers(includeDeleted: boolean = false): Promise<User
   return await getAllDynamoUsers(includeDeleted);
 }
 
-// ===== 後方互換性のためのダミー関数 =====
-// 他のファイルで使用されているが、DynamoDBでは不要な関数
-
 /**
- * データベースインスタンスを取得する（後方互換性のため）
- * 
- * DynamoDBを使用するため、この関数は常にnullを返します。
- * セキュリティログなどの機能は、今後DynamoDB用の実装に置き換える予定です。
- * 
- * @deprecated DynamoDBを使用するため、この関数は使用しないでください
- * @returns 常にnull
+ * ユーザーIDからユーザーを取得する
  */
-export async function getDb(): Promise<null> {
-  console.warn("[Database] getDb() is deprecated. Use DynamoDB functions instead.");
-  return null;
+export async function getUserById(userId: number): Promise<User | undefined> {
+  return await getDynamoUserById(userId);
 }
 
 // ===== キャッシュ管理 =====
@@ -135,199 +139,47 @@ export function clearDbCache(): void {
   cache.clear();
 }
 
-// ===== 後方互換性のためのダミー関数 =====
-// セッション管理やログエントリなどの機能は、今後DynamoDB用の実装に置き換える予定です。
-// 非本番では、ローカル検証用にメモリストアへ保存します。
+// ===== セッション/ログ/介入設定 =====
 
-import type { InsertSession, InsertLogEntry, InsertInterventionSettings, Session } from "../drizzle/schema";
-
-type InMemorySession = Session;
-
-const inMemorySessions = new Map<string, InMemorySession>();
-const inMemorySessionsById = new Map<number, InMemorySession>();
-const inMemoryLogs = new Map<number, InsertLogEntry[]>();
-let inMemorySessionId = 1;
-let warnedInMemorySessions = false;
-
-function shouldUseInMemorySessions(): boolean {
-  return !ENV.isProduction;
-}
-
-function warnInMemorySessions(): void {
-  if (warnedInMemorySessions) return;
-  console.warn("[Database] Using in-memory session storage in non-production.");
-  warnedInMemorySessions = true;
-}
-
-function buildInMemorySession(session: InsertSession, id: number): InMemorySession {
-  const now = new Date();
-  return {
-    id,
-    sessionId: session.sessionId,
-    userId: session.userId ?? null,
-    startTime: session.startTime,
-    endTime: session.endTime ?? null,
-    duration: session.duration ?? null,
-    securityScore: session.securityScore ?? null,
-    sceneDistribution: session.sceneDistribution ?? null,
-    eventCounts: session.eventCounts ?? null,
-    insights: session.insights ?? null,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-/**
- * 新しいセッションを作成（後方互換性のため）
- * @deprecated DynamoDB用の実装に置き換える予定
- */
 export async function createSession(session: InsertSession): Promise<number> {
-  if (!shouldUseInMemorySessions()) {
-    console.warn("[Database] createSession() is not implemented for DynamoDB yet.");
-    throw new Error("createSession is not implemented for DynamoDB yet");
-  }
-  warnInMemorySessions();
-
-  const id = inMemorySessionId++;
-  const record = buildInMemorySession(session, id);
-  inMemorySessions.set(record.sessionId, record);
-  inMemorySessionsById.set(record.id, record);
-  return id;
+  return await createDynamoSession(session);
 }
 
-/**
- * セッションを更新（後方互換性のため）
- * @deprecated DynamoDB用の実装に置き換える予定
- */
 export async function updateSession(sessionId: string, data: Partial<InsertSession>): Promise<void> {
-  if (!shouldUseInMemorySessions()) {
-    console.warn("[Database] updateSession() is not implemented for DynamoDB yet.");
-    throw new Error("updateSession is not implemented for DynamoDB yet");
-  }
-  warnInMemorySessions();
-
-  const record = inMemorySessions.get(sessionId);
-  if (!record) {
-    console.warn("[Database] updateSession() missing session:", sessionId);
-    return;
-  }
-  const updated: InMemorySession = {
-    ...record,
-    ...data,
-    userId: data.userId ?? record.userId,
-    updatedAt: new Date(),
-  };
-  inMemorySessions.set(sessionId, updated);
-  inMemorySessionsById.set(updated.id, updated);
+  await updateDynamoSession(sessionId, data);
 }
 
-/**
- * ユーザーのセッション一覧を取得（後方互換性のため）
- * @deprecated DynamoDB用の実装に置き換える予定
- */
-export async function getUserSessions(userId: number, limit = 50): Promise<unknown[]> {
-  if (!shouldUseInMemorySessions()) {
-    console.warn("[Database] getUserSessions() is not implemented for DynamoDB yet.");
-    return [];
-  }
-  warnInMemorySessions();
-
-  return Array.from(inMemorySessions.values())
-    .filter(session => session.userId === userId)
-    .sort((a, b) => b.startTime - a.startTime)
-    .slice(0, limit);
+export async function getUserSessions(userId: number, limit = 50): Promise<Session[]> {
+  return await getDynamoUserSessions(userId, limit);
 }
 
-/**
- * セッションIDでセッションを取得（後方互換性のため）
- * @deprecated DynamoDB用の実装に置き換える予定
- */
-export async function getSessionBySessionId(sessionId: string): Promise<unknown | undefined> {
-  if (!shouldUseInMemorySessions()) {
-    console.warn("[Database] getSessionBySessionId() is not implemented for DynamoDB yet.");
-    return undefined;
-  }
-  warnInMemorySessions();
-
-  return inMemorySessions.get(sessionId);
+export async function getSessionBySessionId(sessionId: string): Promise<Session | undefined> {
+  return await getDynamoSessionBySessionId(sessionId);
 }
 
-/**
- * セッションを削除（後方互換性のため）
- * @deprecated DynamoDB用の実装に置き換える予定
- */
+export async function getSessionById(sessionDbId: number): Promise<Session | undefined> {
+  return await getDynamoSessionById(sessionDbId);
+}
+
 export async function deleteSession(sessionId: string): Promise<void> {
-  if (!shouldUseInMemorySessions()) {
-    console.warn("[Database] deleteSession() is not implemented for DynamoDB yet.");
-    throw new Error("deleteSession is not implemented for DynamoDB yet");
-  }
-  warnInMemorySessions();
-
-  const record = inMemorySessions.get(sessionId);
-  if (!record) {
-    console.warn("[Database] deleteSession() missing session:", sessionId);
-    return;
-  }
-  inMemorySessions.delete(sessionId);
-  inMemorySessionsById.delete(record.id);
-  inMemoryLogs.delete(record.id);
+  await deleteDynamoSession(sessionId);
 }
 
-/**
- * ログエントリを追加（後方互換性のため）
- * @deprecated DynamoDB用の実装に置き換える予定
- */
 export async function addLogEntry(entry: InsertLogEntry): Promise<void> {
-  if (!shouldUseInMemorySessions()) {
-    console.warn("[Database] addLogEntry() is not implemented for DynamoDB yet.");
-    return;
-  }
-  warnInMemorySessions();
-
-  const logs = inMemoryLogs.get(entry.sessionId) ?? [];
-  logs.push(entry);
-  inMemoryLogs.set(entry.sessionId, logs);
+  await addDynamoLogEntry(entry);
 }
 
-/**
- * セッションのログエントリを取得（後方互換性のため）
- * @deprecated DynamoDB用の実装に置き換える予定
- */
-export async function getSessionLogEntries(sessionDbId: number): Promise<unknown[]> {
-  if (!shouldUseInMemorySessions()) {
-    console.warn("[Database] getSessionLogEntries() is not implemented for DynamoDB yet.");
-    return [];
-  }
-  warnInMemorySessions();
-
-  return inMemoryLogs.get(sessionDbId) ?? [];
+export async function getSessionLogEntries(sessionDbId: number): Promise<InsertLogEntry[]> {
+  return await getDynamoSessionLogEntries(sessionDbId);
 }
 
-/**
- * ユーザーの介入設定を取得または作成（後方互換性のため）
- * @deprecated DynamoDB用の実装に置き換える予定
- */
-export async function getOrCreateInterventionSettings(userId: number): Promise<unknown> {
-  console.warn("[Database] getOrCreateInterventionSettings() is not implemented for DynamoDB yet.");
-  // デフォルト設定を返す
-  return {
-    userId,
-    enabled: 1,
-    monologueThreshold: 30,
-    silenceThreshold: 8,
-    soundEnabled: 1,
-    visualHintEnabled: 1,
-  };
+export async function getOrCreateInterventionSettings(userId: number) {
+  return await getDynamoInterventionSettings(userId);
 }
 
-/**
- * 介入設定を更新（後方互換性のため）
- * @deprecated DynamoDB用の実装に置き換える予定
- */
 export async function updateInterventionSettings(
-  userId: number, 
+  userId: number,
   settings: Partial<InsertInterventionSettings>
 ): Promise<void> {
-  console.warn("[Database] updateInterventionSettings() is not implemented for DynamoDB yet.");
-  // エラーを投げずに、警告のみを出力
+  await updateDynamoInterventionSettings(userId, settings);
 }

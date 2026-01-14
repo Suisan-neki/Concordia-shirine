@@ -14,6 +14,9 @@ export class StorageStack extends cdk.Stack {
     public readonly interviewsTable: dynamodb.Table;
     public readonly usersTable: dynamodb.Table;
     public readonly securityAuditLogsTable: dynamodb.Table;
+    public readonly sessionsTable: dynamodb.Table;
+    public readonly sessionLogsTable: dynamodb.Table;
+    public readonly interventionSettingsTable: dynamodb.Table;
 
     constructor(scope: Construct, id: string, props: StorageStackProps) {
         super(scope, id, props);
@@ -135,6 +138,16 @@ export class StorageStack extends cdk.Stack {
             pointInTimeRecovery: environment === "prod",
         });
 
+        // ユーザーIDによる検索用のGSI
+        this.usersTable.addGlobalSecondaryIndex({
+            indexName: "id-index",
+            partitionKey: {
+                name: "id",
+                type: dynamodb.AttributeType.NUMBER,
+            },
+            projectionType: dynamodb.ProjectionType.ALL,
+        });
+
         // セキュリティ監査ログ用の DynamoDB テーブル
         // Table name: concordia-securityAuditLogs-{environment}
         this.securityAuditLogsTable = new dynamodb.Table(this, "SecurityAuditLogsTable", {
@@ -145,6 +158,79 @@ export class StorageStack extends cdk.Stack {
             },
             sortKey: {
                 name: "timestamp",
+                type: dynamodb.AttributeType.NUMBER,
+            },
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy:
+                environment === "prod"
+                    ? cdk.RemovalPolicy.RETAIN
+                    : cdk.RemovalPolicy.DESTROY,
+            pointInTimeRecovery: environment === "prod",
+        });
+
+        // セッションデータ用の DynamoDB テーブル
+        this.sessionsTable = new dynamodb.Table(this, "SessionsTable", {
+            tableName: `concordia-sessions-${environment}`,
+            partitionKey: {
+                name: "sessionId",
+                type: dynamodb.AttributeType.STRING,
+            },
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy:
+                environment === "prod"
+                    ? cdk.RemovalPolicy.RETAIN
+                    : cdk.RemovalPolicy.DESTROY,
+            pointInTimeRecovery: environment === "prod",
+        });
+
+        // ユーザー別のセッション一覧取得用GSI
+        this.sessionsTable.addGlobalSecondaryIndex({
+            indexName: "userId-startTime-index",
+            partitionKey: {
+                name: "userId",
+                type: dynamodb.AttributeType.NUMBER,
+            },
+            sortKey: {
+                name: "startTime",
+                type: dynamodb.AttributeType.NUMBER,
+            },
+            projectionType: dynamodb.ProjectionType.ALL,
+        });
+
+        // セッションID（数値）での検索用GSI
+        this.sessionsTable.addGlobalSecondaryIndex({
+            indexName: "id-index",
+            partitionKey: {
+                name: "id",
+                type: dynamodb.AttributeType.NUMBER,
+            },
+            projectionType: dynamodb.ProjectionType.ALL,
+        });
+
+        // セッションログ用の DynamoDB テーブル
+        this.sessionLogsTable = new dynamodb.Table(this, "SessionLogsTable", {
+            tableName: `concordia-sessionLogs-${environment}`,
+            partitionKey: {
+                name: "sessionId",
+                type: dynamodb.AttributeType.NUMBER,
+            },
+            sortKey: {
+                name: "logKey",
+                type: dynamodb.AttributeType.STRING,
+            },
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            removalPolicy:
+                environment === "prod"
+                    ? cdk.RemovalPolicy.RETAIN
+                    : cdk.RemovalPolicy.DESTROY,
+            pointInTimeRecovery: environment === "prod",
+        });
+
+        // 介入設定用の DynamoDB テーブル
+        this.interventionSettingsTable = new dynamodb.Table(this, "InterventionSettingsTable", {
+            tableName: `concordia-interventionSettings-${environment}`,
+            partitionKey: {
+                name: "userId",
                 type: dynamodb.AttributeType.NUMBER,
             },
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
@@ -194,6 +280,36 @@ export class StorageStack extends cdk.Stack {
         new cdk.CfnOutput(this, "SecurityAuditLogsTableArn", {
             value: this.securityAuditLogsTable.tableArn,
             exportName: `${id}-SecurityAuditLogsTableArn`,
+        });
+
+        new cdk.CfnOutput(this, "SessionsTableName", {
+            value: this.sessionsTable.tableName,
+            exportName: `${id}-SessionsTableName`,
+        });
+
+        new cdk.CfnOutput(this, "SessionsTableArn", {
+            value: this.sessionsTable.tableArn,
+            exportName: `${id}-SessionsTableArn`,
+        });
+
+        new cdk.CfnOutput(this, "SessionLogsTableName", {
+            value: this.sessionLogsTable.tableName,
+            exportName: `${id}-SessionLogsTableName`,
+        });
+
+        new cdk.CfnOutput(this, "SessionLogsTableArn", {
+            value: this.sessionLogsTable.tableArn,
+            exportName: `${id}-SessionLogsTableArn`,
+        });
+
+        new cdk.CfnOutput(this, "InterventionSettingsTableName", {
+            value: this.interventionSettingsTable.tableName,
+            exportName: `${id}-InterventionSettingsTableName`,
+        });
+
+        new cdk.CfnOutput(this, "InterventionSettingsTableArn", {
+            value: this.interventionSettingsTable.tableArn,
+            exportName: `${id}-InterventionSettingsTableArn`,
         });
     }
 }

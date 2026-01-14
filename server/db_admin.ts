@@ -8,7 +8,7 @@
 
 import type { User } from "../drizzle/schema";
 import { getAllUsers as getAllDynamoUsers } from "./db";
-import { getAllUsers as getAllDynamoUsersDirect, getSecurityAuditLogs } from "./db-dynamodb";
+import { getAllUsers as getAllDynamoUsersDirect, getSecurityAuditLogs, getUserById as getDynamoUserById } from "./db-dynamodb";
 
 /**
  * 全ユーザーを取得する（管理者専用）
@@ -80,13 +80,7 @@ export async function getAllUsers(options: {
  * @returns ユーザーオブジェクト、またはundefined（存在しない場合）
  */
 export async function getUserById(userId: number): Promise<User | undefined> {
-  // DynamoDBから全ユーザーを取得（削除済みも含む）
-  const allUsers = await getAllDynamoUsersDirect(true);
-  
-  // idでフィルタリング
-  const user = allUsers.find(u => u.id === userId);
-  
-  return user;
+  return await getDynamoUserById(userId);
 }
 
 /**
@@ -137,4 +131,3 @@ export async function getAuditLogs(options: {
   // DynamoDB実装を使用
   return await getSecurityAuditLogs(options);
 }
-

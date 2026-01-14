@@ -11,9 +11,9 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
-import { getDb } from './db';
-import { securityAuditLogs, securitySummaries, InsertSecurityAuditLog, users, sessions } from '../drizzle/schema';
-import { eq, and, lt, sql } from 'drizzle-orm';
+import { getSessionById, getUserById } from './db';
+import { deleteSecurityAuditLogsBefore, listSecurityAuditLogs, putSecurityAuditLogs } from './db-dynamodb';
+import { InsertSecurityAuditLog } from '../drizzle/schema';
 import { ENV } from './_core/env';
 
 /**
@@ -361,22 +361,16 @@ export class SecurityService {
    */
   async cleanupOldData(): Promise<{ deletedLogs: number }> {
     try {
-      const db = await getDb();
-      // データベースが利用できない場合は何もしない
-      if (!db) return { deletedLogs: 0 };
-      
       // 30日前の時刻を計算（Unix timestamp in ms）
       const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
       
       // 30日以上前の監査ログを削除
-      // lt()は「less than」の意味で、指定した時刻より前のレコードを削除
-      const result = await db.delete(securityAuditLogs)
-        .where(lt(securityAuditLogs.timestamp, thirtyDaysAgo));
-      
+      const deletedLogs = await deleteSecurityAuditLogsBefore(thirtyDaysAgo);
+
       // 削除したログ数をログに記録
-      console.log(`[Security] Cleaned up old data: ${result[0]?.affectedRows || 0} logs deleted`);
+      console.log(`[Security] Cleaned up old data: ${deletedLogs} logs deleted`);
       
-      return { deletedLogs: result[0]?.affectedRows || 0 };
+      return { deletedLogs };
     } catch (error) {
       // エラーが発生した場合はログに記録して、0を返す
       // エラーでアプリケーションが停止しないようにする
@@ -451,12 +445,8 @@ export class SecurityService {
     this.logBuffer.lastFlush = Date.now();
     
     try {
-      const db = await getDb();
-      // データベースが利用できない場合は何もしない
-      if (!db) return;
-      
-      // 一括INSERT: 複数のイベントを1回のSQL文で書き込む
-      await db.insert(securityAuditLogs).values(eventsToFlush);
+      // 一括書き込みでDynamoDBへ保存
+      await putSecurityAuditLogs(eventsToFlush);
     } catch (error) {
       // エラーが発生した場合はログに記録
       console.error('[Security] Failed to flush log buffer:', error);
@@ -1078,24 +1068,8 @@ export class SecurityService {
     action: string
   ): Promise<boolean> {
     try {
-      const db = await getDb();
-      // データベースが利用できない場合は安全側に倒して拒否
-      // これにより、データベース障害時にもセキュリティが維持される
-      if (!db) {
-        await this.logSecurityEvent({
-          userId,
-          eventType: 'access_denied',
-          severity: 'warning',
-          description: `${resourceType}へのアクセスが拒否されました（データベースエラー）`,
-          metadata: { resourceType, resourceId, action },
-          timestamp: Date.now(),
-        }, true);
-        return false;
-      }
-
       // ユーザー情報を取得して、ロール（admin/user）を確認
-      const userResult = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-      const user = userResult[0];
+      const user = await getUserById(userId);
       
       // ユーザーが存在しない場合は拒否
       if (!user) {
@@ -1119,14 +1093,15 @@ export class SecurityService {
         case 'session':
           // セッションの所有者であるか、adminであることを確認
           // セッションデータを取得して、userIdを比較
-          const sessionResult = await db.select().from(sessions).where(eq(sessions.id, resourceId)).limit(1);
-          const session = sessionResult[0];
-          if (!session) {
-            // セッションが存在しない場合は拒否
-            allowed = false;
-          } else {
-            // セッションの所有者、またはadminの場合のみ許可
-            allowed = isAdmin || session.userId === userId;
+          {
+            const session = await getSessionById(resourceId);
+            if (!session) {
+              // セッションが存在しない場合は拒否
+              allowed = false;
+            } else {
+              // セッションの所有者、またはadminの場合のみ許可
+              allowed = isAdmin || session.userId === userId;
+            }
           }
           break;
 
@@ -1140,17 +1115,15 @@ export class SecurityService {
           // セキュリティサマリーはセッション経由でアクセスされる
           // セッションの所有者であるか、adminであることを確認
           // resourceIdはセッションIDとして扱う
-          const summarySessionResult = await db.select()
-            .from(sessions)
-            .where(eq(sessions.id, resourceId))
-            .limit(1);
-          const summarySession = summarySessionResult[0];
-          if (!summarySession) {
-            // セッションが存在しない場合は拒否
-            allowed = false;
-          } else {
-            // セッションの所有者、またはadminの場合のみ許可
-            allowed = isAdmin || summarySession.userId === userId;
+          {
+            const summarySession = await getSessionById(resourceId);
+            if (!summarySession) {
+              // セッションが存在しない場合は拒否
+              allowed = false;
+            } else {
+              // セッションの所有者、またはadminの場合のみ許可
+              allowed = isAdmin || summarySession.userId === userId;
+            }
           }
           break;
 
@@ -1343,21 +1316,18 @@ export class SecurityService {
     try {
       // まずバッファをフラッシュして最新データを反映
       await this.flushLogBuffer();
-      
-      const db = await getDb();
-      if (!db) {
+
+      // セッションに関連するセキュリティイベントを取得
+      const sessionLogs = await listSecurityAuditLogs({ sessionId });
+      if (sessionLogs.length === 0) {
         return { totalProtectionCount: 0, details: [] };
       }
       
-      // セッションに関連するセキュリティイベントを集計
-      const events = await db
-        .select({
-          eventType: securityAuditLogs.eventType,
-          count: sql<number>`count(*)`.as('count'),
-        })
-        .from(securityAuditLogs)
-        .where(eq(securityAuditLogs.sessionId, sessionId))
-        .groupBy(securityAuditLogs.eventType);
+      const eventCounts: Record<string, number> = {};
+      for (const event of sessionLogs) {
+        if (!event.eventType) continue;
+        eventCounts[event.eventType] = (eventCounts[event.eventType] || 0) + 1;
+      }
       
       const eventDescriptions: Record<string, string> = {
         encryption_applied: 'データを暗号化して保護',
@@ -1373,43 +1343,20 @@ export class SecurityService {
       };
       
       // サンプリングを考慮して推定値を計算
-      const details = events.map(e => {
-        let count = Number(e.count);
+      const details = Object.entries(eventCounts).map(([eventType, rawCount]) => {
+        let count = Number(rawCount);
         // infoレベルのイベントはサンプリングされているので推定値を計算
-        if (['encryption_applied', 'access_granted', 'privacy_preserved', 'input_sanitized'].includes(e.eventType)) {
+        if (['encryption_applied', 'access_granted', 'privacy_preserved', 'input_sanitized'].includes(eventType)) {
           count = Math.round(count / LOG_SAMPLING_RATE);
         }
         return {
-          type: e.eventType,
+          type: eventType,
           count,
-          description: eventDescriptions[e.eventType] || e.eventType,
+          description: eventDescriptions[eventType] || eventType,
         };
       });
       
       const totalProtectionCount = details.reduce((sum, d) => sum + d.count, 0);
-      
-      // サマリーをデータベースに保存
-      const counts = {
-        encryptionCount: details.find(d => d.type === 'encryption_applied')?.count || 0,
-        accessControlCount: (details.find(d => d.type === 'access_granted')?.count || 0) +
-                           (details.find(d => d.type === 'access_denied')?.count || 0),
-        sanitizationCount: details.find(d => d.type === 'input_sanitized')?.count || 0,
-        privacyProtectionCount: details.find(d => d.type === 'privacy_preserved')?.count || 0,
-        consentProtectionCount: details.find(d => d.type === 'consent_protected')?.count || 0,
-        threatBlockedCount: details.find(d => d.type === 'threat_blocked')?.count || 0,
-        totalProtectionCount,
-      };
-      
-      await db.insert(securitySummaries).values({
-        sessionId,
-        ...counts,
-        details: { events: details },
-      }).onDuplicateKeyUpdate({
-        set: {
-          ...counts,
-          details: { events: details },
-        },
-      });
       
       const result = { totalProtectionCount, details };
       
@@ -1466,55 +1413,36 @@ export class SecurityService {
     }
     
     try {
-      const db = await getDb();
-      // データベースが利用できない場合は空の統計を返す
-      if (!db) {
+      const logs = await listSecurityAuditLogs({ userId });
+      if (logs.length === 0) {
         return { totalEvents: 0, eventsByType: {}, recentEvents: [] };
       }
-      
-      // イベントタイプ別の集計
-      // ユーザーに関連するすべてのセキュリティイベントを、タイプごとにグループ化してカウント
-      const eventsByType = await db
-        .select({
-          eventType: securityAuditLogs.eventType,
-          count: sql<number>`count(*)`.as('count'),
-        })
-        .from(securityAuditLogs)
-        .where(eq(securityAuditLogs.userId, userId))
-        .groupBy(securityAuditLogs.eventType);
-      
-      // 最近のイベント（直近10件）
-      // タイムスタンプの降順でソートして、最新の10件を取得
-      const recentEvents = await db
-        .select({
-          eventType: securityAuditLogs.eventType,
-          description: securityAuditLogs.description,
-          timestamp: securityAuditLogs.timestamp,
-        })
-        .from(securityAuditLogs)
-        .where(eq(securityAuditLogs.userId, userId))
-        .orderBy(sql`${securityAuditLogs.timestamp} DESC`)
-        .limit(10);
       
       // サンプリングを考慮して推定値を計算
       // infoレベルのイベントは10%のみ記録されているため、実際の発生回数を推定する
       const eventsByTypeMap: Record<string, number> = {};
       let totalEvents = 0;
       
-      for (const e of eventsByType) {
-        let count = Number(e.count);
+      for (const log of logs) {
+        const eventType = log.eventType;
+        if (!eventType) continue;
+        eventsByTypeMap[eventType] = (eventsByTypeMap[eventType] || 0) + 1;
+      }
+
+      for (const [eventType, rawCount] of Object.entries(eventsByTypeMap)) {
+        let count = Number(rawCount);
         // infoレベルのイベントはサンプリングされているので推定値を計算
-        if (['encryption_applied', 'access_granted', 'privacy_preserved', 'input_sanitized'].includes(e.eventType)) {
+        if (['encryption_applied', 'access_granted', 'privacy_preserved', 'input_sanitized'].includes(eventType)) {
           count = Math.round(count / LOG_SAMPLING_RATE);
         }
-        eventsByTypeMap[e.eventType] = count;
+        eventsByTypeMap[eventType] = count;
         totalEvents += count;
       }
       
       const result = {
         totalEvents,
         eventsByType: eventsByTypeMap,
-        recentEvents: recentEvents.map(e => ({
+        recentEvents: logs.slice(0, 10).map(e => ({
           eventType: e.eventType,
           description: e.description,
           timestamp: Number(e.timestamp),
@@ -2210,27 +2138,20 @@ export class SecurityService {
     threats: Array<{ type: string; count: number; severity: string }>;
   }> {
     try {
-      const db = await getDb();
-      if (!db) {
-        return { alert: false, threats: [] };
-      }
-
       const now = Date.now();
       const startTime = now - timeWindowMs;
 
       // 最近のセキュリティイベントを取得
-      const recentEvents = await db
-        .select({
-          eventType: securityAuditLogs.eventType,
-          severity: securityAuditLogs.severity,
-        })
-        .from(securityAuditLogs)
-        .where(sql`${securityAuditLogs.timestamp} >= ${startTime}`);
+      const recentEvents = await listSecurityAuditLogs({ startDate: startTime });
+      if (recentEvents.length === 0) {
+        return { alert: false, threats: [] };
+      }
 
       // イベントタイプ別に集計
       const eventCounts: Record<string, { count: number; severity: string }> = {};
       for (const event of recentEvents) {
         const key = event.eventType;
+        if (!key) continue;
         if (!eventCounts[key]) {
           eventCounts[key] = { count: 0, severity: event.severity || 'info' };
         }

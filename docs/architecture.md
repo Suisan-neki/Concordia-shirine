@@ -20,7 +20,11 @@
     -   **Node.js**: アプリケーションロジック、セッション管理、tRPC APIサーバーとして動作。
     -   **Python**: 音声データの処理や、高度な数値計算が必要な処理を担当。
 
-5.  **AI分析(OpenAI API)**
+5.  **データストア(DynamoDB + S3)**
+    -   **DynamoDB**: セッション、ログ、介入設定、監査ログなどのメタデータを保存。
+    -   **S3**: 音声/動画ファイルと解析結果のオブジェクトストレージ。
+
+6.  **AI分析(OpenAI API)**
     外部の高度なAIモデルと連携します。
     -   **Realtime / Whisper**: 音声データのテキスト化。
     -   **GPT-5-mini**: 文脈の理解、セッションの「空気」のスコアリング。
@@ -42,13 +46,14 @@
 -   **コンピューティング**: AWS Lambda (Web Adapter使用)
 -   **ランタイム**: Node.js / Python
 -   **AIサービス**: OpenAI API
--   **ORM**: Drizzle ORM
+-   **スキーマ/型定義**: Drizzle ORM（型定義用途、DB実体はDynamoDB）
 
 ### インフラストラクチャ (Infrastructure)
 -   **構築ツール (IaC)**: AWS CDK (TypeScript)
 -   **認証**: Amazon Cognito
 -   **CDN**: Amazon CloudFront
 -   **ストレージ**: Amazon S3
+-   **データベース**: Amazon DynamoDB
 -   **APIゲートウェイ**: Amazon API Gateway
 
 ---

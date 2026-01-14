@@ -3,7 +3,14 @@ import { SecurityService } from "./security";
 
 // データベースをモック
 vi.mock("./db", () => ({
-  getDb: vi.fn().mockResolvedValue(null),
+  getUserById: vi.fn().mockResolvedValue({
+    id: 1,
+    role: "user",
+  }),
+  getSessionById: vi.fn().mockResolvedValue({
+    id: 123,
+    userId: 1,
+  }),
 }));
 
 describe("SecurityService", () => {

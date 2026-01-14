@@ -87,7 +87,7 @@ validateEnv();
  * プロパティの説明:
  * - appId: アプリケーションID（OAuth認証に使用）
  * - cookieSecret: JWT署名用のシークレットキー（必須）
- * - databaseUrl: データベース接続URL（必須）
+ * - databaseUrl: 旧DB接続URL（DynamoDB移行後は未使用）
  * - oAuthServerUrl: OAuth認証サーバーのURL
  * - ownerOpenId: 管理者のOpenID（admin権限の付与に使用）
  * - isProduction: 本番環境かどうかのフラグ
@@ -106,7 +106,7 @@ export const ENV = {
   appId: process.env.VITE_APP_ID ?? "",
   /** JWT署名用のシークレットキー（必須） */
   cookieSecret: process.env.JWT_SECRET ?? "",
-  /** データベース接続URL（必須） */
+  /** 旧DB接続URL（未使用） */
   databaseUrl: process.env.DATABASE_URL ?? "",
   /** OAuth認証サーバーのURL */
   oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",

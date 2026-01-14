@@ -105,7 +105,15 @@ pnpm install
 
 # DynamoDBテーブルの作成
 # AWS CLIを使用してテーブルを作成する場合:
-./scripts/create-dynamodb-table.sh
+# (dev環境を指定する場合は引数で切り替え可能)
+./scripts/create-dynamodb-table.sh dev
+# 作成されるテーブル:
+# - concordia-users-*
+# - concordia-securityAuditLogs-*
+# - concordia-interviews-*
+# - concordia-sessions-*
+# - concordia-sessionLogs-*
+# - concordia-interventionSettings-*
 
 # または、AWS CDKを使用してインフラをデプロイする場合:
 # cd cdk && cdk deploy
