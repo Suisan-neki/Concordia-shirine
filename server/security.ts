@@ -126,6 +126,90 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000); // 5分ごとにクリーンアップを実行
 
+/**
+ * AI特有の攻撃パターンストレージの自動クリーンアップ
+ * 
+ * メモリリークを防ぐため、古い攻撃パターンレコードを定期的に削除します。
+ * 24時間以上経過したレコードを削除対象とします。
+ * 
+ * 実行間隔: 1時間ごと
+ * 削除条件: 最後の試行から24時間以上経過したレコード
+ */
+setInterval(() => {
+  const now = Date.now();
+  const keysToDelete: string[] = [];
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  
+  for (const [key, record] of aiAttackPatternStore.entries()) {
+    // 最後の試行から24時間以上経過したレコードを削除
+    if (now - record.lastAttempt > TWENTY_FOUR_HOURS) {
+      keysToDelete.push(key);
+    }
+  }
+  
+  keysToDelete.forEach(key => aiAttackPatternStore.delete(key));
+  
+  if (keysToDelete.length > 0) {
+    console.log(`[Security] Cleaned up ${keysToDelete.length} expired AI attack pattern records`);
+  }
+}, 60 * 60 * 1000); // 1時間ごとにクリーンアップを実行
+
+/**
+ * 行動パターンストレージの自動クリーンアップ
+ * 
+ * メモリリークを防ぐため、古い行動パターンレコードを定期的に削除します。
+ * 24時間以上経過したレコードを削除対象とします。
+ * 
+ * 実行間隔: 1時間ごと
+ * 削除条件: 最後のリクエストから24時間以上経過したレコード
+ */
+setInterval(() => {
+  const now = Date.now();
+  const keysToDelete: string[] = [];
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  
+  for (const [key, record] of behaviorPatternStore.entries()) {
+    // 最後のリクエストから24時間以上経過したレコードを削除
+    if (record.lastRequestTime > 0 && now - record.lastRequestTime > TWENTY_FOUR_HOURS) {
+      keysToDelete.push(key);
+    }
+  }
+  
+  keysToDelete.forEach(key => behaviorPatternStore.delete(key));
+  
+  if (keysToDelete.length > 0) {
+    console.log(`[Security] Cleaned up ${keysToDelete.length} expired behavior pattern records`);
+  }
+}, 60 * 60 * 1000); // 1時間ごとにクリーンアップを実行
+
+/**
+ * 出力ベースラインストレージの自動クリーンアップ
+ * 
+ * メモリリークを防ぐため、古いベースライン統計を定期的に削除します。
+ * 7日以上更新されていない統計を削除対象とします。
+ * 
+ * 実行間隔: 1時間ごと
+ * 削除条件: 最後の更新から7日以上経過した統計
+ */
+setInterval(() => {
+  const now = Date.now();
+  const keysToDelete: string[] = [];
+  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+  
+  for (const [key, stats] of outputBaselineStore.entries()) {
+    // 最後の更新から7日以上経過した統計を削除
+    if (now - stats.lastUpdated > SEVEN_DAYS) {
+      keysToDelete.push(key);
+    }
+  }
+  
+  keysToDelete.forEach(key => outputBaselineStore.delete(key));
+  
+  if (keysToDelete.length > 0) {
+    console.log(`[Security] Cleaned up ${keysToDelete.length} expired output baseline records`);
+  }
+}, 60 * 60 * 1000); // 1時間ごとにクリーンアップを実行
+
 // ===== コスト最適化: ログバッファリング =====
 
 /**
