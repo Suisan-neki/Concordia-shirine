@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/_core/hooks/useAuth';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { WaveCanvas } from '@/components/WaveCanvas';
 import { WaveHintOverlay } from '@/components/WaveHintOverlay';
 import { SecurityBarrier } from '@/components/SecurityBarrier';
@@ -474,27 +474,30 @@ export default function Home() {
             <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
               {sceneConfigs[scene].description}
             </p>
-            {isMobileInfoOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-3 pt-3 border-t border-border/30 space-y-2"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">結界強度</span>
-                  <span>{Math.round(securityMetrics.barrierStrength * 100)}%</span>
-                </div>
-                <div className="h-1 bg-muted rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-shrine-jade rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${securityMetrics.barrierStrength * 100}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
-                </div>
-              </motion.div>
-            )}
+            <AnimatePresence>
+              {isMobileInfoOpen && (
+                <motion.div
+                  key="mobile-info-details"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-3 pt-3 border-t border-border/30 space-y-2"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">結界強度</span>
+                    <span>{Math.round(securityMetrics.barrierStrength * 100)}%</span>
+                  </div>
+                  <div className="h-1 bg-muted rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-shrine-jade rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${securityMetrics.barrierStrength * 100}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
       )}
@@ -605,8 +608,12 @@ export default function Home() {
               onClick={() => logout()}
               className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
             >
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
               <span className="hidden sm:inline">ログアウト</span>
-              <span className="sm:hidden">ログ</span>
             </Button>
           </div>
         ) : (
@@ -622,7 +629,6 @@ export default function Home() {
               <line x1="15" y1="12" x2="3" y2="12" />
             </svg>
             <span className="hidden sm:inline">ログイン</span>
-            <span className="sm:hidden">ログ</span>
           </Button>
         )}
       </div>
