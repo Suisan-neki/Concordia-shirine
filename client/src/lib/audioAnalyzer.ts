@@ -37,7 +37,7 @@ const DEFAULT_CONFIG: AudioAnalyzerConfig = {
   overlapSwitchThreshold: 8,
   stableMinDurationSec: 15.0,
   cooldownSec: 10.0,
-  vadThreshold: 0.015
+  vadThreshold: 0.008
 };
 
 /**
@@ -219,6 +219,7 @@ export class AudioAnalyzer {
   private startTime: number = 0;
   private rmsSmooth: number = 0;
   private isSpeech: boolean = false;
+  private noiseFloor: number = 0;
   
   // コールバック
   private onEnergyUpdate?: (energy: number) => void;
@@ -284,6 +285,9 @@ export class AudioAnalyzer {
       
       // AudioContextを作成
       this.audioContext = new AudioContext();
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 2048;
       this.analyser.smoothingTimeConstant = 0.8;
@@ -343,7 +347,9 @@ export class AudioAnalyzer {
     const now = performance.now() / 1000 - this.startTime;
     
     // VAD（音声活動検出）
-    const newIsSpeech = this.detectSpeech(rms);
+    const threshold = this.getAdaptiveThreshold();
+    const newIsSpeech = this.detectSpeech(rms, threshold);
+    this.updateNoiseFloor(rms, newIsSpeech);
     
     if (newIsSpeech !== this.isSpeech) {
       this.isSpeech = newIsSpeech;
@@ -351,7 +357,7 @@ export class AudioAnalyzer {
     }
     
     // エネルギーを通知
-    const normalizedEnergy = Math.min(1, rms / this.config.vadThreshold);
+    const normalizedEnergy = Math.min(1, rms / Math.max(threshold, 0.001));
     this.onEnergyUpdate?.(normalizedEnergy);
     
     // イベント検出
@@ -380,11 +386,25 @@ export class AudioAnalyzer {
   /**
    * 音声活動を検出
    */
-  private detectSpeech(rms: number): boolean {
+  private detectSpeech(rms: number, threshold: number): boolean {
     const rise = 1.2;
-    const target = rms / this.config.vadThreshold;
+    const target = rms / Math.max(threshold, 0.001);
     this.rmsSmooth = this.rmsSmooth * (1 - rise * 0.05) + Math.min(target, 3) * (rise * 0.05);
     return this.rmsSmooth > 1.0;
+  }
+
+  private getAdaptiveThreshold(): number {
+    const minThreshold = Math.max(0.003, this.config.vadThreshold * 0.6);
+    return Math.max(minThreshold, this.noiseFloor * 3);
+  }
+
+  private updateNoiseFloor(rms: number, isSpeech: boolean): void {
+    const alpha = isSpeech ? 0.005 : 0.02;
+    if (this.noiseFloor === 0) {
+      this.noiseFloor = rms;
+      return;
+    }
+    this.noiseFloor = this.noiseFloor * (1 - alpha) + rms * alpha;
   }
   
   /**
