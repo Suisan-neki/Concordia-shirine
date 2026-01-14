@@ -55,6 +55,47 @@ const getEncryptionKey = (): Buffer => {
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
 /**
+ * AI特有の攻撃パターンを追跡するストレージ
+ * 
+ * プロンプトインジェクション試行、異常なリクエストパターンなどを追跡します。
+ */
+const aiAttackPatternStore = new Map<string, {
+  promptInjectionAttempts: number;
+  suspiciousRequests: number;
+  lastAttempt: number;
+  blocked: boolean;
+}>();
+
+/**
+ * 正常な出力のベースライン（統計的特徴）
+ * 
+ * 正常なLLM出力の統計的特徴を保存し、異常な出力を検出するために使用します。
+ */
+interface BaselineStats {
+  avgLength: number;
+  stdDevLength: number;
+  avgEntropy: number;
+  stdDevEntropy: number;
+  sampleCount: number;
+  lastUpdated: number;
+}
+
+const outputBaselineStore = new Map<string, BaselineStats>(); // キー: モデル名
+
+/**
+ * 異常検知のための行動パターンストレージ
+ * 
+ * ユーザーやセッションの行動パターンを追跡し、異常な行動を検出します。
+ */
+const behaviorPatternStore = new Map<string, {
+  requestCount: number;
+  avgRequestInterval: number;
+  lastRequestTime: number;
+  suspiciousPatternCount: number;
+  normalPatternCount: number;
+}>();
+
+/**
  * レート制限レコードの自動クリーンアップ
  * 
  * メモリリークを防ぐため、期限切れのレート制限レコードを定期的に削除します。
@@ -84,6 +125,90 @@ setInterval(() => {
     console.log(`[Security] Cleaned up ${keysToDelete.length} expired rate limit records`);
   }
 }, 5 * 60 * 1000); // 5分ごとにクリーンアップを実行
+
+/**
+ * AI特有の攻撃パターンストレージの自動クリーンアップ
+ * 
+ * メモリリークを防ぐため、古い攻撃パターンレコードを定期的に削除します。
+ * 24時間以上経過したレコードを削除対象とします。
+ * 
+ * 実行間隔: 1時間ごと
+ * 削除条件: 最後の試行から24時間以上経過したレコード
+ */
+setInterval(() => {
+  const now = Date.now();
+  const keysToDelete: string[] = [];
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  
+  for (const [key, record] of aiAttackPatternStore.entries()) {
+    // 最後の試行から24時間以上経過したレコードを削除
+    if (now - record.lastAttempt > TWENTY_FOUR_HOURS) {
+      keysToDelete.push(key);
+    }
+  }
+  
+  keysToDelete.forEach(key => aiAttackPatternStore.delete(key));
+  
+  if (keysToDelete.length > 0) {
+    console.log(`[Security] Cleaned up ${keysToDelete.length} expired AI attack pattern records`);
+  }
+}, 60 * 60 * 1000); // 1時間ごとにクリーンアップを実行
+
+/**
+ * 行動パターンストレージの自動クリーンアップ
+ * 
+ * メモリリークを防ぐため、古い行動パターンレコードを定期的に削除します。
+ * 24時間以上経過したレコードを削除対象とします。
+ * 
+ * 実行間隔: 1時間ごと
+ * 削除条件: 最後のリクエストから24時間以上経過したレコード
+ */
+setInterval(() => {
+  const now = Date.now();
+  const keysToDelete: string[] = [];
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  
+  for (const [key, record] of behaviorPatternStore.entries()) {
+    // 最後のリクエストから24時間以上経過したレコードを削除
+    if (record.lastRequestTime > 0 && now - record.lastRequestTime > TWENTY_FOUR_HOURS) {
+      keysToDelete.push(key);
+    }
+  }
+  
+  keysToDelete.forEach(key => behaviorPatternStore.delete(key));
+  
+  if (keysToDelete.length > 0) {
+    console.log(`[Security] Cleaned up ${keysToDelete.length} expired behavior pattern records`);
+  }
+}, 60 * 60 * 1000); // 1時間ごとにクリーンアップを実行
+
+/**
+ * 出力ベースラインストレージの自動クリーンアップ
+ * 
+ * メモリリークを防ぐため、古いベースライン統計を定期的に削除します。
+ * 7日以上更新されていない統計を削除対象とします。
+ * 
+ * 実行間隔: 1時間ごと
+ * 削除条件: 最後の更新から7日以上経過した統計
+ */
+setInterval(() => {
+  const now = Date.now();
+  const keysToDelete: string[] = [];
+  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+  
+  for (const [key, stats] of outputBaselineStore.entries()) {
+    // 最後の更新から7日以上経過した統計を削除
+    if (now - stats.lastUpdated > SEVEN_DAYS) {
+      keysToDelete.push(key);
+    }
+  }
+  
+  keysToDelete.forEach(key => outputBaselineStore.delete(key));
+  
+  if (keysToDelete.length > 0) {
+    console.log(`[Security] Cleaned up ${keysToDelete.length} expired output baseline records`);
+  }
+}, 60 * 60 * 1000); // 1時間ごとにクリーンアップを実行
 
 // ===== コスト最適化: ログバッファリング =====
 
@@ -173,6 +298,8 @@ export class SecurityService {
     this.startFlushTimer();
     // 定期的な古いデータの削除を設定（1時間ごと）
     this.scheduleDataCleanup();
+    // 継続的な監視システムの初期化
+    this.initializeMonitoring();
   }
   
   /**
@@ -530,6 +657,292 @@ export class SecurityService {
     };
   }
   
+  /**
+   * 文字列のエントロピーを計算する（情報理論的検出）
+   * 
+   * プロンプトインジェクション攻撃は、通常のテキストよりも高いエントロピーを持つ傾向があります。
+   * これは、攻撃者が意図的に特殊な文字やパターンを使用するためです。
+   * 
+   * @param text - 分析する文字列
+   * @returns エントロピー値（0-8の範囲、高いほど異常）
+   */
+  private calculateEntropy(text: string): number {
+    if (!text || text.length === 0) return 0;
+    
+    const charCounts: Record<string, number> = {};
+    for (const char of text) {
+      charCounts[char] = (charCounts[char] || 0) + 1;
+    }
+    
+    let entropy = 0;
+    const length = text.length;
+    for (const count of Object.values(charCounts)) {
+      const probability = count / length;
+      entropy -= probability * Math.log2(probability);
+    }
+    
+    return entropy;
+  }
+
+  /**
+   * 統計的特徴を抽出する（機械学習的な検出）
+   * 
+   * プロンプトインジェクション攻撃の特徴を統計的に分析します。
+   * 
+   * @param input - 分析する入力文字列
+   * @returns 統計的特徴（異常度スコア）
+   */
+  private extractStatisticalFeatures(input: string): {
+    entropy: number;
+    specialCharRatio: number;
+    commandLikeRatio: number;
+    suspiciousKeywordCount: number;
+    anomalyScore: number;
+  } {
+    const entropy = this.calculateEntropy(input);
+    
+    // 特殊文字の比率
+    const specialChars = /[<>{}[\]()|\\\/@#$%^&*+=~`]/g;
+    const specialCharCount = (input.match(specialChars) || []).length;
+    const specialCharRatio = input.length > 0 ? specialCharCount / input.length : 0;
+    
+    // コマンドライクなパターンの比率
+    const commandPatterns = /(ignore|forget|override|disregard|act\s+as|pretend|output|format|respond)/gi;
+    const commandMatches = (input.match(commandPatterns) || []).length;
+    const commandLikeRatio = input.length > 0 ? commandMatches / (input.split(/\s+/).length || 1) : 0;
+    
+    // 不審なキーワードの数
+    const suspiciousKeywords = [
+      'system', 'prompt', 'instruction', 'rule', 'ignore', 'forget',
+      'override', 'disregard', 'reveal', 'show', 'display', 'secret',
+      'key', 'password', 'token', 'api', 'internal', 'private',
+    ];
+    const suspiciousKeywordCount = suspiciousKeywords.filter(keyword =>
+      new RegExp(`\\b${keyword}\\b`, 'i').test(input)
+    ).length;
+    
+    // 異常度スコア（0-1の範囲、高いほど異常）
+    const anomalyScore = Math.min(1, (
+      (entropy / 8) * 0.3 + // エントロピー（最大8）
+      specialCharRatio * 0.3 + // 特殊文字比率
+      Math.min(commandLikeRatio * 10, 1) * 0.2 + // コマンドライクな比率
+      Math.min(suspiciousKeywordCount / 5, 1) * 0.2 // 不審なキーワード数
+    ));
+    
+    return {
+      entropy,
+      specialCharRatio,
+      commandLikeRatio,
+      suspiciousKeywordCount,
+      anomalyScore,
+    };
+  }
+
+  /**
+   * プロンプトインジェクション攻撃を検出する（高度版）
+   * 
+   * AI時代特有の脅威: プロンプトインジェクション攻撃を検出します。
+   * パターンマッチングに加えて、統計的特徴分析とエントロピー分析を使用します。
+   * 
+   * @param input - 検証する入力文字列
+   * @returns 検出結果（検出されたかどうか、信頼度、検出方法）
+   */
+  private detectPromptInjectionAdvanced(input: string): {
+    detected: boolean;
+    confidence: number;
+    methods: string[];
+  } {
+    const lowerInput = input.toLowerCase();
+    const methods: string[] = [];
+    let confidence = 0;
+    
+    // 1. パターンマッチングベースの検出
+    const injectionPatterns = [
+      /ignore\s+(previous|all|earlier)\s+(instructions?|prompts?|rules?)/i,
+      /forget\s+(everything|all|previous)/i,
+      /disregard\s+(previous|all|earlier)/i,
+      /override\s+(system|previous|instructions?)/i,
+      /act\s+as\s+(a|an|the)/i,
+      /pretend\s+to\s+be/i,
+      /you\s+are\s+now/i,
+      /from\s+now\s+on/i,
+      /output\s+(as|in)\s+(json|xml|code|raw)/i,
+      /format\s+(as|in)\s+(json|xml|code|raw)/i,
+      /respond\s+(as|in)\s+(json|xml|code|raw)/i,
+      /(show|reveal|display|tell|give)\s+me\s+(the|your|all)/i,
+      /(what|where)\s+is\s+(your|the)\s+(api|key|secret|password|token)/i,
+      /(print|output|return)\s+(your|the)\s+(system|internal|private)/i,
+      /<\|(system|user|assistant)\|>/i,
+      /\[INST\]/i,
+      /\x1b\[/i,
+      /(BEGIN|START)\s+(NEW|REAL)\s+(INSTRUCTION|PROMPT|TASK)/i,
+      /(END|STOP)\s+(CURRENT|PREVIOUS)\s+(INSTRUCTION|PROMPT|TASK)/i,
+    ];
+    
+    const patternMatch = injectionPatterns.some(pattern => pattern.test(lowerInput));
+    if (patternMatch) {
+      methods.push('pattern_matching');
+      confidence += 0.4;
+    }
+    
+    // 2. 統計的特徴分析
+    const features = this.extractStatisticalFeatures(input);
+    if (features.anomalyScore > 0.5) {
+      methods.push('statistical_analysis');
+      confidence += features.anomalyScore * 0.4;
+    }
+    
+    // 3. エントロピー分析（高いエントロピーは異常の兆候）
+    if (features.entropy > 5.5) {
+      methods.push('entropy_analysis');
+      confidence += 0.2;
+    }
+    
+    return {
+      detected: confidence > 0.5,
+      confidence: Math.min(1, confidence),
+      methods,
+    };
+  }
+
+  /**
+   * プロンプトインジェクション攻撃を検出する（後方互換性のため残す）
+   * 
+   * @param input - 検証する入力文字列
+   * @returns プロンプトインジェクションが検出された場合はtrue、そうでなければfalse
+   */
+  private detectPromptInjection(input: string): boolean {
+    return this.detectPromptInjectionAdvanced(input).detected;
+  }
+
+  /**
+   * LLMへの入力を検証・サニタイズする
+   * 
+   * AI時代特有の脅威対策: プロンプトインジェクション攻撃を検出し、LLMへの入力として安全な形式に変換します。
+   * 
+   * @param input - LLMへの入力文字列
+   * @param userId - ユーザーID（ログ記録用、オプション）
+   * @param sessionId - セッションID（ログ記録用、オプション）
+   * @returns 検証結果（安全かどうか、サニタイズされた文字列、検出された脅威の種類）
+   */
+  async validateLLMInput(
+    input: string,
+    userId?: number,
+    sessionId?: number,
+    identifier?: string // 攻撃パターン追跡用の識別子（IPアドレスやユーザーIDなど）
+  ): Promise<{ 
+    safe: boolean; 
+    sanitized: string; 
+    threats: string[];
+    blocked: boolean; // 自動ブロックされたかどうか
+  }> {
+    const threats: string[] = [];
+    let sanitized = input;
+    let blocked = false;
+    
+    // 高度なプロンプトインジェクション検出（統計的特徴分析を含む）
+    const injectionDetection = this.detectPromptInjectionAdvanced(input);
+    if (injectionDetection.detected) {
+      threats.push('prompt_injection');
+      
+      // 攻撃パターンの追跡と自動ブロック（識別子が提供されている場合）
+      if (identifier) {
+        const pattern = aiAttackPatternStore.get(identifier) || {
+          promptInjectionAttempts: 0,
+          suspiciousRequests: 0,
+          lastAttempt: 0,
+          blocked: false,
+        };
+        
+        // 既にブロックされている場合は即座に拒否
+        if (pattern.blocked) {
+          blocked = true;
+          threats.push('auto_blocked');
+          await this.logSecurityEvent({
+            userId,
+            sessionId,
+            eventType: 'llm_input_blocked',
+            severity: 'critical',
+            description: 'ブロックされた識別子からのLLMリクエストが拒否されました',
+            metadata: { 
+              identifier: this.hashIdentifier(identifier),
+              reason: 'repeated_prompt_injection_attempts',
+            },
+            timestamp: Date.now(),
+          }, true);
+          
+          return { safe: false, sanitized: '', threats, blocked: true };
+        }
+        
+        pattern.promptInjectionAttempts++;
+        pattern.lastAttempt = Date.now();
+        
+        // 3回以上の試行で自動ブロック
+        if (pattern.promptInjectionAttempts >= 3) {
+          pattern.blocked = true;
+          blocked = true;
+          threats.push('auto_blocked');
+          
+          await this.logSecurityEvent({
+            userId,
+            sessionId,
+            eventType: 'llm_input_auto_blocked',
+            severity: 'critical',
+            description: 'プロンプトインジェクション試行が3回検出され、自動ブロックされました',
+            metadata: { 
+              identifier: this.hashIdentifier(identifier),
+              attempts: pattern.promptInjectionAttempts,
+              confidence: injectionDetection.confidence,
+              methods: injectionDetection.methods,
+            },
+            timestamp: Date.now(),
+          }, true);
+        }
+        
+        aiAttackPatternStore.set(identifier, pattern);
+      }
+      
+      // 危険なパターンをエスケープまたは除去
+      sanitized = sanitized
+        .replace(/ignore\s+(previous|all|earlier)\s+(instructions?|prompts?|rules?)/gi, '[FILTERED]')
+        .replace(/forget\s+(everything|all|previous)/gi, '[FILTERED]')
+        .replace(/act\s+as\s+(a|an|the)\s+/gi, '[FILTERED]')
+        .replace(/output\s+(as|in)\s+(json|xml|code|raw)/gi, '[FILTERED]')
+        .replace(/<\|(system|user|assistant)\|>/gi, '[FILTERED]');
+    }
+    
+    // 通常の入力サニタイズも適用
+    const { sanitized: baseSanitized, wasModified } = await this.sanitizeInput(sanitized, userId, sessionId);
+    if (wasModified) {
+      threats.push('input_sanitization');
+    }
+    sanitized = baseSanitized;
+    
+    // 脅威が検出された場合はログに記録
+    if (threats.length > 0) {
+      await this.logSecurityEvent({
+        userId,
+        sessionId,
+        eventType: 'llm_input_threat_detected',
+        severity: threats.includes('prompt_injection') ? 'warning' : 'info',
+        description: `LLMへの入力で脅威が検出されました: ${threats.join(', ')}`,
+        metadata: { 
+          threatTypes: threats,
+          originalLength: input.length,
+          sanitizedLength: sanitized.length,
+        },
+        timestamp: Date.now(),
+      }, true); // 強制記録
+    }
+    
+    return {
+      safe: threats.length === 0 && !blocked,
+      sanitized,
+      threats,
+      blocked,
+    };
+  }
+
   /**
    * 入力をサニタイズする
    * 
@@ -1120,6 +1533,767 @@ export class SecurityService {
     }
   }
   
+  /**
+   * 外部データの信頼性を検証する（データポイズニング対策）
+   * 
+   * AI時代特有の脅威: データポイズニング攻撃を検出します。
+   * 外部から受け取るデータ（ファイル、ユーザー入力など）が、システムを誤動作させる
+   * ように細工されていないかを検証します。
+   * 
+   * 検証項目:
+   * - データサイズの異常（極端に大きい、または小さい）
+   * - 不正な文字エンコーディング
+   * - 悪意あるパターンの検出
+   * - ファイルタイプの不一致
+   * 
+   * @param data - 検証するデータ（文字列またはBuffer）
+   * @param options - 検証オプション
+   * @param options.maxSize - 最大データサイズ（バイト、デフォルト: 10MB）
+   * @param options.minSize - 最小データサイズ（バイト、デフォルト: 0）
+   * @param options.allowedEncodings - 許可される文字エンコーディング（デフォルト: ['utf-8']）
+   * @param userId - ユーザーID（ログ記録用、オプション）
+   * @param sessionId - セッションID（ログ記録用、オプション）
+   * @returns 検証結果（安全かどうか、検出された問題の種類）
+   */
+  async validateExternalData(
+    data: string | Buffer,
+    options: {
+      maxSize?: number;
+      minSize?: number;
+      allowedEncodings?: string[];
+    } = {},
+    userId?: number,
+    sessionId?: number
+  ): Promise<{ 
+    safe: boolean; 
+    issues: string[];
+  }> {
+    const {
+      maxSize = 10 * 1024 * 1024, // 10MB
+      minSize = 0,
+      allowedEncodings = ['utf-8'],
+    } = options;
+
+    const issues: string[] = [];
+    const dataBuffer = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
+    const dataSize = dataBuffer.length;
+
+    // 1. データサイズの検証
+    if (dataSize > maxSize) {
+      issues.push('data_too_large');
+    }
+    if (dataSize < minSize) {
+      issues.push('data_too_small');
+    }
+
+    // 2. 文字エンコーディングの検証（文字列の場合）
+    if (typeof data === 'string') {
+      try {
+        // UTF-8として正しくデコードできるか確認
+        Buffer.from(data, 'utf-8').toString('utf-8');
+      } catch (error) {
+        issues.push('invalid_encoding');
+      }
+    }
+
+    // 3. 悪意あるパターンの検出
+    const dataString = typeof data === 'string' ? data : dataBuffer.toString('utf-8', 0, Math.min(1024, dataSize));
+    const maliciousPatterns = [
+      // シェルコマンドインジェクション
+      /[;&|`$(){}[\]]/,
+      // パストラバーサル
+      /\.\.\//,
+      /\.\.\\/,
+      // NULLバイトインジェクション
+      /\x00/,
+      // 制御文字（改行とタブ以外）
+      /[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/,
+    ];
+
+    const hasMaliciousPattern = maliciousPatterns.some(pattern => pattern.test(dataString));
+    if (hasMaliciousPattern) {
+      issues.push('malicious_pattern_detected');
+    }
+
+    // 4. 異常なデータ構造の検出（JSONの場合）
+    if (dataString.trim().startsWith('{') || dataString.trim().startsWith('[')) {
+      try {
+        JSON.parse(dataString);
+      } catch (error) {
+        // JSONとして解析できない場合は問題なし（JSONでない可能性がある）
+      }
+    }
+
+    // 問題が検出された場合はログに記録
+    if (issues.length > 0) {
+      await this.logSecurityEvent({
+        userId,
+        sessionId,
+        eventType: 'external_data_validation_failed',
+        severity: 'warning',
+        description: `外部データの検証に失敗しました: ${issues.join(', ')}`,
+        metadata: { 
+          issues,
+          dataSize,
+          maxSize,
+          minSize,
+        },
+        timestamp: Date.now(),
+      }, true); // 強制記録
+    }
+
+    return {
+      safe: issues.length === 0,
+      issues,
+    };
+  }
+
+  /**
+   * モデルポイズニング対策: 外部APIの信頼性を検証する
+   * 
+   * AI時代特有の脅威: モデルポイズニング攻撃を検出します。
+   * 外部APIから返されるレスポンスが、期待される動作から逸脱していないかを検証します。
+   * 
+   * @param response - APIレスポンス
+   * @param expectedBehavior - 期待される動作のパターン
+   * @param userId - ユーザーID（ログ記録用、オプション）
+   * @param sessionId - セッションID（ログ記録用、オプション）
+   * @returns 検証結果（安全かどうか、検出された問題の種類）
+   */
+  async validateModelResponse(
+    response: { content?: string; model?: string; choices?: unknown[] },
+    expectedBehavior: { minLength?: number; maxLength?: number; allowedModels?: string[] },
+    userId?: number,
+    sessionId?: number
+  ): Promise<{ safe: boolean; issues: string[] }> {
+    const issues: string[] = [];
+    const { minLength = 0, maxLength = 100000, allowedModels = [] } = expectedBehavior;
+
+    // 1. モデル名の検証（AIサプライチェーン攻撃対策）
+    if (response.model && allowedModels.length > 0) {
+      if (!allowedModels.includes(response.model)) {
+        issues.push('unexpected_model');
+      }
+    }
+
+    // 2. レスポンス長の検証（異常な出力の検出）
+    const content = response.content || '';
+    if (content.length < minLength) {
+      issues.push('response_too_short');
+    }
+    if (content.length > maxLength) {
+      issues.push('response_too_long');
+    }
+
+    // 3. 空のレスポンスの検出
+    if (!content || content.trim().length === 0) {
+      issues.push('empty_response');
+    }
+
+    // 4. 異常な文字パターンの検出
+    const suspiciousPatterns = [
+      /[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]/g, // 制御文字
+      /.{10000,}/, // 極端に長い単語
+    ];
+
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(content)) {
+        issues.push('suspicious_content_pattern');
+        break;
+      }
+    }
+
+    if (issues.length > 0) {
+      await this.logSecurityEvent({
+        userId,
+        sessionId,
+        eventType: 'model_response_validation_failed',
+        severity: 'warning',
+        description: `モデルレスポンスの検証に失敗しました: ${issues.join(', ')}`,
+        metadata: { 
+          issues,
+          model: response.model,
+          contentLength: content.length,
+        },
+        timestamp: Date.now(),
+      }, true);
+    }
+
+    return { safe: issues.length === 0, issues };
+  }
+
+  /**
+   * メンバーシップ推論攻撃対策: 学習データの漏洩を防ぐ
+   * 
+   * AI時代特有の脅威: メンバーシップ推論攻撃を緩和します。
+   * モデルの出力が、特定の学習データに過度に適合していないかを検証します。
+   * 
+   * @param output - モデルの出力
+   * @param userId - ユーザーID（ログ記録用、オプション）
+   * @param sessionId - セッションID（ログ記録用、オプション）
+   * @returns 検証結果（安全かどうか）
+   */
+  async detectMembershipInference(
+    output: string,
+    userId?: number,
+    sessionId?: number
+  ): Promise<{ safe: boolean; confidence: number }> {
+    // 統計的検証: 出力が特定のデータに過度に適合していないかチェック
+    // 過度に詳細な情報や、学習データに特有のパターンが含まれていないか検証
+    
+    const suspiciousIndicators = [
+      // 極端に詳細な個人情報のようなパターン
+      /\d{4}[-\/]\d{2}[-\/]\d{2}/, // 日付パターン
+      /\b\d{3}-\d{2}-\d{4}\b/, // SSN風のパターン
+      /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i, // メールアドレス
+      /\b\d{10,}\b/, // 長い数字列（IDなど）
+    ];
+
+    let suspiciousCount = 0;
+    for (const pattern of suspiciousIndicators) {
+      if (pattern.test(output)) {
+        suspiciousCount++;
+      }
+    }
+
+    // 複数の個人情報パターンが検出された場合は警告
+    const confidence = suspiciousCount > 2 ? 0.3 : suspiciousCount > 0 ? 0.7 : 1.0;
+    const safe = confidence >= 0.5;
+
+    if (!safe) {
+      await this.logSecurityEvent({
+        userId,
+        sessionId,
+        eventType: 'membership_inference_suspected',
+        severity: 'warning',
+        description: 'メンバーシップ推論攻撃の可能性が検出されました',
+        metadata: { 
+          suspiciousPatternCount: suspiciousCount,
+          confidence,
+        },
+        timestamp: Date.now(),
+      }, true);
+    }
+
+    return { safe, confidence };
+  }
+
+  /**
+   * シャドウモデル対策: モデル出力の異常検知
+   * 
+   * AI時代特有の脅威: シャドウモデル攻撃を検出します。
+   * モデルの出力が、期待される動作から逸脱していないかを検証します。
+   * 
+   * @param output - モデルの出力
+   * @param expectedFormat - 期待される出力形式
+   * @param userId - ユーザーID（ログ記録用、オプション）
+   * @param sessionId - セッションID（ログ記録用、オプション）
+   * @returns 検証結果（正常かどうか、異常度）
+   */
+  async detectShadowModel(
+    output: string,
+    expectedFormat: { type: 'json' | 'text' | 'code'; schema?: Record<string, unknown> },
+    userId?: number,
+    sessionId?: number
+  ): Promise<{ normal: boolean; anomalyScore: number }> {
+    let anomalyScore = 0;
+
+    // 1. 出力形式の検証
+    if (expectedFormat.type === 'json') {
+      try {
+        const parsed = JSON.parse(output);
+        if (expectedFormat.schema) {
+          // 簡易的なスキーマ検証
+          const schemaKeys = Object.keys(expectedFormat.schema);
+          const parsedKeys = Object.keys(parsed);
+          const missingKeys = schemaKeys.filter(k => !parsedKeys.includes(k));
+          if (missingKeys.length > 0) {
+            anomalyScore += 0.3;
+          }
+        }
+      } catch (error) {
+        anomalyScore += 0.5; // JSONとして解析できない
+      }
+    } else if (expectedFormat.type === 'code') {
+      // コード形式の検証（簡易的）
+      if (!output.includes('function') && !output.includes('const') && !output.includes('class')) {
+        anomalyScore += 0.2;
+      }
+    }
+
+    // 2. 異常な長さの検出
+    if (output.length > 50000) {
+      anomalyScore += 0.3;
+    }
+    if (output.length < 10 && expectedFormat.type !== 'code') {
+      anomalyScore += 0.2;
+    }
+
+    // 3. 異常な文字パターンの検出
+    const anomalyPatterns = [
+      /[^\x20-\x7E\n\r\t]{10,}/, // 非ASCII文字が大量
+      /.{200,}/, // 極端に長い単語
+    ];
+
+    for (const pattern of anomalyPatterns) {
+      if (pattern.test(output)) {
+        anomalyScore += 0.2;
+        break;
+      }
+    }
+
+    const normal = anomalyScore < 0.5;
+
+    if (!normal) {
+      await this.logSecurityEvent({
+        userId,
+        sessionId,
+        eventType: 'shadow_model_detected',
+        severity: 'warning',
+        description: 'シャドウモデルの可能性が検出されました',
+        metadata: { 
+          anomalyScore,
+          expectedFormat: expectedFormat.type,
+        },
+        timestamp: Date.now(),
+      }, true);
+    }
+
+    return { normal, anomalyScore };
+  }
+
+  /**
+   * アライメント破壊対策: 安全制約の検証
+   * 
+   * AI時代特有の脅威: アライメント破壊（Jailbreak）攻撃を検出します。
+   * モデルの出力が、安全制約を回避していないかを検証します。
+   * 
+   * @param output - モデルの出力
+   * @param safetyConstraints - 安全制約のリスト
+   * @param userId - ユーザーID（ログ記録用、オプション）
+   * @param sessionId - セッションID（ログ記録用、オプション）
+   * @returns 検証結果（安全かどうか、違反した制約）
+   */
+  async validateAlignment(
+    output: string,
+    safetyConstraints: string[] = [
+      'violence',
+      'hate_speech',
+      'self_harm',
+      'sexual_content',
+      'illegal_activity',
+    ],
+    userId?: number,
+    sessionId?: number
+  ): Promise<{ safe: boolean; violations: string[] }> {
+    const violations: string[] = [];
+    const lowerOutput = output.toLowerCase();
+
+    // 安全制約違反のパターン（簡易的な検出）
+    const violationPatterns: Record<string, RegExp[]> = {
+      violence: [
+        /kill|murder|violence|attack|harm|hurt|destroy/i,
+        /weapon|gun|knife|bomb|explosive/i,
+      ],
+      hate_speech: [
+        /hate|discriminate|racist|sexist|homophobic/i,
+        /slur|offensive|derogatory/i,
+      ],
+      self_harm: [
+        /suicide|self.harm|cutting|overdose/i,
+        /end.life|kill.myself/i,
+      ],
+      sexual_content: [
+        /explicit|pornographic|sexual|nude/i,
+        /adult.content|nsfw/i,
+      ],
+      illegal_activity: [
+        /illegal|crime|criminal|fraud|theft|drug/i,
+        /hack|exploit|breach|unauthorized/i,
+      ],
+    };
+
+    for (const constraint of safetyConstraints) {
+      const patterns = violationPatterns[constraint] || [];
+      for (const pattern of patterns) {
+        if (pattern.test(lowerOutput)) {
+          violations.push(constraint);
+          break;
+        }
+      }
+    }
+
+    if (violations.length > 0) {
+      await this.logSecurityEvent({
+        userId,
+        sessionId,
+        eventType: 'alignment_violation_detected',
+        severity: 'critical',
+        description: `アライメント破壊が検出されました: ${violations.join(', ')}`,
+        metadata: { 
+          violations,
+          outputLength: output.length,
+        },
+        timestamp: Date.now(),
+      }, true);
+    }
+
+    return { safe: violations.length === 0, violations };
+  }
+
+  /**
+   * 生成AIによるソーシャルエンジニアリング対策: AI生成コンテンツの検証
+   * 
+   * AI時代特有の脅威: 生成AIによるソーシャルエンジニアリング攻撃を検出します。
+   * AI生成の文章・音声・画像が、詐欺やなりすましに使用されていないかを検証します。
+   * 
+   * @param content - 検証するコンテンツ
+   * @param contentType - コンテンツのタイプ（'text' | 'url' | 'email'）
+   * @param userId - ユーザーID（ログ記録用、オプション）
+   * @param sessionId - セッションID（ログ記録用、オプション）
+   * @returns 検証結果（安全かどうか、検出された脅威の種類）
+   */
+  async detectSocialEngineering(
+    content: string,
+    contentType: 'text' | 'url' | 'email' = 'text',
+    userId?: number,
+    sessionId?: number
+  ): Promise<{ safe: boolean; threats: string[] }> {
+    const threats: string[] = [];
+    const lowerContent = content.toLowerCase();
+
+    // フィッシングパターンの検出
+    const phishingPatterns = [
+      /urgent|immediate|action.required|verify.now/i,
+      /click.here|verify.account|suspended|locked/i,
+      /password|login|credentials|account.access/i,
+      /phishing|suspicious.link|verify.email/i,
+    ];
+
+    // なりすましパターンの検出
+    const impersonationPatterns = [
+      /i.am|this.is|speaking.as|representing/i,
+      /official|authorized|legitimate|trusted/i,
+      /verify.identity|confirm.details|update.information/i,
+    ];
+
+    // URLの検証（URLタイプの場合）
+    if (contentType === 'url') {
+      const urlPattern = /https?:\/\/[^\s]+/gi;
+      const urls = content.match(urlPattern) || [];
+      for (const url of urls) {
+        // 短縮URLや不審なドメインの検出
+        if (url.includes('bit.ly') || url.includes('tinyurl.com') || url.includes('t.co')) {
+          threats.push('suspicious_url');
+        }
+        // IPアドレス直接指定の検出
+        if (/https?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(url)) {
+          threats.push('ip_address_url');
+        }
+      }
+    }
+
+    // フィッシングパターンの検出
+    for (const pattern of phishingPatterns) {
+      if (pattern.test(lowerContent)) {
+        threats.push('phishing_pattern');
+        break;
+      }
+    }
+
+    // なりすましパターンの検出
+    for (const pattern of impersonationPatterns) {
+      if (pattern.test(lowerContent)) {
+        threats.push('impersonation_pattern');
+        break;
+      }
+    }
+
+    if (threats.length > 0) {
+      await this.logSecurityEvent({
+        userId,
+        sessionId,
+        eventType: 'social_engineering_detected',
+        severity: 'warning',
+        description: `ソーシャルエンジニアリングの可能性が検出されました: ${threats.join(', ')}`,
+        metadata: { 
+          threats,
+          contentType,
+          contentLength: content.length,
+        },
+        timestamp: Date.now(),
+      }, true);
+    }
+
+    return { safe: threats.length === 0, threats };
+  }
+
+  /**
+   * AIサプライチェーン攻撃対策: 外部依存関係の検証
+   * 
+   * AI時代特有の脅威: AIサプライチェーン攻撃を検出します。
+   * 外部API、ライブラリ、モデルの信頼性を検証します。
+   * 
+   * @param apiUrl - APIのURL
+   * @param apiKey - APIキー（ハッシュ化して記録）
+   * @param userId - ユーザーID（ログ記録用、オプション）
+   * @param sessionId - セッションID（ログ記録用、オプション）
+   * @returns 検証結果（安全かどうか、検出された問題）
+   */
+  async validateAISupplyChain(
+    apiUrl: string,
+    apiKey: string,
+    userId?: number,
+    sessionId?: number
+  ): Promise<{ safe: boolean; issues: string[] }> {
+    const issues: string[] = [];
+
+    // 1. URLの検証
+    try {
+      const url = new URL(apiUrl);
+      // HTTPSの強制
+      if (url.protocol !== 'https:') {
+        issues.push('insecure_protocol');
+      }
+      // 信頼できるドメインの検証（サブドメインバイパス攻撃対策）
+      const trustedDomains = ['forge.manus.im', 'api.openai.com', 'api.anthropic.com'];
+      const isTrusted = trustedDomains.some(domain => 
+        url.hostname === domain || url.hostname.endsWith('.' + domain)
+      );
+      if (!isTrusted) {
+        issues.push('untrusted_domain');
+      }
+    } catch (error) {
+      issues.push('invalid_url');
+    }
+
+    // 2. APIキーの検証（形式のチェック）
+    if (!apiKey || apiKey.length < 10) {
+      issues.push('weak_api_key');
+    }
+
+    if (issues.length > 0) {
+      await this.logSecurityEvent({
+        userId,
+        sessionId,
+        eventType: 'ai_supply_chain_validation_failed',
+        severity: 'warning',
+        description: `AIサプライチェーンの検証に失敗しました: ${issues.join(', ')}`,
+        metadata: { 
+          issues,
+          apiUrl: this.hashIdentifier(apiUrl), // URLもハッシュ化
+          apiKeyHash: this.hashIdentifier(apiKey),
+        },
+        timestamp: Date.now(),
+      }, true);
+    }
+
+    return { safe: issues.length === 0, issues };
+  }
+
+  /**
+   * AIガバナンス / AIセーフティ: 包括的な監査と運用フレームワーク
+   * 
+   * AI時代特有の脅威: AIガバナンスとAIセーフティのフレームワークを提供します。
+   * 技術だけでなく、運用・責任・監査を含めてAIを安全に扱う枠組みです。
+   * 
+   * @param event - AI関連のイベント
+   * @param event.type - イベントタイプ（'llm_request' | 'llm_response' | 'model_change' | 'policy_violation'）
+   * @param event.details - イベントの詳細
+   * @param userId - ユーザーID（ログ記録用、オプション）
+   * @param sessionId - セッションID（ログ記録用、オプション）
+   * @returns 監査記録のID
+   */
+  async recordAIGovernanceEvent(
+    event: {
+      type: 'llm_request' | 'llm_response' | 'model_change' | 'policy_violation' | 'compliance_check';
+      details: {
+        model?: string;
+        inputLength?: number;
+        outputLength?: number;
+        tokensUsed?: number;
+        policy?: string;
+        violation?: string;
+        complianceStatus?: 'pass' | 'fail' | 'warning';
+      };
+    },
+    userId?: number,
+    sessionId?: number
+  ): Promise<void> {
+    const severity = event.type === 'policy_violation' ? 'critical' : 
+                     event.type === 'compliance_check' && event.details.complianceStatus === 'fail' ? 'warning' : 
+                     'info';
+
+    await this.logSecurityEvent({
+      userId,
+      sessionId,
+      eventType: `ai_governance_${event.type}`,
+      severity,
+      description: `AIガバナンスイベント: ${event.type}`,
+      metadata: {
+        eventType: event.type,
+        ...event.details,
+        timestamp: Date.now(),
+        framework: 'ai_governance',
+      },
+      timestamp: Date.now(),
+    }, severity === 'critical' || severity === 'warning'); // 重要イベントは強制記録
+  }
+
+  /**
+   * AIセーフティコンプライアンスチェック
+   * 
+   * AI時代特有の脅威: AIセーフティのコンプライアンスをチェックします。
+   * 定期的に実行して、AIシステムが安全に運用されているかを確認します。
+   * 
+   * @param checks - チェック項目
+   * @param checks.modelValidation - モデルの検証が有効か
+   * @param checks.inputValidation - 入力検証が有効か
+   * @param checks.outputValidation - 出力検証が有効か
+   * @param checks.alignmentCheck - アライメントチェックが有効か
+   * @param userId - ユーザーID（ログ記録用、オプション）
+   * @param sessionId - セッションID（ログ記録用、オプション）
+   * @returns コンプライアンスステータス
+   */
+  async performAISafetyComplianceCheck(
+    checks: {
+      modelValidation: boolean;
+      inputValidation: boolean;
+      outputValidation: boolean;
+      alignmentCheck: boolean;
+    },
+    userId?: number,
+    sessionId?: number
+  ): Promise<{ compliant: boolean; issues: string[] }> {
+    const issues: string[] = [];
+
+    if (!checks.modelValidation) {
+      issues.push('model_validation_disabled');
+    }
+    if (!checks.inputValidation) {
+      issues.push('input_validation_disabled');
+    }
+    if (!checks.outputValidation) {
+      issues.push('output_validation_disabled');
+    }
+    if (!checks.alignmentCheck) {
+      issues.push('alignment_check_disabled');
+    }
+
+    const compliant = issues.length === 0;
+
+    await this.recordAIGovernanceEvent({
+      type: 'compliance_check',
+      details: {
+        complianceStatus: compliant ? 'pass' : 'fail',
+        policy: 'ai_safety_compliance',
+      },
+    }, userId, sessionId);
+
+    return { compliant, issues };
+  }
+
+  /**
+   * 継続的な監視とアラート: リアルタイム監視システム
+   * 
+   * AI時代特有の脅威対策: セキュリティイベントを継続的に監視し、異常なパターンを検出してアラートを発します。
+   * 
+   * @param timeWindowMs - 監視する時間窓（ミリ秒、デフォルト: 5分）
+   * @param threshold - アラートを発する閾値（イベント数、デフォルト: 10）
+   * @returns 監視結果（アラートが必要かどうか、検出された脅威の種類）
+   */
+  async performContinuousMonitoring(
+    timeWindowMs: number = 5 * 60 * 1000, // 5分
+    threshold: number = 10
+  ): Promise<{ 
+    alert: boolean; 
+    threats: Array<{ type: string; count: number; severity: string }>;
+  }> {
+    try {
+      const db = await getDb();
+      if (!db) {
+        return { alert: false, threats: [] };
+      }
+
+      const now = Date.now();
+      const startTime = now - timeWindowMs;
+
+      // 最近のセキュリティイベントを取得
+      const recentEvents = await db
+        .select({
+          eventType: securityAuditLogs.eventType,
+          severity: securityAuditLogs.severity,
+        })
+        .from(securityAuditLogs)
+        .where(sql`${securityAuditLogs.timestamp} >= ${startTime}`);
+
+      // イベントタイプ別に集計
+      const eventCounts: Record<string, { count: number; severity: string }> = {};
+      for (const event of recentEvents) {
+        const key = event.eventType;
+        if (!eventCounts[key]) {
+          eventCounts[key] = { count: 0, severity: event.severity || 'info' };
+        }
+        eventCounts[key].count++;
+      }
+
+      // 閾値を超えたイベントを検出
+      const threats: Array<{ type: string; count: number; severity: string }> = [];
+      let alert = false;
+
+      for (const [eventType, data] of Object.entries(eventCounts)) {
+        if (data.count >= threshold) {
+          threats.push({
+            type: eventType,
+            count: data.count,
+            severity: data.severity,
+          });
+          
+          // criticalまたはwarningレベルのイベントが閾値を超えた場合はアラート
+          if (data.severity === 'critical' || data.severity === 'warning') {
+            alert = true;
+          }
+        }
+      }
+
+      // アラートが必要な場合はログに記録
+      if (alert) {
+        await this.logSecurityEvent({
+          eventType: 'security_alert_triggered',
+          severity: 'critical',
+          description: `セキュリティアラート: ${threats.length}種類の脅威が検出されました`,
+          metadata: { 
+            threats,
+            timeWindowMs,
+            threshold,
+          },
+          timestamp: now,
+        }, true);
+      }
+
+      return { alert, threats };
+    } catch (error) {
+      console.error('[Security] Failed to perform continuous monitoring:', error);
+      return { alert: false, threats: [] };
+    }
+  }
+
+  /**
+   * 監視システムの初期化
+   * 
+   * 継続的な監視を開始します。定期的にセキュリティイベントをチェックし、異常を検出します。
+   */
+  private initializeMonitoring(): void {
+    // 5分ごとに監視を実行
+    setInterval(async () => {
+      const monitoringResult = await this.performContinuousMonitoring();
+      if (monitoringResult.alert) {
+        console.warn('[Security] セキュリティアラート:', monitoringResult.threats);
+        // ここで外部のアラートシステム（Slack、Email、SNSなど）に通知することも可能
+      }
+    }, 5 * 60 * 1000); // 5分ごと
+  }
+
   /**
    * 識別子をハッシュ化する（プライバシー保護）
    * 
