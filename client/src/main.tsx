@@ -1,12 +1,10 @@
-import { trpc } from "@/lib/trpc";
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
-import superjson from "superjson";
 import App from "./App";
 import { getLoginUrl } from "./const";
-import { getCognitoIdToken, storeCognitoTokensFromUrl } from "./lib/cognito";
+import { storeCognitoTokensFromUrl } from "./lib/cognito";
+import { ApiError } from "@/lib/api";
 import "./index.css";
 
 storeCognitoTokensFromUrl();
@@ -27,10 +25,10 @@ if (analyticsEndpoint && analyticsWebsiteId && typeof document !== "undefined") 
 const queryClient = new QueryClient();
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
-  if (!(error instanceof TRPCClientError)) return;
+  if (!(error instanceof ApiError)) return;
   if (typeof window === "undefined") return;
 
-  const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
+  const isUnauthorized = error.status === 401 || error.message === UNAUTHED_ERR_MSG;
 
   if (!isUnauthorized) return;
 
@@ -54,33 +52,8 @@ queryClient.getMutationCache().subscribe(event => {
   }
 });
 
-const apiBaseUrl = import.meta.env.VITE_API_URL;
-
-const trpcClient = trpc.createClient({
-  links: [
-    httpBatchLink({
-      url: apiBaseUrl ? `${apiBaseUrl}/trpc` : "/api/trpc",
-      transformer: superjson,
-      fetch(input, init) {
-        const idToken = getCognitoIdToken();
-        const headers = new Headers(init?.headers);
-        if (idToken) {
-          headers.set("Authorization", `Bearer ${idToken}`);
-        }
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          headers,
-          credentials: "include",
-        });
-      },
-    }),
-  ],
-});
-
 createRoot(document.getElementById("root")!).render(
-  <trpc.Provider client={trpcClient} queryClient={queryClient}>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </trpc.Provider>
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>
 );

@@ -219,7 +219,7 @@ export default function ComponentsShowcase() {
     setTimeout(() => {
       const aiResponse: Message = {
         role: "assistant",
-        content: `This is a **demo response**. In a real app, you would call a tRPC mutation here:\n\n\`\`\`typescript\nconst chatMutation = trpc.ai.chat.useMutation({\n  onSuccess: (response) => {\n    setChatMessages(prev => [...prev, {\n      role: "assistant",\n      content: response.choices[0].message.content\n    }]);\n  }\n});\n\nchatMutation.mutate({ messages: newMessages });\n\`\`\`\n\nYour message was: "${content}"`,
+        content: `This is a **demo response**. In a real app, you would call a REST API here:\n\n\`\`\`typescript\nconst response = await fetch(\"/api/v1/ai/chat\", {\n  method: \"POST\",\n  headers: { \"Content-Type\": \"application/json\" },\n  body: JSON.stringify({ messages: newMessages })\n});\nconst data = await response.json();\nsetChatMessages(prev => [...prev, {\n  role: \"assistant\",\n  content: data.choices[0].message.content\n}]);\n\`\`\`\n\nYour message was: \"${content}\"`,
       };
       setChatMessages([...newMessages, aiResponse]);
       setIsChatLoading(false);

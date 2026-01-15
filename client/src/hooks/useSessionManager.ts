@@ -5,7 +5,8 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import { trpc } from '@/lib/trpc';
+import { api } from '@/lib/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/_core/hooks/useAuth';
 import type { SceneType } from '@/lib/waveEngine';
 
@@ -40,6 +41,7 @@ export interface LogEntry {
  */
 export function useSessionManager() {
   const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(false);
   const startTimeRef = useRef<number>(0);
@@ -52,14 +54,39 @@ export function useSessionManager() {
   });
   const eventCountsRef = useRef<Record<string, number>>({});
 
-  // tRPC mutations
-  const startMutation = trpc.session.start.useMutation();
-  const endMutation = trpc.session.end.useMutation();
-  const addLogMutation = trpc.session.addLog.useMutation();
-  const sessionsQuery = trpc.session.list.useQuery(undefined, {
+  const startMutation = useMutation({
+    mutationFn: () => api.sessions.start(),
+  });
+  const endMutation = useMutation({
+    mutationFn: (payload: {
+      sessionId: string;
+      endTime: number;
+      duration: number;
+      sceneDistribution: Record<string, number>;
+      eventCounts: Record<string, number>;
+      insights: string[];
+    }) => api.sessions.end(payload.sessionId, payload),
+  });
+  const addLogMutation = useMutation({
+    mutationFn: (payload: {
+      sessionId: string;
+      type: LogEntry['type'];
+      timestamp: number;
+      content?: string;
+      metadata?: Record<string, unknown>;
+    }) => api.sessions.addLog(payload.sessionId, payload),
+  });
+  const sessionsQuery = useQuery({
+    queryKey: ["sessions", isAuthenticated],
+    queryFn: () => api.sessions.list(),
     enabled: isAuthenticated,
   });
-  const deleteMutation = trpc.session.delete.useMutation();
+  const deleteMutation = useMutation({
+    mutationFn: (payload: { sessionId: string }) => api.sessions.delete(payload.sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+    },
+  });
 
   /**
    * セッションを開始
@@ -283,7 +310,7 @@ export function useSessionManager() {
     currentSessionId,
     isActive,
     isAuthenticated,
-    sessions: sessionsQuery.data ?? [],
+    sessions: (sessionsQuery.data as Array<Record<string, unknown>>) ?? [],
     isLoadingSessions: sessionsQuery.isLoading,
 
     // Actions

@@ -1,0 +1,232 @@
+"""
+Database access layer for DynamoDB
+"""
+import os
+from typing import Optional, Dict, Any, List
+from datetime import datetime
+import boto3
+from boto3.dynamodb.conditions import Key, Attr
+from botocore.exceptions import ClientError
+from app.core.config import settings
+
+
+# Cache for database operations
+_cache: Dict[str, Dict[str, Any]] = {}
+CACHE_TTL = 300000  # 5 minutes in milliseconds
+
+
+def get_table_name(table_name: str) -> str:
+    """Get DynamoDB table name with environment suffix"""
+    # Check for explicit table name in environment
+    env_key = f"DYNAMODB_TABLE_{table_name.upper()}"
+    if os.getenv(env_key):
+        return os.getenv(env_key)
+    
+    # Check for prefix
+    prefix = os.getenv("DYNAMODB_TABLE_PREFIX", "")
+    if prefix:
+        return f"{prefix}{table_name}"
+    
+    # Default: environment-based table name
+    env = "prod" if settings.is_production else "dev"
+    return f"concordia-{table_name}-{env}"
+
+
+def get_dynamo_client():
+    """Get DynamoDB client (low-level API)"""
+    region = settings.cognito_region or os.getenv("AWS_REGION", "ap-northeast-1")
+    return boto3.client("dynamodb", region_name=region)
+
+
+def get_dynamo_resource():
+    """Get DynamoDB resource (high-level API)"""
+    region = settings.cognito_region or os.getenv("AWS_REGION", "ap-northeast-1")
+    return boto3.resource("dynamodb", region_name=region)
+
+
+def generate_id_from_uuid(uuid: str) -> int:
+    """Generate numeric ID from UUID using SHA-256 hash"""
+    import hashlib
+    hash_obj = hashlib.sha256(uuid.encode())
+    hash_hex = hash_obj.hexdigest()
+    id_val = int(hash_hex[:12], 16)
+    return id_val or 1
+
+
+def get_from_cache(key: str) -> Optional[Any]:
+    """Get value from cache"""
+    entry = _cache.get(key)
+    if not entry:
+        return None
+    
+    if datetime.now().timestamp() * 1000 > entry["expiry"]:
+        del _cache[key]
+        return None
+    
+    return entry["data"]
+
+
+def set_cache(key: str, value: Any, ttl_ms: int = CACHE_TTL) -> None:
+    """Set value in cache"""
+    _cache[key] = {
+        "data": value,
+        "expiry": datetime.now().timestamp() * 1000 + ttl_ms
+    }
+
+
+def unmarshall_item(item: Dict[str, Any]) -> Dict[str, Any]:
+    """Unmarshall DynamoDB item to Python dict"""
+    result = {}
+    for key, value in item.items():
+        if "S" in value:
+            result[key] = value["S"]
+        elif "N" in value:
+            result[key] = int(value["N"]) if "." not in value["N"] else float(value["N"])
+        elif "BOOL" in value:
+            result[key] = value["BOOL"]
+        elif "NULL" in value:
+            result[key] = None
+        elif "M" in value:
+            result[key] = unmarshall_item(value["M"])
+        elif "L" in value:
+            result[key] = [unmarshall_item(v) if "M" in v else v for v in value["L"]]
+    return result
+
+
+def marshall_item(item: Dict[str, Any]) -> Dict[str, Any]:
+    """Marshall Python dict to DynamoDB item"""
+    result = {}
+    for key, value in item.items():
+        if value is None:
+            result[key] = {"NULL": True}
+        elif isinstance(value, str):
+            result[key] = {"S": value}
+        elif isinstance(value, (int, float)):
+            result[key] = {"N": str(value)}
+        elif isinstance(value, bool):
+            result[key] = {"BOOL": value}
+        elif isinstance(value, dict):
+            result[key] = {"M": marshall_item(value)}
+        elif isinstance(value, list):
+            result[key] = {"L": [marshall_item(v) if isinstance(v, dict) else v for v in value]}
+    return result
+
+
+async def get_user_by_open_id(open_id: str) -> Optional[Dict[str, Any]]:
+    """Get user by OpenID"""
+    cache_key = f"user:{open_id}"
+    cached = get_from_cache(cache_key)
+    if cached:
+        return cached
+    
+    client = get_dynamo_client()
+    table_name = get_table_name("users")
+    
+    try:
+        response = client.get_item(
+            TableName=table_name,
+            Key={"openId": {"S": open_id}}
+        )
+        
+        if "Item" not in response:
+            return None
+        
+        item = unmarshall_item(response["Item"])
+        user_role = item.get("role", "user")
+        
+        # Generate ID from openId
+        user_id = generate_id_from_uuid(open_id)
+        
+        user = {
+            "id": user_id,
+            "openId": item["openId"],
+            "name": item.get("name"),
+            "email": item.get("email"),
+            "loginMethod": item.get("loginMethod"),
+            "role": user_role,
+            "deletedAt": datetime.fromisoformat(item["deletedAt"]) if item.get("deletedAt") else None,
+            "createdAt": datetime.fromisoformat(item["createdAt"]) if item.get("createdAt") else datetime.now(),
+            "updatedAt": datetime.fromisoformat(item["updatedAt"]) if item.get("updatedAt") else datetime.now(),
+            "lastSignedIn": datetime.fromisoformat(item["lastSignedIn"]) if item.get("lastSignedIn") else datetime.now(),
+        }
+        
+        set_cache(cache_key, user)
+        return user
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "")
+        if error_code == "ResourceNotFoundException":
+            print(f"[DynamoDB] Table '{table_name}' does not exist. Please create it.")
+        else:
+            print(f"[DynamoDB] Failed to get user: {e}")
+        return None
+
+
+async def upsert_user(user_data: Dict[str, Any]) -> None:
+    """Upsert user"""
+    if not user_data.get("openId"):
+        raise ValueError("User openId is required for upsert")
+    
+    client = get_dynamo_client()
+    table_name = get_table_name("users")
+    
+    # Get existing user
+    existing_user = await get_user_by_open_id(user_data["openId"])
+    
+    now = datetime.now().isoformat()
+    
+    # Determine role
+    role = user_data.get("role") or (existing_user.get("role") if existing_user else "user")
+    if user_data["openId"] == settings.owner_open_id:
+        role = "admin"
+    
+    # Prepare item
+    item: Dict[str, Any] = {
+        "openId": user_data["openId"],
+        "role": role,
+        "updatedAt": now,
+    }
+    
+    if user_data.get("name"):
+        item["name"] = user_data["name"]
+    
+    if user_data.get("email"):
+        item["email"] = user_data["email"]
+    
+    if user_data.get("loginMethod"):
+        item["loginMethod"] = user_data["loginMethod"]
+    
+    if not existing_user:
+        item["createdAt"] = now
+        item["lastSignedIn"] = now
+    else:
+        if user_data.get("lastSignedIn"):
+            item["lastSignedIn"] = user_data["lastSignedIn"].isoformat() if isinstance(user_data["lastSignedIn"], datetime) else user_data["lastSignedIn"]
+        elif existing_user.get("lastSignedIn"):
+            item["lastSignedIn"] = existing_user["lastSignedIn"].isoformat() if isinstance(existing_user["lastSignedIn"], datetime) else existing_user["lastSignedIn"]
+        else:
+            item["lastSignedIn"] = now
+        
+        if existing_user.get("createdAt"):
+            item["createdAt"] = existing_user["createdAt"].isoformat() if isinstance(existing_user["createdAt"], datetime) else existing_user["createdAt"]
+    
+    if existing_user and existing_user.get("deletedAt"):
+        item["deletedAt"] = existing_user["deletedAt"].isoformat() if isinstance(existing_user["deletedAt"], datetime) else existing_user["deletedAt"]
+    
+    try:
+        marshalled_item = marshall_item(item)
+        client.put_item(
+            TableName=table_name,
+            Item=marshalled_item
+        )
+        
+        # Invalidate cache
+        cache_key = f"user:{user_data['openId']}"
+        if cache_key in _cache:
+            del _cache[cache_key]
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "")
+        if error_code == "ResourceNotFoundException":
+            print(f"[DynamoDB] Table '{table_name}' does not exist. Please create it.")
+            return
+        print(f"[DynamoDB] Failed to upsert user: {e}")
+        raise
