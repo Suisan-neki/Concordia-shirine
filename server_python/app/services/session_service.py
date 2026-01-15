@@ -17,7 +17,6 @@ from app.core.dynamodb import (
     update_intervention_settings,
 )
 from app.core.security import security_service
-from app.core.database import get_user_by_id
 
 
 def generate_session_id() -> str:

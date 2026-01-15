@@ -2,8 +2,7 @@
 API v1 routers
 """
 from fastapi import APIRouter
-from app.api.v1 import auth, sessions, intervention, security, admin
-from app.api.v1.auth import cognito
+from app.api.v1 import auth, sessions, intervention, security, admin, cognito
 
 api_router = APIRouter()
 

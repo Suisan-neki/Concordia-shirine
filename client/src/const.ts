@@ -26,6 +26,7 @@ function encodeBase64Url(value: string): string {
 export const getLoginUrl = (redirectPath?: string) => {
   const domain = import.meta.env.VITE_COGNITO_DOMAIN; // 例: https://concordia-auth-xxxx.auth.ap-northeast-1.amazoncognito.com
   const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
+  const apiBaseUrl = import.meta.env.VITE_API_URL;
 
   if (!domain || !clientId) {
     console.warn("[Auth] Cognito環境変数が設定されていません。");
@@ -33,11 +34,13 @@ export const getLoginUrl = (redirectPath?: string) => {
   }
 
   const path = redirectPath || window.location.pathname;
+  const redirectUrl =
+    path.startsWith("http") ? path : `${window.location.origin}${path !== "/" ? path : "/"}`;
   const nonce = createNonce();
 
   const state = encodeBase64Url(
     JSON.stringify({
-      redirectPath: path !== "/" ? path : "/",
+      redirectPath: redirectUrl,
       nonce,
     })
   );
@@ -47,7 +50,11 @@ export const getLoginUrl = (redirectPath?: string) => {
     cognitoDomain = `https://${cognitoDomain}`;
   }
 
-  const callbackUri = `${window.location.origin}/api/auth/cognito/callback`;
+  if (!apiBaseUrl) {
+    console.warn("[Auth] VITE_API_URLが未設定です。Cognitoコールバックが失敗する可能性があります。");
+  }
+  const baseUrl = apiBaseUrl || window.location.origin;
+  const callbackUri = `${baseUrl}/api/v1/auth/cognito/callback`;
   const params = new URLSearchParams();
   params.set("client_id", clientId);
   params.set("response_type", "code");

@@ -30,6 +30,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             from urllib.parse import urlparse
             origin_url = urlparse(origin)
             allowed_origins = set(settings.allowed_origins_list)
+
+            # Development fallback: allow all when no explicit origins configured
+            if not settings.is_production and not allowed_origins:
+                return await call_next(request)
             
             # Check if origin is allowed
             if origin in allowed_origins:
