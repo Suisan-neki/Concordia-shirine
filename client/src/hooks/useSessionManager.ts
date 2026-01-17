@@ -310,7 +310,7 @@ export function useSessionManager() {
     currentSessionId,
     isActive,
     isAuthenticated,
-    sessions: (sessionsQuery.data as Array<Record<string, unknown>>) ?? [],
+    sessions: isAuthenticated ? (sessionsQuery.data as Array<Record<string, unknown>>) ?? [] : [],
     isLoadingSessions: sessionsQuery.isLoading,
 
     // Actions

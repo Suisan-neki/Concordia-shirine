@@ -45,7 +45,6 @@ class Settings(BaseSettings):
     # Environment
     node_env: str = "development"
     
-    @property
     def is_production(self) -> bool:
         """Check if running in production"""
         return self.node_env.lower() == "production"
@@ -88,7 +87,7 @@ class Settings(BaseSettings):
         if not self.vite_app_id:
             errors.append("VITE_APP_ID is required")
         
-        if self.is_production:
+        if self.is_production():
             if not self.allowed_origins:
                 warnings.append("ALLOWED_ORIGINS is not set. CORS protection may be incomplete.")
             

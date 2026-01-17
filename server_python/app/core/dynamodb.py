@@ -1,6 +1,7 @@
 """
 DynamoDB operations for sessions, logs, and intervention settings
 """
+import asyncio
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from app.core.config import settings
@@ -12,6 +13,31 @@ from app.core.database import (
     unmarshall_item,
     marshall_item
 )
+
+
+async def _call_boto(method, *args, **kwargs):
+    """Run blocking boto3 calls off the event loop."""
+    return await asyncio.to_thread(method, *args, **kwargs)
+
+
+async def _batch_write_with_retries(
+    client,
+    table_name: str,
+    batch: List[Dict[str, Any]],
+    max_attempts: int = 5,
+    backoff_seconds: float = 0.1,
+) -> None:
+    """Retry batch_write_item until unprocessed items are handled or max_attempts reached."""
+    request_items = {table_name: batch}
+    for attempt in range(1, max_attempts + 1):
+        response = await _call_boto(client.batch_write_item, RequestItems=request_items)
+        unprocessed = response.get("UnprocessedItems", {}).get(table_name, [])
+        if not unprocessed:
+            return
+        if attempt == max_attempts:
+            raise RuntimeError(f"UnprocessedItems remain after retries: {unprocessed}")
+        await asyncio.sleep(backoff_seconds * attempt)
+        request_items = {table_name: unprocessed}
 
 
 # ===== Sessions =====
@@ -44,7 +70,8 @@ async def create_session(session_data: Dict[str, Any]) -> int:
     
     try:
         marshalled_item = marshall_item(item)
-        client.put_item(
+        await _call_boto(
+            client.put_item,
             TableName=table_name,
             Item=marshalled_item
         )
@@ -98,16 +125,17 @@ async def update_session(session_id: str, data: Dict[str, Any]) -> None:
                 dynamo_values[key] = {"NULL": True}
             elif isinstance(value, str):
                 dynamo_values[key] = {"S": value}
-            elif isinstance(value, (int, float)):
-                dynamo_values[key] = {"N": str(value)}
             elif isinstance(value, bool):
                 dynamo_values[key] = {"BOOL": value}
+            elif isinstance(value, (int, float)):
+                dynamo_values[key] = {"N": str(value)}
             elif isinstance(value, dict):
                 dynamo_values[key] = {"M": marshall_item(value)}
             elif isinstance(value, list):
                 dynamo_values[key] = {"L": [marshall_item(v) if isinstance(v, dict) else {"S": str(v)} for v in value]}
         
-        client.update_item(
+        await _call_boto(
+            client.update_item,
             TableName=table_name,
             Key={"sessionId": {"S": session_id}},
             UpdateExpression=f"SET {', '.join(updates)}",
@@ -125,7 +153,8 @@ async def get_session_by_session_id(session_id: str) -> Optional[Dict[str, Any]]
     table_name = get_table_name("sessions")
     
     try:
-        response = client.get_item(
+        response = await _call_boto(
+            client.get_item,
             TableName=table_name,
             Key={"sessionId": {"S": session_id}}
         )
@@ -159,7 +188,8 @@ async def get_user_sessions(user_id: int, limit: int = 50) -> List[Dict[str, Any
     table_name = get_table_name("sessions")
     
     try:
-        response = client.query(
+        response = await _call_boto(
+            client.query,
             TableName=table_name,
             IndexName="userId-startTime-index",
             KeyConditionExpression="userId = :userId",
@@ -210,7 +240,8 @@ async def delete_session(session_id: str) -> None:
     
     # Delete session
     try:
-        client.delete_item(
+        await _call_boto(
+            client.delete_item,
             TableName=table_name,
             Key={"sessionId": {"S": session_id}}
         )
@@ -238,7 +269,7 @@ async def delete_session_logs(session_db_id: int) -> None:
             if last_evaluated_key:
                 query_params["ExclusiveStartKey"] = last_evaluated_key
             
-            response = client.query(**query_params)
+            response = await _call_boto(client.query, **query_params)
             
             # Delete items in batches
             if response.get("Items"):
@@ -250,9 +281,7 @@ async def delete_session_logs(session_db_id: int) -> None:
                 # Batch write (max 25 items per batch)
                 for i in range(0, len(delete_requests), 25):
                     batch = delete_requests[i:i+25]
-                    client.batch_write_item(
-                        RequestItems={table_name: batch}
-                    )
+                    await _batch_write_with_retries(client, table_name, batch)
             
             last_evaluated_key = response.get("LastEvaluatedKey")
             if not last_evaluated_key:
@@ -281,7 +310,8 @@ async def add_log_entry(session_db_id: int, log_data: Dict[str, Any]) -> None:
     
     try:
         marshalled_item = marshall_item(item)
-        client.put_item(
+        await _call_boto(
+            client.put_item,
             TableName=table_name,
             Item=marshalled_item
         )
@@ -296,7 +326,8 @@ async def get_session_log_entries(session_db_id: int) -> List[Dict[str, Any]]:
     table_name = get_table_name("sessionLogs")
     
     try:
-        response = client.query(
+        response = await _call_boto(
+            client.query,
             TableName=table_name,
             KeyConditionExpression="sessionId = :sessionId",
             ExpressionAttributeValues={":sessionId": {"N": str(session_db_id)}},
@@ -329,7 +360,8 @@ async def get_or_create_intervention_settings(user_id: int) -> Dict[str, Any]:
     table_name = get_table_name("interventionSettings")
     
     try:
-        response = client.get_item(
+        response = await _call_boto(
+            client.get_item,
             TableName=table_name,
             Key={"userId": {"N": str(user_id)}}
         )
@@ -363,7 +395,8 @@ async def get_or_create_intervention_settings(user_id: int) -> Dict[str, Any]:
     
     try:
         marshalled_item = marshall_item(default_settings)
-        client.put_item(
+        await _call_boto(
+            client.put_item,
             TableName=table_name,
             Item=marshalled_item
         )
@@ -411,12 +444,13 @@ async def update_intervention_settings(user_id: int, data: Dict[str, Any]) -> No
                 dynamo_values[key] = {"NULL": True}
             elif isinstance(value, str):
                 dynamo_values[key] = {"S": value}
-            elif isinstance(value, (int, float)):
-                dynamo_values[key] = {"N": str(value)}
             elif isinstance(value, bool):
                 dynamo_values[key] = {"BOOL": value}
+            elif isinstance(value, (int, float)):
+                dynamo_values[key] = {"N": str(value)}
         
-        client.update_item(
+        await _call_boto(
+            client.update_item,
             TableName=table_name,
             Key={"userId": {"N": str(user_id)}},
             UpdateExpression=f"SET {', '.join(updates)}",
@@ -481,9 +515,7 @@ async def put_security_audit_logs(events: List[Dict[str, Any]]) -> None:
     try:
         for i in range(0, len(requests), 25):
             batch = requests[i:i+25]
-            client.batch_write_item(
-                RequestItems={table_name: batch}
-            )
+            await _batch_write_with_retries(client, table_name, batch)
     except ClientError as e:
         print(f"[DynamoDB] Failed to put security audit logs: {e}")
         raise
@@ -545,7 +577,7 @@ async def list_security_audit_logs(options: Dict[str, Any] = None) -> List[Dict[
             if last_evaluated_key:
                 scan_params["ExclusiveStartKey"] = last_evaluated_key
             
-            response = client.scan(**scan_params)
+            response = await _call_boto(client.scan, **scan_params)
             
             if response.get("Items"):
                 for item in response["Items"]:
@@ -602,6 +634,23 @@ async def get_security_audit_logs(options: Dict[str, Any] = None) -> Dict[str, A
 
 # ===== Admin Functions =====
 
+def _build_user_record(unmarshalled: Dict[str, Any]) -> Dict[str, Any]:
+    """Build a user record response from an unmarshalled DynamoDB item."""
+    user_id = unmarshalled.get("id") or generate_id_from_uuid(unmarshalled["openId"])
+    return {
+        "id": user_id,
+        "openId": unmarshalled["openId"],
+        "name": unmarshalled.get("name"),
+        "email": unmarshalled.get("email"),
+        "loginMethod": unmarshalled.get("loginMethod"),
+        "role": unmarshalled.get("role", "user"),
+        "deletedAt": datetime.fromisoformat(unmarshalled["deletedAt"]) if unmarshalled.get("deletedAt") else None,
+        "createdAt": datetime.fromisoformat(unmarshalled["createdAt"]) if unmarshalled.get("createdAt") else datetime.now(),
+        "updatedAt": datetime.fromisoformat(unmarshalled["updatedAt"]) if unmarshalled.get("updatedAt") else datetime.now(),
+        "lastSignedIn": datetime.fromisoformat(unmarshalled["lastSignedIn"]) if unmarshalled.get("lastSignedIn") else datetime.now(),
+    }
+
+
 async def get_all_users(include_deleted: bool = False) -> List[Dict[str, Any]]:
     """Get all users (admin only)"""
     client = get_dynamo_client()
@@ -623,24 +672,12 @@ async def get_all_users(include_deleted: bool = False) -> List[Dict[str, Any]]:
             if last_evaluated_key:
                 scan_params["ExclusiveStartKey"] = last_evaluated_key
             
-            response = client.scan(**scan_params)
+            response = await _call_boto(client.scan, **scan_params)
             
             if response.get("Items"):
                 for item in response["Items"]:
                     unmarshalled = unmarshall_item(item)
-                    user_id = generate_id_from_uuid(unmarshalled["openId"])
-                    all_items.append({
-                        "id": user_id,
-                        "openId": unmarshalled["openId"],
-                        "name": unmarshalled.get("name"),
-                        "email": unmarshalled.get("email"),
-                        "loginMethod": unmarshalled.get("loginMethod"),
-                        "role": unmarshalled.get("role", "user"),
-                        "deletedAt": datetime.fromisoformat(unmarshalled["deletedAt"]) if unmarshalled.get("deletedAt") else None,
-                        "createdAt": datetime.fromisoformat(unmarshalled["createdAt"]) if unmarshalled.get("createdAt") else datetime.now(),
-                        "updatedAt": datetime.fromisoformat(unmarshalled["updatedAt"]) if unmarshalled.get("updatedAt") else datetime.now(),
-                        "lastSignedIn": datetime.fromisoformat(unmarshalled["lastSignedIn"]) if unmarshalled.get("lastSignedIn") else datetime.now(),
-                    })
+                    all_items.append(_build_user_record(unmarshalled))
             
             last_evaluated_key = response.get("LastEvaluatedKey")
             if not last_evaluated_key:
@@ -654,7 +691,28 @@ async def get_all_users(include_deleted: bool = False) -> List[Dict[str, Any]]:
 
 async def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
     """Get user by ID (admin only)"""
-    # DynamoDB doesn't have id as primary key, so we need to scan
+    client = get_dynamo_client()
+    table_name = get_table_name("users")
+
+    try:
+        response = await _call_boto(
+            client.query,
+            TableName=table_name,
+            IndexName="id-index",
+            KeyConditionExpression="id = :id",
+            ExpressionAttributeValues={":id": {"N": str(user_id)}},
+            Limit=1
+        )
+        items = response.get("Items", [])
+        if items:
+            unmarshalled = unmarshall_item(items[0])
+            if "openId" in unmarshalled:
+                return _build_user_record(unmarshalled)
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "")
+        if error_code not in ("ValidationException", "ResourceNotFoundException"):
+            print(f"[DynamoDB] Failed to query user by id: {e}")
+
     all_users = await get_all_users(include_deleted=True)
     return next((user for user in all_users if user.get("id") == user_id), None)
 
@@ -674,7 +732,8 @@ async def soft_delete_user(user_id: int) -> bool:
     
     # Update user with deletedAt
     try:
-        client.update_item(
+        await _call_boto(
+            client.update_item,
             TableName=table_name,
             Key={"openId": {"S": user["openId"]}},
             UpdateExpression="SET deletedAt = :deletedAt, updatedAt = :updatedAt",

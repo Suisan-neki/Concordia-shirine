@@ -2,7 +2,7 @@
 Admin endpoints
 """
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from app.core.auth import get_current_admin_user
 from app.core.dynamodb import get_all_users, get_user_by_id, soft_delete_user, get_security_audit_logs
 from app.models.schemas import UserListResponse, UserResponse, AuditLogsResponse
@@ -55,9 +55,12 @@ async def get_user(
     admin_user: dict = Depends(get_current_admin_user)
 ):
     """Get user by ID (admin only)"""
-    user = await get_user_by_id(user_id)
+    try:
+        user = await get_user_by_id(user_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="User not found")
     if not user:
-        raise ValueError("User not found")
+        raise HTTPException(status_code=404, detail="User not found")
     return UserResponse(**user)
 
 
@@ -68,9 +71,12 @@ async def delete_user(
 ):
     """Soft delete user (admin only)"""
     if user_id == admin_user["id"]:
-        raise ValueError("Cannot delete yourself")
+        raise HTTPException(status_code=400, detail="Cannot delete self")
     
-    result = await soft_delete_user(user_id)
+    try:
+        result = await soft_delete_user(user_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="User not found")
     return {"success": result}
 
 
@@ -99,5 +105,8 @@ async def get_audit_logs(
     if session_id:
         options["sessionId"] = session_id
     
-    result = await get_security_audit_logs(options)
+    try:
+        result = await get_security_audit_logs(options)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid audit log options")
     return AuditLogsResponse(**result)

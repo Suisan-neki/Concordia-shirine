@@ -1,7 +1,7 @@
 """
 Security statistics endpoints
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from app.core.auth import get_current_user
 from app.core.security import security_service
 from app.models.schemas import SecurityStatsResponse, SecuritySummaryResponse
@@ -24,5 +24,10 @@ async def get_security_summary(
     user: dict = Depends(get_current_user)
 ):
     """Get security summary for a session"""
-    summary = await security_service.generate_security_summary(session_id)
+    try:
+        summary = await security_service.generate_security_summary(session_id, user["id"])
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Session not found")
     return SecuritySummaryResponse(**summary)
