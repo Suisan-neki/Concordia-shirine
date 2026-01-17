@@ -41,6 +41,7 @@ import { Link, useLocation } from 'wouter';
 import { toast } from 'sonner';
 
 const MAX_RECORDING_MS = 15 * 60 * 1000;
+const GUEST_MODE_KEY = 'concordia-guest-mode';
 
 interface TranscriptItem {
   id: string;
@@ -80,6 +81,10 @@ export default function Home() {
   const [isInterventionSettingsOpen, setIsInterventionSettingsOpen] = useState(false);
   const [isReportPanelOpen, setIsReportPanelOpen] = useState(false);
   const [reportSession, setReportSession] = useState<SessionData | null>(null);
+  const [isGuestMode, setIsGuestMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(GUEST_MODE_KEY) === 'true';
+  });
   const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
@@ -490,6 +495,13 @@ export default function Home() {
     setIsReportPanelOpen(true);
   }, []);
 
+  const handleEnableGuestMode = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(GUEST_MODE_KEY, 'true');
+    setIsGuestMode(true);
+    toast.success('ゲストモードで利用できます');
+  }, []);
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       {/* 初回ヒントオーバーレイ */}
@@ -702,19 +714,37 @@ export default function Home() {
             </Button>
           </div>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.location.href = getLoginUrl()}
-            className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
-          >
-            <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <polyline points="10 17 15 12 10 7" />
-              <line x1="15" y1="12" x2="3" y2="12" />
-            </svg>
-            <span className="hidden sm:inline">ログイン</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            {isGuestMode && (
+              <span className="text-xs text-muted-foreground bg-card/60 backdrop-blur-sm px-1.5 sm:px-2 py-1 rounded">
+                ゲスト利用中
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.href = getLoginUrl()}
+              className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
+            >
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              <span className="hidden sm:inline">ログイン</span>
+            </Button>
+            {!isGuestMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleEnableGuestMode}
+                className="bg-card/40 backdrop-blur-sm text-xs px-2 sm:px-3"
+              >
+                <span className="hidden sm:inline">ログインせずに試す</span>
+                <span className="sm:hidden">ゲスト</span>
+              </Button>
+            )}
+          </div>
         )}
       </div>
 

@@ -1,15 +1,18 @@
 """
 Configuration management using Pydantic Settings
 """
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
+
+ENV_FILE = ".env" if os.path.isfile(".env") and os.access(".env", os.R_OK) else None
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore"
