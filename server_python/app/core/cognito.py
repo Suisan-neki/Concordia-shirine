@@ -39,7 +39,7 @@ async def get_jwks() -> dict:
         return response.json()
 
 
-async def verify_cognito_token(token: str) -> dict:
+async def verify_cognito_token(token: str, access_token: Optional[str] = None) -> dict:
     """Verify Cognito JWT token"""
     if not settings.cognito_client_id:
         raise HTTPException(
@@ -91,12 +91,15 @@ async def verify_cognito_token(token: str) -> dict:
     
     # Verify and decode the token
     try:
+        options = {"verify_at_hash": bool(access_token)}
         payload = jwt.decode(
             token,
             public_key,
             algorithms=["RS256"],
             audience=settings.cognito_client_id,
             issuer=issuer,
+            options=options,
+            access_token=access_token,
         )
     except ExpiredSignatureError:
         raise HTTPException(
@@ -124,7 +127,11 @@ async def verify_cognito_token(token: str) -> dict:
     return payload
 
 
-async def authenticate_request(request, update_user: bool = False):
+async def authenticate_request(
+    request,
+    update_user: bool = False,
+    access_token: Optional[str] = None
+):
     """Authenticate request using Cognito Bearer token"""
     # Support both Request object and dict with headers
     if hasattr(request, 'headers'):
@@ -149,7 +156,7 @@ async def authenticate_request(request, update_user: bool = False):
         )
     
     # Verify token
-    payload = await verify_cognito_token(token)
+    payload = await verify_cognito_token(token, access_token=access_token)
     
     # Extract user information
     open_id = payload.get("sub")

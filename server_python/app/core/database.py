@@ -76,6 +76,13 @@ def generate_id_from_uuid(uuid: str) -> int:
     return id_val or 1
 
 
+def _ensure_isoformat(value: Any) -> str:
+    """Return ISO-8601 string for datetime values."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
 def get_from_cache(key: str) -> Optional[Any]:
     """Get value from cache"""
     entry = _cache.get(key)
@@ -172,6 +179,10 @@ async def get_user_by_open_id(open_id: str) -> Optional[Dict[str, Any]]:
         # Generate ID from openId
         user_id = generate_id_from_uuid(open_id)
         
+        deleted_at = item.get("deletedAt")
+        created_at = item.get("createdAt")
+        updated_at = item.get("updatedAt")
+        last_signed_in = item.get("lastSignedIn")
         user = {
             "id": user_id,
             "openId": item["openId"],
@@ -179,10 +190,10 @@ async def get_user_by_open_id(open_id: str) -> Optional[Dict[str, Any]]:
             "email": item.get("email"),
             "loginMethod": item.get("loginMethod"),
             "role": user_role,
-            "deletedAt": datetime.fromisoformat(item["deletedAt"]) if item.get("deletedAt") else None,
-            "createdAt": datetime.fromisoformat(item["createdAt"]) if item.get("createdAt") else datetime.now(),
-            "updatedAt": datetime.fromisoformat(item["updatedAt"]) if item.get("updatedAt") else datetime.now(),
-            "lastSignedIn": datetime.fromisoformat(item["lastSignedIn"]) if item.get("lastSignedIn") else datetime.now(),
+            "deletedAt": _ensure_isoformat(deleted_at) if deleted_at else None,
+            "createdAt": _ensure_isoformat(created_at) if created_at else datetime.now().isoformat(),
+            "updatedAt": _ensure_isoformat(updated_at) if updated_at else datetime.now().isoformat(),
+            "lastSignedIn": _ensure_isoformat(last_signed_in) if last_signed_in else datetime.now().isoformat(),
         }
         
         set_cache(cache_key, user)

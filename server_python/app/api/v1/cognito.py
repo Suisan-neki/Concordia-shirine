@@ -165,7 +165,7 @@ async def cognito_callback(
         # Get stored nonce from cookie
         stored_nonce = request.cookies.get(NONCE_COOKIE_NAME)
         if not stored_nonce:
-            if settings.is_production:
+            if settings.is_production():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Nonce validation failed: nonce cookie not found"
@@ -197,7 +197,11 @@ async def cognito_callback(
                 self.headers = {"authorization": f"Bearer {token}"}
         
         mock_req = MockRequest(id_token)
-        user = await authenticate_request(mock_req, update_user=True)
+        user = await authenticate_request(
+            mock_req,
+            update_user=True,
+            access_token=tokens.get("accessToken")
+        )
         
         # Create session token
         session_name = user.get("name") or user.get("email") or user.get("openId")

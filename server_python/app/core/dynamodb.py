@@ -637,6 +637,10 @@ async def get_security_audit_logs(options: Dict[str, Any] = None) -> Dict[str, A
 def _build_user_record(unmarshalled: Dict[str, Any]) -> Dict[str, Any]:
     """Build a user record response from an unmarshalled DynamoDB item."""
     user_id = unmarshalled.get("id") or generate_id_from_uuid(unmarshalled["openId"])
+    deleted_at = unmarshalled.get("deletedAt")
+    created_at = unmarshalled.get("createdAt")
+    updated_at = unmarshalled.get("updatedAt")
+    last_signed_in = unmarshalled.get("lastSignedIn")
     return {
         "id": user_id,
         "openId": unmarshalled["openId"],
@@ -644,10 +648,10 @@ def _build_user_record(unmarshalled: Dict[str, Any]) -> Dict[str, Any]:
         "email": unmarshalled.get("email"),
         "loginMethod": unmarshalled.get("loginMethod"),
         "role": unmarshalled.get("role", "user"),
-        "deletedAt": datetime.fromisoformat(unmarshalled["deletedAt"]) if unmarshalled.get("deletedAt") else None,
-        "createdAt": datetime.fromisoformat(unmarshalled["createdAt"]) if unmarshalled.get("createdAt") else datetime.now(),
-        "updatedAt": datetime.fromisoformat(unmarshalled["updatedAt"]) if unmarshalled.get("updatedAt") else datetime.now(),
-        "lastSignedIn": datetime.fromisoformat(unmarshalled["lastSignedIn"]) if unmarshalled.get("lastSignedIn") else datetime.now(),
+        "deletedAt": deleted_at.isoformat() if isinstance(deleted_at, datetime) else deleted_at,
+        "createdAt": created_at.isoformat() if isinstance(created_at, datetime) else (created_at or datetime.now().isoformat()),
+        "updatedAt": updated_at.isoformat() if isinstance(updated_at, datetime) else (updated_at or datetime.now().isoformat()),
+        "lastSignedIn": last_signed_in.isoformat() if isinstance(last_signed_in, datetime) else (last_signed_in or datetime.now().isoformat()),
     }
 
 
