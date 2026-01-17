@@ -17,8 +17,8 @@ import { getEventTypeLabel, getEventTypeIcon } from '@/hooks/useSecurityStats';
 
 export function AuditLogViewer() {
   const [page, setPage] = useState(1);
-  const [eventType, setEventType] = useState<string>('');
-  const [severity, setSeverity] = useState<'info' | 'warning' | 'critical' | ''>('');
+  const [eventType, setEventType] = useState<string>('all');
+  const [severity, setSeverity] = useState<'info' | 'warning' | 'critical' | 'all'>('all');
 
   const limit = 50;
 
@@ -40,8 +40,8 @@ export function AuditLogViewer() {
       api.admin.auditLogs({
         page,
         limit,
-        eventType: eventType || undefined,
-        severity: severity || undefined,
+        eventType: eventType === "all" ? undefined : eventType,
+        severity: severity === "all" ? undefined : severity,
       }),
   });
 
@@ -80,7 +80,7 @@ export function AuditLogViewer() {
             <SelectValue placeholder="イベントタイプ" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">すべて</SelectItem>
+            <SelectItem value="all">すべて</SelectItem>
             <SelectItem value="encryption_applied">データ暗号化</SelectItem>
             <SelectItem value="access_granted">アクセス許可</SelectItem>
             <SelectItem value="access_denied">アクセス拒否</SelectItem>
@@ -99,7 +99,7 @@ export function AuditLogViewer() {
             <SelectValue placeholder="重要度" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">すべて</SelectItem>
+            <SelectItem value="all">すべて</SelectItem>
             <SelectItem value="info">情報</SelectItem>
             <SelectItem value="warning">警告</SelectItem>
             <SelectItem value="critical">重要</SelectItem>

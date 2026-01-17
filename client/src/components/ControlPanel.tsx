@@ -37,7 +37,18 @@ export function ControlPanel({
   className = ''
 }: ControlPanelProps) {
   const scenes: SceneType[] = ['静寂', '調和', '一方的', '沈黙'];
-  
+  const audioOptions = audioInputDevices.map((device, index) => {
+    const trimmedId = device.deviceId?.trim() ?? "";
+    return {
+      value: trimmedId !== "" ? trimmedId : `default-${index}`,
+      deviceId: device.deviceId,
+      label: device.label || `マイク ${index + 1}`,
+    };
+  });
+  const selectedAudioValue = audioOptions.find(
+    option => option.deviceId === selectedAudioDeviceId
+  )?.value;
+
   return (
     <div className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-20 ${className}`}>
       <motion.div
@@ -87,23 +98,27 @@ export function ControlPanel({
         </div>
 
         {/* マイク入力選択 */}
-        {audioInputDevices.length > 0 && onSelectAudioDevice && (
+        {audioOptions.length > 0 && onSelectAudioDevice && (
           <div className="mt-4 pt-4 border-t border-border/50">
             <div className="text-xs text-muted-foreground mb-2 text-center">
               マイク入力
             </div>
             <Select
-              value={selectedAudioDeviceId || undefined}
-              onValueChange={onSelectAudioDevice}
+              value={selectedAudioValue}
+              onValueChange={(value) => {
+                const selected = audioOptions.find(option => option.value === value);
+                if (!selected) return;
+                onSelectAudioDevice(selected.deviceId);
+              }}
               disabled={isRecording}
             >
               <SelectTrigger size="sm" className="w-full">
                 <SelectValue placeholder="マイクを選択" />
               </SelectTrigger>
               <SelectContent>
-                {audioInputDevices.map((device, index) => (
-                  <SelectItem key={device.deviceId} value={device.deviceId}>
-                    {device.label || `マイク ${index + 1}`}
+                {audioOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
