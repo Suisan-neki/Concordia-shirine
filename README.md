@@ -89,7 +89,7 @@ Concordia Shrineは、OWASP Top 10などの一般的なWebアプリケーショ�
 ## 技術スタック
 
 - **フロントエンド**: React 19 + TypeScript + Tailwind CSS 4
-- **バックエンド**: Express + tRPC
+- **バックエンド**: FastAPI (Python) + REST API
 - **データベース**: AWS DynamoDB
 - **認証**: OAuth 2.0 + JWT
 - **波生成**: Perlin Noise Algorithm
@@ -100,7 +100,7 @@ Concordia Shrineは、OWASP Top 10などの一般的なWebアプリケーショ�
 ### セットアップ
 
 ```bash
-# 依存関係のインストール
+# フロントエンド依存関係のインストール
 pnpm install
 
 # DynamoDBテーブルの作成
@@ -117,24 +117,30 @@ pnpm install
 
 # または、AWS CDKを使用してインフラをデプロイする場合:
 # cd cdk && cdk deploy
+```
 
-# 環境変数の設定
-# .envファイルを作成し、以下の環境変数を設定してください:
-# - JWT_SECRET: JWT署名用のシークレットキー（必須）
-# - VITE_APP_ID: アプリケーションID（必須）
-# - AWS_REGION: AWSリージョン（デフォルト: ap-northeast-1）
-# - AWS_ACCESS_KEY_ID: AWSアクセスキーID（AWS CLIまたはIAMロールで認証する場合）
-# - AWS_SECRET_ACCESS_KEY: AWSシークレットアクセスキー（AWS CLIまたはIAMロールで認証する場合）
-# 
-# 注意: AWS認証情報は、AWS CLIの設定（~/.aws/credentials）やIAMロールを使用することもできます。
-# 開発環境では、AWS CLIで `aws configure` を実行して認証情報を設定することを推奨します。
+### バックエンド（FastAPI）
+```bash
+cd server_python
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn main:app --reload
+```
 
-# 開発サーバーの起動
+### フロントエンド
+```bash
 pnpm dev
+```
 
-# テストの実行
+### テストの実行
+```bash
 pnpm test
 ```
+
+#### 環境変数
+
+- `server_python/.env`: FastAPIの環境変数（`.env.example`を参照）
+- `VITE_API_URL`: フロントエンドからFastAPIのURLを指定（例: `http://localhost:8000`）
 
 ## 哲学
 

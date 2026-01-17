@@ -6,7 +6,8 @@
  */
 
 import { useState } from 'react';
-import { trpc } from '@/lib/trpc';
+import { api } from '@/lib/api';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,28 +27,35 @@ export function UserManagement() {
   const limit = 20;
 
   // ユーザー一覧取得
-  const { data, isLoading, refetch } = trpc.admin.user.list.useQuery({
-    page,
-    limit,
-    search: search || undefined,
-    includeDeleted: includeDeleted || undefined,
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["admin", "users", page, limit, search, includeDeleted],
+    queryFn: () =>
+      api.admin.listUsers({
+        page,
+        limit,
+        search: search || undefined,
+        includeDeleted: includeDeleted || undefined,
+      }),
   });
 
   // ユーザー詳細取得
-  const { data: userDetail } = trpc.admin.user.get.useQuery(
-    { userId: selectedUserId! },
-    { enabled: selectedUserId !== null }
-  );
+  const { data: userDetail } = useQuery({
+    queryKey: ["admin", "user", selectedUserId],
+    queryFn: () => api.admin.getUser(selectedUserId as number),
+    enabled: selectedUserId !== null,
+  });
 
   // ユーザー削除
-  const deleteUserMutation = trpc.admin.user.delete.useMutation({
+  const deleteUserMutation = useMutation({
+    mutationFn: (payload: { userId: number }) => api.admin.deleteUser(payload.userId),
     onSuccess: () => {
       toast.success('ユーザーを削除しました');
       setDeleteUserId(null);
       refetch();
     },
     onError: (error) => {
-      toast.error(error.message || 'ユーザーの削除に失敗しました');
+      const message = error instanceof Error ? error.message : 'ユーザーの削除に失敗しました';
+      toast.error(message);
     },
   });
 
@@ -62,6 +70,34 @@ export function UserManagement() {
     const d = typeof date === 'string' ? new Date(date) : date;
     return d.toLocaleString('ja-JP');
   };
+
+  const response = data as
+    | {
+        users: Array<{
+          id: number;
+          name?: string | null;
+          role: string;
+          lastSignedIn?: string | null;
+          createdAt?: string | null;
+          deletedAt?: string | null;
+          loginMethod?: string | null;
+        }>;
+        total: number;
+        totalPages: number;
+      }
+    | undefined;
+
+  const selectedUser = userDetail as
+    | {
+        id: number;
+        name?: string | null;
+        role: string;
+        loginMethod?: string | null;
+        createdAt?: string | null;
+        lastSignedIn?: string | null;
+        deletedAt?: string | null;
+      }
+    | undefined;
 
   return (
     <div className="space-y-4">
@@ -118,14 +154,14 @@ export function UserManagement() {
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                 </TableRow>
               ))
-            ) : data?.users.length === 0 ? (
+            ) : response?.users.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   ユーザーが見つかりませんでした
                 </TableCell>
               </TableRow>
             ) : (
-              data?.users.map((user) => (
+              response?.users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>{user.id}</TableCell>
                   <TableCell>{user.name || '-'}</TableCell>
@@ -176,10 +212,10 @@ export function UserManagement() {
       </div>
 
       {/* ページネーション */}
-      {data && data.totalPages > 1 && (
+      {response && response.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground whitespace-nowrap">
-            {data.total}件中 {(page - 1) * limit + 1}-{Math.min(page * limit, data.total)}件を表示
+            {response.total}件中 {(page - 1) * limit + 1}-{Math.min(page * limit, response.total)}件を表示
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -191,13 +227,13 @@ export function UserManagement() {
               前へ
             </Button>
             <span className="text-sm">
-              {page} / {data.totalPages}
+              {page} / {response.totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage(p => Math.min(data.totalPages, p + 1))}
-              disabled={page === data.totalPages}
+              onClick={() => setPage(p => Math.min(response.totalPages, p + 1))}
+              disabled={page === response.totalPages}
             >
               次へ
             </Button>
@@ -214,18 +250,18 @@ export function UserManagement() {
               ID: {selectedUserId}
             </DialogDescription>
           </DialogHeader>
-          {userDetail && (
+          {selectedUser && (
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-medium mb-2">基本情報</h3>
                 <div className="space-y-2 text-sm">
-                  <div><span className="text-muted-foreground">名前:</span> {userDetail.name || '-'}</div>
-                  <div><span className="text-muted-foreground">ロール:</span> <Badge>{userDetail.role}</Badge></div>
-                  <div><span className="text-muted-foreground">ログイン方法:</span> {userDetail.loginMethod || '-'}</div>
-                  <div><span className="text-muted-foreground">作成日:</span> {formatDate(userDetail.createdAt)}</div>
-                  <div><span className="text-muted-foreground">最終ログイン:</span> {formatDate(userDetail.lastSignedIn)}</div>
-                  {userDetail.deletedAt && (
-                    <div><span className="text-muted-foreground">削除日:</span> {formatDate(userDetail.deletedAt)}</div>
+                  <div><span className="text-muted-foreground">名前:</span> {selectedUser.name || '-'}</div>
+                  <div><span className="text-muted-foreground">ロール:</span> <Badge>{selectedUser.role}</Badge></div>
+                  <div><span className="text-muted-foreground">ログイン方法:</span> {selectedUser.loginMethod || '-'}</div>
+                  <div><span className="text-muted-foreground">作成日:</span> {formatDate(selectedUser.createdAt)}</div>
+                  <div><span className="text-muted-foreground">最終ログイン:</span> {formatDate(selectedUser.lastSignedIn)}</div>
+                  {selectedUser.deletedAt && (
+                    <div><span className="text-muted-foreground">削除日:</span> {formatDate(selectedUser.deletedAt)}</div>
                   )}
                 </div>
               </div>

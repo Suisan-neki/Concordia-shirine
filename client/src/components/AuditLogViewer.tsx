@@ -6,7 +6,8 @@
  */
 
 import { useState } from 'react';
-import { trpc } from '@/lib/trpc';
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -16,8 +17,8 @@ import { getEventTypeLabel, getEventTypeIcon } from '@/hooks/useSecurityStats';
 
 export function AuditLogViewer() {
   const [page, setPage] = useState(1);
-  const [eventType, setEventType] = useState<string>('');
-  const [severity, setSeverity] = useState<'info' | 'warning' | 'critical' | ''>('');
+  const [eventType, setEventType] = useState<string>('all');
+  const [severity, setSeverity] = useState<'info' | 'warning' | 'critical' | 'all'>('all');
 
   const limit = 50;
 
@@ -33,11 +34,15 @@ export function AuditLogViewer() {
   };
 
   // 監査ログ取得
-  const { data, isLoading } = trpc.admin.audit.getLogs.useQuery({
-    page,
-    limit,
-    eventType: eventType || undefined,
-    severity: severity || undefined,
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin", "auditLogs", page, limit, eventType, severity],
+    queryFn: () =>
+      api.admin.auditLogs({
+        page,
+        limit,
+        eventType: eventType === "all" ? undefined : eventType,
+        severity: severity === "all" ? undefined : severity,
+      }),
   });
 
   const formatDate = (timestamp: number) => {
@@ -50,6 +55,22 @@ export function AuditLogViewer() {
     critical: 'destructive',
   } as const;
 
+  const response = data as
+    | {
+        logs: Array<{
+          id: string | number;
+          eventType: string;
+          severity: 'info' | 'warning' | 'critical';
+          description: string;
+          userId?: number;
+          sessionId?: number;
+          timestamp: number;
+        }>;
+        total: number;
+        totalPages: number;
+      }
+    | undefined;
+
   return (
     <div className="space-y-4">
       {/* フィルター */}
@@ -59,7 +80,7 @@ export function AuditLogViewer() {
             <SelectValue placeholder="イベントタイプ" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">すべて</SelectItem>
+            <SelectItem value="all">すべて</SelectItem>
             <SelectItem value="encryption_applied">データ暗号化</SelectItem>
             <SelectItem value="access_granted">アクセス許可</SelectItem>
             <SelectItem value="access_denied">アクセス拒否</SelectItem>
@@ -78,7 +99,7 @@ export function AuditLogViewer() {
             <SelectValue placeholder="重要度" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">すべて</SelectItem>
+            <SelectItem value="all">すべて</SelectItem>
             <SelectItem value="info">情報</SelectItem>
             <SelectItem value="warning">警告</SelectItem>
             <SelectItem value="critical">重要</SelectItem>
@@ -111,14 +132,14 @@ export function AuditLogViewer() {
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                 </TableRow>
               ))
-            ) : data?.logs.length === 0 ? (
+            ) : response?.logs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   監査ログが見つかりませんでした
                 </TableCell>
               </TableRow>
             ) : (
-              data?.logs.map((log) => (
+              response?.logs.map((log) => (
                 <TableRow key={log.id}>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(log.timestamp)}
@@ -153,10 +174,10 @@ export function AuditLogViewer() {
       </div>
 
       {/* ページネーション */}
-      {data && data.totalPages > 1 && (
+      {response && response.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground whitespace-nowrap">
-            {data.total}件中 {(page - 1) * limit + 1}-{Math.min(page * limit, data.total)}件を表示
+            {response.total}件中 {(page - 1) * limit + 1}-{Math.min(page * limit, response.total)}件を表示
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -168,13 +189,13 @@ export function AuditLogViewer() {
               前へ
             </Button>
             <span className="text-sm">
-              {page} / {data.totalPages}
+              {page} / {response.totalPages}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage(p => Math.min(data.totalPages, p + 1))}
-              disabled={page === data.totalPages}
+              onClick={() => setPage(p => Math.min(response.totalPages, p + 1))}
+              disabled={page === response.totalPages}
             >
               次へ
             </Button>
