@@ -34,8 +34,18 @@ export const getLoginUrl = (redirectPath?: string) => {
   }
 
   const path = redirectPath || window.location.pathname;
-  const redirectUrl =
-    path.startsWith("http") ? path : `${window.location.origin}${path !== "/" ? path : "/"}`;
+  const safeFallback = `${window.location.origin}/`;
+  let redirectUrl = safeFallback;
+  if (path.startsWith("http")) {
+    try {
+      const parsedUrl = new URL(path);
+      redirectUrl = parsedUrl.origin === window.location.origin ? parsedUrl.href : safeFallback;
+    } catch {
+      redirectUrl = safeFallback;
+    }
+  } else {
+    redirectUrl = `${window.location.origin}${path !== "/" ? path : "/"}`;
+  }
   const nonce = createNonce();
 
   const state = encodeBase64Url(

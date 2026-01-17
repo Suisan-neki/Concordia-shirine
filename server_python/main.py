@@ -1,6 +1,7 @@
 """
 FastAPI application entry point
 """
+import logging
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,28 +15,30 @@ app = FastAPI(
     title="Concordia Shrine API",
     description="Human Decision Security API",
     version="0.1.0",
-    docs_url="/api/docs" if not settings.is_production else None,
-    redoc_url="/api/redoc" if not settings.is_production else None,
+    docs_url="/api/docs" if not settings.is_production() else None,
+    redoc_url="/api/redoc" if not settings.is_production() else None,
 )
 
+logger = logging.getLogger(__name__)
+
 # Setup CORS
-if settings.allowed_origins_list:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.allowed_origins_list,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+allowed_origins = settings.allowed_origins_list
+if not allowed_origins:
+    if settings.is_production():
+        logger.error("ALLOWED_ORIGINS must be set in production.")
+        raise RuntimeError("ALLOWED_ORIGINS must be set in production.")
+    allowed_origins = ["*"]
+    allow_credentials = False
 else:
-    # Development: allow all origins
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    allow_credentials = True
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=allow_credentials,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Setup custom middleware
 setup_middleware(app)
@@ -67,5 +70,5 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=int(settings.node_env == "production" and "8000" or "8000"),
-        reload=not settings.is_production,
+        reload=not settings.is_production(),
     )

@@ -1,9 +1,11 @@
 """
 AWS Cognito authentication
 """
+import json
 from typing import Optional
 from fastapi import Request, HTTPException, status
-from jose import jwt, jwk
+import jwt
+from jwt.algorithms import RSAAlgorithm
 import httpx
 from app.core.config import settings
 from app.core.database import get_user_by_open_id, upsert_user
@@ -56,7 +58,13 @@ async def verify_cognito_token(token: str) -> dict:
     jwks_data = await get_jwks()
     
     # Decode token header to get key ID
-    unverified_header = jwt.get_unverified_header(token)
+    try:
+        unverified_header = jwt.get_unverified_header(token)
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token header"
+        )
     kid = unverified_header.get("kid")
     
     if not kid:
@@ -79,7 +87,7 @@ async def verify_cognito_token(token: str) -> dict:
         )
     
     # Construct the public key
-    public_key = jwk.construct(key)
+    public_key = RSAAlgorithm.from_jwk(json.dumps(key))
     
     # Verify and decode the token
     try:
@@ -95,7 +103,7 @@ async def verify_cognito_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired"
         )
-    except jwt.JWTClaimsError as e:
+    except jwt.PyJWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token validation failed: {str(e)}"

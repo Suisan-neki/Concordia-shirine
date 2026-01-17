@@ -28,7 +28,7 @@ async def logout(response: Response):
         COOKIE_NAME,
         path="/",
         httponly=True,
-        secure=settings.is_production,
+        secure=settings.is_production(),
         samesite=settings.cookie_same_site
     )
     return {"success": True}

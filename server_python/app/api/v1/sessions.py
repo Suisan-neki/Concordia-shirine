@@ -2,9 +2,13 @@
 Session management endpoints
 """
 from typing import List
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from app.core.auth import get_current_user
-from app.services.session_service import session_service
+from app.services.session_service import (
+    session_service,
+    SessionNotFoundError,
+    AccessDeniedError,
+)
 from app.models.schemas import (
     StartSessionResponse,
     EndSessionRequest,
@@ -33,13 +37,18 @@ async def end_session(
 ):
     """End a session"""
     if data.sessionId != session_id:
-        raise ValueError("Session ID mismatch")
+        raise HTTPException(status_code=400, detail="Session ID mismatch")
     
-    result = await session_service.end_session(
-        user["id"],
-        session_id,
-        data.dict()
-    )
+    try:
+        result = await session_service.end_session(
+            user["id"],
+            session_id,
+            data.dict()
+        )
+    except SessionNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found")
+    except AccessDeniedError:
+        raise HTTPException(status_code=403, detail="Access denied")
     return EndSessionResponse(**result)
 
 
@@ -59,12 +68,15 @@ async def get_session(
     user: dict = Depends(get_current_user)
 ):
     """Get session details"""
-    session = await session_service.get_session_with_details(
-        user["id"],
-        session_id
-    )
-    if not session:
-        raise ValueError("Session not found or access denied")
+    try:
+        session = await session_service.get_session_with_details(
+            user["id"],
+            session_id
+        )
+    except SessionNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found")
+    except AccessDeniedError:
+        raise HTTPException(status_code=403, detail="Access denied")
     return SessionResponse(**session)
 
 
@@ -74,7 +86,12 @@ async def delete_session(
     user: dict = Depends(get_current_user)
 ):
     """Delete a session"""
-    result = await session_service.delete_session(user["id"], session_id)
+    try:
+        result = await session_service.delete_session(user["id"], session_id)
+    except SessionNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found")
+    except AccessDeniedError:
+        raise HTTPException(status_code=403, detail="Access denied")
     return result
 
 
@@ -86,14 +103,19 @@ async def add_log_entry(
 ):
     """Add log entry to session"""
     if data.sessionId != session_id:
-        raise ValueError("Session ID mismatch")
+        raise HTTPException(status_code=400, detail="Session ID mismatch")
     
-    result = await session_service.add_log_entry(
-        user["id"],
-        session_id,
-        data.type,
-        data.timestamp,
-        data.content,
-        data.metadata
-    )
+    try:
+        result = await session_service.add_log_entry(
+            user["id"],
+            session_id,
+            data.type,
+            data.timestamp,
+            data.content,
+            data.metadata
+        )
+    except SessionNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found")
+    except AccessDeniedError:
+        raise HTTPException(status_code=403, detail="Access denied")
     return result

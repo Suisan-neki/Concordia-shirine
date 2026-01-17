@@ -25,6 +25,14 @@ def generate_session_id() -> str:
     return ''.join(secrets.choice(alphabet) for _ in range(21))
 
 
+class SessionNotFoundError(Exception):
+    """Raised when a session cannot be found."""
+
+
+class AccessDeniedError(Exception):
+    """Raised when a user cannot access a session."""
+
+
 class SessionService:
     """Session management service (singleton)"""
     _instance: Optional['SessionService'] = None
@@ -71,9 +79,7 @@ class SessionService:
     ) -> Dict[str, Any]:
         """End a session"""
         # Verify ownership
-        session = await self._get_session_if_authorized(user_id, session_id)
-        if not session:
-            raise ValueError("Session not found or access denied")
+        await self._get_session_if_authorized(user_id, session_id)
         
         # Calculate security score
         scene_distribution = data.get("sceneDistribution", {})
@@ -90,7 +96,7 @@ class SessionService:
         })
         
         # Generate security summary
-        security_summary = await security_service.generate_security_summary(session_id)
+        security_summary = await security_service.generate_security_summary(session_id, user_id)
         
         return {
             "success": True,
@@ -117,11 +123,11 @@ class SessionService:
         """List user sessions"""
         return await get_user_sessions(user_id, limit)
     
-    async def get_session_with_details(self, user_id: int, session_id: str) -> Optional[Dict[str, Any]]:
+    async def get_session_with_details(self, user_id: int, session_id: str) -> Dict[str, Any]:
         """Get session with details"""
-        session = await get_session_by_session_id(session_id)
-        
-        if not session or session.get("userId") != user_id:
+        try:
+            session = await self._get_session_if_authorized(user_id, session_id)
+        except (SessionNotFoundError, AccessDeniedError):
             # Log access denied
             await security_service.log_security_event({
                 "userId": user_id,
@@ -131,7 +137,7 @@ class SessionService:
                 "metadata": {"sessionId": session_id},
                 "timestamp": int(datetime.now().timestamp() * 1000),
             }, force=True)
-            return None
+            raise
         
         # Log access granted
         await security_service.log_security_event({
@@ -151,18 +157,18 @@ class SessionService:
             "logs": logs,
         }
     
-    async def _get_session_if_authorized(self, user_id: int, session_id: str) -> Optional[Dict[str, Any]]:
+    async def _get_session_if_authorized(self, user_id: int, session_id: str) -> Dict[str, Any]:
         """Get session if authorized (internal use)"""
         session = await get_session_by_session_id(session_id)
-        if not session or session.get("userId") != user_id:
-            return None
+        if not session:
+            raise SessionNotFoundError("Session not found")
+        if session.get("userId") != user_id:
+            raise AccessDeniedError("Access denied")
         return session
     
     async def delete_session(self, user_id: int, session_id: str) -> Dict[str, Any]:
         """Delete a session"""
-        session = await self._get_session_if_authorized(user_id, session_id)
-        if not session:
-            raise ValueError("Session not found or access denied")
+        await self._get_session_if_authorized(user_id, session_id)
         
         await delete_session(session_id)
         return {"success": True}
@@ -179,8 +185,6 @@ class SessionService:
         """Add log entry to session"""
         # Verify ownership
         session = await self._get_session_if_authorized(user_id, session_id)
-        if not session:
-            raise ValueError("Session not found or access denied")
         
         # Sanitize content
         sanitized_content = content

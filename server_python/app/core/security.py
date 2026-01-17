@@ -10,7 +10,11 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import secrets
 import asyncio
 from app.core.config import settings
-from app.core.dynamodb import put_security_audit_logs, get_security_audit_logs
+from app.core.dynamodb import (
+    put_security_audit_logs,
+    get_security_audit_logs,
+    get_session_by_session_id,
+)
 
 
 # Rate limit store (in-memory)
@@ -554,8 +558,13 @@ class SecurityService:
             "recentEvents": logs[:10],  # Last 10 events
         }
     
-    async def generate_security_summary(self, session_id: str) -> Dict[str, Any]:
+    async def generate_security_summary(self, session_id: str, user_id: int) -> Dict[str, Any]:
         """Generate security summary for a session"""
+        session = await get_session_by_session_id(session_id)
+        if not session:
+            raise ValueError("Session not found")
+        if session.get("userId") != user_id:
+            raise PermissionError("Access denied")
         # This would query session-related security events
         # For now, return a basic summary
         return {

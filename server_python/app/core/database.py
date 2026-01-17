@@ -43,7 +43,7 @@ def get_table_name(table_name: str) -> str:
         return f"{prefix}{table_name}"
     
     # Default: environment-based table name
-    env = "prod" if settings.is_production else "dev"
+    env = "prod" if settings.is_production() else "dev"
     return f"concordia-{table_name}-{env}"
 
 
@@ -97,41 +97,53 @@ def set_cache(key: str, value: Any, ttl_ms: int = CACHE_TTL) -> None:
     }
 
 
+def _unmarshall_value(value: Dict[str, Any]) -> Any:
+    """Unmarshall a DynamoDB-typed value to a Python value."""
+    if "S" in value:
+        return value["S"]
+    if "N" in value:
+        return int(value["N"]) if "." not in value["N"] else float(value["N"])
+    if "BOOL" in value:
+        return value["BOOL"]
+    if "NULL" in value:
+        return None
+    if "M" in value:
+        return unmarshall_item(value["M"])
+    if "L" in value:
+        return [_unmarshall_value(v) for v in value["L"]]
+    return value
+
+
 def unmarshall_item(item: Dict[str, Any]) -> Dict[str, Any]:
     """Unmarshall DynamoDB item to Python dict"""
     result = {}
     for key, value in item.items():
-        if "S" in value:
-            result[key] = value["S"]
-        elif "N" in value:
-            result[key] = int(value["N"]) if "." not in value["N"] else float(value["N"])
-        elif "BOOL" in value:
-            result[key] = value["BOOL"]
-        elif "NULL" in value:
-            result[key] = None
-        elif "M" in value:
-            result[key] = unmarshall_item(value["M"])
-        elif "L" in value:
-            result[key] = [unmarshall_item(v) if "M" in v else v for v in value["L"]]
+        result[key] = _unmarshall_value(value)
     return result
+
+
+def _marshall_value(value: Any) -> Dict[str, Any]:
+    """Marshall a Python value to a DynamoDB-typed value."""
+    if value is None:
+        return {"NULL": True}
+    if isinstance(value, bool):
+        return {"BOOL": value}
+    if isinstance(value, str):
+        return {"S": value}
+    if isinstance(value, (int, float)):
+        return {"N": str(value)}
+    if isinstance(value, dict):
+        return {"M": marshall_item(value)}
+    if isinstance(value, list):
+        return {"L": [_marshall_value(v) for v in value]}
+    return {"S": str(value)}
 
 
 def marshall_item(item: Dict[str, Any]) -> Dict[str, Any]:
     """Marshall Python dict to DynamoDB item"""
     result = {}
     for key, value in item.items():
-        if value is None:
-            result[key] = {"NULL": True}
-        elif isinstance(value, str):
-            result[key] = {"S": value}
-        elif isinstance(value, (int, float)):
-            result[key] = {"N": str(value)}
-        elif isinstance(value, bool):
-            result[key] = {"BOOL": value}
-        elif isinstance(value, dict):
-            result[key] = {"M": marshall_item(value)}
-        elif isinstance(value, list):
-            result[key] = {"L": [marshall_item(v) if isinstance(v, dict) else v for v in value]}
+        result[key] = _marshall_value(value)
     return result
 
 

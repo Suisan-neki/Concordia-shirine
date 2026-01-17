@@ -11,8 +11,9 @@ import httpx
 from app.core.config import settings
 from app.core.cognito import authenticate_request
 from app.core.session import COOKIE_NAME
-from jose import jwt
+import jwt
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 router = APIRouter(prefix="/auth/cognito", tags=["auth"])
 
@@ -95,6 +96,27 @@ def is_secure_request(request: Request) -> bool:
     return "https" in forwarded_proto.lower().split(",")
 
 
+def sanitize_redirect_path(raw_path: str, request: Request) -> str:
+    """Allow only same-origin absolute URLs or safe relative paths."""
+    parsed = urlparse(raw_path)
+    if parsed.scheme or parsed.netloc:
+        is_secure = is_secure_request(request)
+        scheme = "https" if is_secure else "http"
+        forwarded_host = request.headers.get("x-forwarded-host")
+        host = forwarded_host.split(",")[0].strip() if forwarded_host else request.url.netloc
+        if parsed.scheme == scheme and parsed.netloc == host:
+            path = parsed.path or "/"
+            if parsed.query:
+                path = f"{path}?{parsed.query}"
+            if parsed.fragment:
+                path = f"{path}#{parsed.fragment}"
+            return path
+        return "/"
+    if raw_path.startswith("/"):
+        return raw_path
+    return "/"
+
+
 @router.get("/callback")
 async def cognito_callback(
     request: Request,
@@ -131,6 +153,8 @@ async def cognito_callback(
                 detail="Invalid state parameter"
             )
         
+        redirect_path = sanitize_redirect_path(redirect_path, request)
+
         # Verify nonce
         if not state_nonce:
             raise HTTPException(
@@ -153,11 +177,12 @@ async def cognito_callback(
                 detail="Nonce validation failed: nonce mismatch"
             )
         
-        # Clear nonce cookie
-        response.delete_cookie(NONCE_COOKIE_NAME)
-        
         # Get redirect URI
-        redirect_uri = f"{request.url.scheme}://{request.url.netloc}/api/v1/auth/cognito/callback"
+        is_secure = is_secure_request(request)
+        forwarded_host = request.headers.get("x-forwarded-host")
+        host = forwarded_host.split(",")[0].strip() if forwarded_host else request.url.netloc
+        scheme = "https" if is_secure else "http"
+        redirect_uri = f"{scheme}://{host}/api/v1/auth/cognito/callback"
         
         # Exchange code for token
         tokens = await exchange_code_for_token(code, redirect_uri)
@@ -176,12 +201,13 @@ async def cognito_callback(
         session_token = create_session_token(user["openId"], session_name)
         
         # Set session cookie
-        is_secure = is_secure_request(request)
         same_site = settings.cookie_same_site
         if same_site == "none" and not is_secure:
             same_site = "lax"
         
-        response.set_cookie(
+        redirect = RedirectResponse(url=redirect_path)
+        redirect.delete_cookie(NONCE_COOKIE_NAME)
+        redirect.set_cookie(
             COOKIE_NAME,
             session_token,
             max_age=SESSION_EXPIRY_MS // 1000,
@@ -192,7 +218,7 @@ async def cognito_callback(
         )
         
         # Redirect to frontend
-        return RedirectResponse(url=redirect_path)
+        return redirect
     
     except HTTPException:
         raise
