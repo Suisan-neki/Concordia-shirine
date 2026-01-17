@@ -5,7 +5,8 @@
  */
 
 import { useCallback } from 'react';
-import { trpc } from '@/lib/trpc';
+import { api } from '@/lib/api';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/_core/hooks/useAuth';
 
 export interface InterventionSettings {
@@ -27,18 +28,22 @@ const DEFAULT_SETTINGS: InterventionSettings = {
 export function useInterventionSettings() {
   const { isAuthenticated } = useAuth();
   
-  const settingsQuery = trpc.intervention.getSettings.useQuery(undefined, {
+  const settingsQuery = useQuery({
+    queryKey: ["intervention", "settings", isAuthenticated],
+    queryFn: () => api.intervention.getSettings(),
     enabled: isAuthenticated,
   });
   
-  const updateMutation = trpc.intervention.updateSettings.useMutation({
+  const updateMutation = useMutation({
+    mutationFn: (payload: Partial<InterventionSettings>) =>
+      api.intervention.updateSettings(payload),
     onSuccess: () => {
       settingsQuery.refetch();
     },
   });
 
   const settings: InterventionSettings = isAuthenticated && settingsQuery.data
-    ? settingsQuery.data
+    ? (settingsQuery.data as InterventionSettings)
     : DEFAULT_SETTINGS;
 
   const updateSettings = useCallback(async (newSettings: Partial<InterventionSettings>) => {

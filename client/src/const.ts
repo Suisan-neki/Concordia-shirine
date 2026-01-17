@@ -26,6 +26,7 @@ function encodeBase64Url(value: string): string {
 export const getLoginUrl = (redirectPath?: string) => {
   const domain = import.meta.env.VITE_COGNITO_DOMAIN; // 例: https://concordia-auth-xxxx.auth.ap-northeast-1.amazoncognito.com
   const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
+  const apiBaseUrl = import.meta.env.VITE_API_URL;
 
   if (!domain || !clientId) {
     console.warn("[Auth] Cognito環境変数が設定されていません。");
@@ -33,11 +34,23 @@ export const getLoginUrl = (redirectPath?: string) => {
   }
 
   const path = redirectPath || window.location.pathname;
+  const safeFallback = `${window.location.origin}/`;
+  let redirectUrl = safeFallback;
+  if (path.startsWith("http")) {
+    try {
+      const parsedUrl = new URL(path);
+      redirectUrl = parsedUrl.origin === window.location.origin ? parsedUrl.href : safeFallback;
+    } catch {
+      redirectUrl = safeFallback;
+    }
+  } else {
+    redirectUrl = `${window.location.origin}${path !== "/" ? path : "/"}`;
+  }
   const nonce = createNonce();
 
   const state = encodeBase64Url(
     JSON.stringify({
-      redirectPath: path !== "/" ? path : "/",
+      redirectPath: redirectUrl,
       nonce,
     })
   );
@@ -47,7 +60,11 @@ export const getLoginUrl = (redirectPath?: string) => {
     cognitoDomain = `https://${cognitoDomain}`;
   }
 
-  const callbackUri = `${window.location.origin}/api/auth/cognito/callback`;
+  if (!apiBaseUrl) {
+    console.warn("[Auth] VITE_API_URLが未設定です。Cognitoコールバックが失敗する可能性があります。");
+  }
+  const baseUrl = apiBaseUrl || window.location.origin;
+  const callbackUri = `${baseUrl}/api/v1/auth/cognito/callback`;
   const params = new URLSearchParams();
   params.set("client_id", clientId);
   params.set("response_type", "code");
@@ -63,7 +80,17 @@ export const getLoginUrl = (redirectPath?: string) => {
   // サーバーはこのCookieを読み取ってstateパラメータ内のnonceと比較する
   // 有効期限は10分（認証フローが完了するまでの時間）
   const cookieMaxAge = 10 * 60; // 10分（秒単位）
-  document.cookie = `cognito_auth_nonce=${nonce}; max-age=${cookieMaxAge}; path=/; SameSite=Lax`;
+  const hostname = window.location.hostname;
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  const cookieDomain = import.meta.env.VITE_COOKIE_DOMAIN;
+  let cookie = `cognito_auth_nonce=${nonce}; max-age=${cookieMaxAge}; path=/; SameSite=Lax`;
+  if (cookieDomain && !isLocalhost) {
+    cookie += `; domain=${cookieDomain}`;
+  }
+  if (window.location.protocol === "https:") {
+    cookie += "; Secure";
+  }
+  document.cookie = cookie;
 
   return `${cognitoDomain}/login?${params.toString()}`;
 };

@@ -4,7 +4,8 @@
  * 「実は裏でこれだけ動いていました」の情報を取得
  */
 
-import { trpc } from '@/lib/trpc';
+import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/_core/hooks/useAuth';
 
 export interface SecurityStats {
@@ -41,7 +42,9 @@ export interface SessionSecuritySummary {
  */
 export function useSecurityStats() {
   const { isAuthenticated } = useAuth();
-  const { data, isLoading, error, refetch } = trpc.security.getStats.useQuery(undefined, {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["security", "stats", isAuthenticated],
+    queryFn: () => api.security.stats(),
     // 5分ごとに自動更新
     refetchInterval: isAuthenticated ? 5 * 60 * 1000 : false,
     // バックグラウンドでも更新
@@ -50,7 +53,13 @@ export function useSecurityStats() {
   });
 
   return {
-    stats: data as SecurityStats | undefined,
+    stats: data
+      ? {
+          totalEvents: (data as { totalEvents?: number }).totalEvents ?? 0,
+          eventsByType: (data as { eventCounts?: Record<string, number> }).eventCounts ?? {},
+          recentEvents: (data as { recentEvents?: SecurityStats["recentEvents"] }).recentEvents ?? [],
+        }
+      : undefined,
     isLoading,
     error,
     refetch,
@@ -68,15 +77,25 @@ export function useSecurityStats() {
  */
 export function useSessionSecuritySummary(sessionId: string | null) {
   const { isAuthenticated } = useAuth();
-  const { data, isLoading, error } = trpc.security.getSessionSummary.useQuery(
-    { sessionId: sessionId || '' },
-    {
-      enabled: !!sessionId && isAuthenticated,
-    }
-  );
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["security", "summary", sessionId, isAuthenticated],
+    queryFn: () => api.security.summary(sessionId || ""),
+    enabled: !!sessionId && isAuthenticated,
+  });
 
   return {
-    summary: data as SessionSecuritySummary | null | undefined,
+    summary: data
+      ? {
+          totalProtectionCount: (data as { totalEvents?: number }).totalEvents ?? 0,
+          details: Object.entries(
+            (data as { eventCounts?: Record<string, number> }).eventCounts ?? {}
+          ).map(([type, count]) => ({
+            type,
+            count,
+            description: type,
+          })),
+        }
+      : null,
     isLoading,
     error,
   };
