@@ -156,6 +156,8 @@ def marshall_item(item: Dict[str, Any]) -> Dict[str, Any]:
 
 async def get_user_by_open_id(open_id: str) -> Optional[Dict[str, Any]]:
     """Get user by OpenID"""
+    from app.core.dynamodb import _call_boto
+
     cache_key = f"user:{open_id}"
     cached = get_from_cache(cache_key)
     if cached:
@@ -165,7 +167,8 @@ async def get_user_by_open_id(open_id: str) -> Optional[Dict[str, Any]]:
     table_name = get_table_name("users")
     
     try:
-        response = client.get_item(
+        response = await _call_boto(
+            client.get_item,
             TableName=table_name,
             Key={"openId": {"S": open_id}}
         )
@@ -211,6 +214,7 @@ async def upsert_user(user_data: Dict[str, Any]) -> None:
     """Upsert user"""
     if not user_data.get("openId"):
         raise ValueError("User openId is required for upsert")
+    from app.core.dynamodb import _call_boto
     
     client = get_dynamo_client()
     table_name = get_table_name("users")
@@ -226,7 +230,9 @@ async def upsert_user(user_data: Dict[str, Any]) -> None:
         role = "admin"
     
     # Prepare item
+    user_id = generate_id_from_uuid(user_data["openId"])
     item: Dict[str, Any] = {
+        "id": user_id,
         "openId": user_data["openId"],
         "role": role,
         "updatedAt": now,
@@ -260,7 +266,8 @@ async def upsert_user(user_data: Dict[str, Any]) -> None:
     
     try:
         marshalled_item = marshall_item(item)
-        client.put_item(
+        await _call_boto(
+            client.put_item,
             TableName=table_name,
             Item=marshalled_item
         )

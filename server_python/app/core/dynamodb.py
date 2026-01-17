@@ -11,7 +11,8 @@ from app.core.database import (
     get_dynamo_client,
     generate_id_from_uuid,
     unmarshall_item,
-    marshall_item
+    marshall_item,
+    _marshall_value,
 )
 
 
@@ -132,7 +133,7 @@ async def update_session(session_id: str, data: Dict[str, Any]) -> None:
             elif isinstance(value, dict):
                 dynamo_values[key] = {"M": marshall_item(value)}
             elif isinstance(value, list):
-                dynamo_values[key] = {"L": [marshall_item(v) if isinstance(v, dict) else {"S": str(v)} for v in value]}
+                dynamo_values[key] = {"L": [marshall_item(v) if isinstance(v, dict) else _marshall_value(v) for v in value]}
         
         await _call_boto(
             client.update_item,

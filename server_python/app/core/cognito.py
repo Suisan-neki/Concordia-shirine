@@ -26,7 +26,7 @@ def get_bearer_token(request: Request) -> Optional[str]:
 
 async def get_jwks() -> dict:
     """Get JWKS from Cognito"""
-    jwks_url = settings.cognito_jwks_url_final
+    jwks_url = settings.cognito_jwks_url_final()
     if not jwks_url:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -47,7 +47,7 @@ async def verify_cognito_token(token: str, access_token: Optional[str] = None) -
             detail="Cognito client ID is not configured"
         )
     
-    issuer = settings.cognito_issuer
+    issuer = settings.cognito_issuer()
     if not issuer:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -60,20 +60,18 @@ class Settings(BaseSettings):
             if origin.strip()
         ]
     
-    @property
     def cognito_issuer(self) -> str:
         """Get Cognito issuer URL"""
         if not self.cognito_region or not self.cognito_user_pool_id:
             return ""
         return f"https://cognito-idp.{self.cognito_region}.amazonaws.com/{self.cognito_user_pool_id}"
     
-    @property
     def cognito_jwks_url_final(self) -> str:
         """Get Cognito JWKS URL (from env or auto-generated)"""
         if self.cognito_jwks_url:
             return self.cognito_jwks_url
         if self.cognito_region and self.cognito_user_pool_id:
-            return f"{self.cognito_issuer}/.well-known/jwks.json"
+            return f"{self.cognito_issuer()}/.well-known/jwks.json"
         return ""
     
     def validate(self) -> None:
