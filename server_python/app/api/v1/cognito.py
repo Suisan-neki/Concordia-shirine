@@ -3,7 +3,6 @@ Cognito OAuth callback endpoint
 """
 import base64
 import json
-import secrets
 import hmac
 from typing import Optional
 from fastapi import APIRouter, Request, Response, Query, HTTPException, status
@@ -11,8 +10,7 @@ from fastapi.responses import RedirectResponse
 import httpx
 from app.core.config import settings
 from app.core.cognito import authenticate_request
-from app.core.database import get_user_by_open_id
-from app.core.session import verify_session_token, COOKIE_NAME
+from app.core.session import COOKIE_NAME
 from jose import jwt
 from datetime import datetime, timedelta
 

@@ -1,7 +1,7 @@
 """
 Security statistics endpoints
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from app.core.auth import get_current_user
 from app.core.security import security_service
 from app.models.schemas import SecurityStatsResponse, SecuritySummaryResponse

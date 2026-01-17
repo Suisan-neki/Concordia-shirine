@@ -1,7 +1,7 @@
 """
 Authentication endpoints
 """
-from fastapi import APIRouter, Depends, Response, Request
+from fastapi import APIRouter, Depends, Response
 from app.core.auth import get_current_user_optional, get_current_user
 from app.core.session import COOKIE_NAME
 from typing import Optional
