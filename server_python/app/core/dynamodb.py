@@ -4,10 +4,9 @@ DynamoDB operations for sessions, logs, and intervention settings
 import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime
-import boto3
-from botocore.exceptions import ClientError
 from app.core.config import settings
 from app.core.database import (
+    ClientError,
     get_table_name,
     get_dynamo_client,
     generate_id_from_uuid,

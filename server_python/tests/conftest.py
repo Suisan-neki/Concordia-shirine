@@ -20,10 +20,30 @@ def client():
     from app.core.auth import get_current_user, get_current_admin_user, get_current_user_optional
 
     def override_user():
-        return {"id": 1, "role": "user"}
+        return {
+            "id": 1,
+            "openId": "test-openid",
+            "name": "Test User",
+            "email": "test@example.com",
+            "loginMethod": "cognito",
+            "role": "user",
+            "createdAt": "2024-01-01T00:00:00",
+            "updatedAt": "2024-01-01T00:00:00",
+            "lastSignedIn": "2024-01-01T00:00:00",
+        }
 
     def override_admin():
-        return {"id": 1, "role": "admin"}
+        return {
+            "id": 1,
+            "openId": "test-openid",
+            "name": "Test Admin",
+            "email": "admin@example.com",
+            "loginMethod": "cognito",
+            "role": "admin",
+            "createdAt": "2024-01-01T00:00:00",
+            "updatedAt": "2024-01-01T00:00:00",
+            "lastSignedIn": "2024-01-01T00:00:00",
+        }
 
     app.dependency_overrides[get_current_user] = override_user
     app.dependency_overrides[get_current_user_optional] = override_user

@@ -4,10 +4,18 @@ Database access layer for DynamoDB
 import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime
-import boto3
-from boto3.dynamodb.conditions import Key, Attr
-from botocore.exceptions import ClientError
 from app.core.config import settings
+
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+except Exception as exc:  # pragma: no cover - fallback for local permission issues
+    boto3 = None
+
+    class ClientError(Exception):
+        pass
+
+    _BOTOCORE_IMPORT_ERROR = exc
 
 
 # Cache for database operations
@@ -35,12 +43,20 @@ def get_table_name(table_name: str) -> str:
 def get_dynamo_client():
     """Get DynamoDB client (low-level API)"""
     region = settings.cognito_region or os.getenv("AWS_REGION", "ap-northeast-1")
+    if boto3 is None:
+        raise RuntimeError(
+            "boto3 could not be imported. Ensure dependencies are installed and readable."
+        ) from _BOTOCORE_IMPORT_ERROR
     return boto3.client("dynamodb", region_name=region)
 
 
 def get_dynamo_resource():
     """Get DynamoDB resource (high-level API)"""
     region = settings.cognito_region or os.getenv("AWS_REGION", "ap-northeast-1")
+    if boto3 is None:
+        raise RuntimeError(
+            "boto3 could not be imported. Ensure dependencies are installed and readable."
+        ) from _BOTOCORE_IMPORT_ERROR
     return boto3.resource("dynamodb", region_name=region)
 
 
