@@ -1,7 +1,7 @@
 """
 Session management endpoints
 """
-from typing import Optional
+from typing import List
 from fastapi import APIRouter, Depends, Query
 from app.core.auth import get_current_user
 from app.services.session_service import session_service
@@ -43,7 +43,7 @@ async def end_session(
     return EndSessionResponse(**result)
 
 
-@router.get("", response_model=list[SessionResponse])
+@router.get("", response_model=List[SessionResponse])
 async def list_sessions(
     limit: int = Query(50, ge=1, le=100),
     user: dict = Depends(get_current_user)

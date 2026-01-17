@@ -115,6 +115,24 @@ temp/
 # Database
 *.db
 *.sqlite
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
 # Playwright
 playwright-report/
 test-results/
