@@ -80,7 +80,17 @@ export const getLoginUrl = (redirectPath?: string) => {
   // サーバーはこのCookieを読み取ってstateパラメータ内のnonceと比較する
   // 有効期限は10分（認証フローが完了するまでの時間）
   const cookieMaxAge = 10 * 60; // 10分（秒単位）
-  document.cookie = `cognito_auth_nonce=${nonce}; max-age=${cookieMaxAge}; path=/; SameSite=Lax`;
+  const hostname = window.location.hostname;
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  const cookieDomain = import.meta.env.VITE_COOKIE_DOMAIN;
+  let cookie = `cognito_auth_nonce=${nonce}; max-age=${cookieMaxAge}; path=/; SameSite=Lax`;
+  if (cookieDomain && !isLocalhost) {
+    cookie += `; domain=${cookieDomain}`;
+  }
+  if (window.location.protocol === "https:") {
+    cookie += "; Secure";
+  }
+  document.cookie = cookie;
 
   return `${cognitoDomain}/login?${params.toString()}`;
 };
