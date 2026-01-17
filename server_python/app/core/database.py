@@ -19,7 +19,8 @@ except Exception as exc:  # pragma: no cover - fallback for local permission iss
         def __init__(self, error_response=None, operation_name=None):
             self.response = error_response or {}
             self.operation_name = operation_name
-            super().__init__(f"ClientError: {error_response}")
+            message = f"ClientError in {operation_name}: {str(error_response)}" if operation_name else f"ClientError: {str(error_response)}"
+            super().__init__(message)
 
     _BOTOCORE_IMPORT_ERROR = exc
 
