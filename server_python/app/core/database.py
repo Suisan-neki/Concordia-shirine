@@ -2,7 +2,7 @@
 Database access layer for DynamoDB
 """
 import os
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from datetime import datetime
 from app.core.config import settings
 
@@ -11,9 +11,16 @@ try:
     from botocore.exceptions import ClientError
 except Exception as exc:  # pragma: no cover - fallback for local permission issues
     boto3 = None
-
+    
+    # Create a proper exception class that inherits from Exception
+    # This will be compatible with exception handling even when boto3 is available
     class ClientError(Exception):
-        pass
+        """Fallback ClientError when boto3 is not available"""
+        def __init__(self, error_response=None, operation_name=None):
+            self.response = error_response or {}
+            self.operation_name = operation_name
+            message = f"ClientError in {operation_name}: {str(error_response)}" if operation_name else f"ClientError: {str(error_response)}"
+            super().__init__(message)
 
     _BOTOCORE_IMPORT_ERROR = exc
 

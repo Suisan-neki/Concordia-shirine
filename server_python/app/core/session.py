@@ -5,7 +5,6 @@ from typing import Optional
 from fastapi import Request
 from jose import jwt, JWTError
 from app.core.config import settings
-from app.core.database import get_user_by_open_id
 
 
 COOKIE_NAME = "app_session_id"
