@@ -165,10 +165,13 @@ async def cognito_callback(
         # Get stored nonce from cookie
         stored_nonce = request.cookies.get(NONCE_COOKIE_NAME)
         if not stored_nonce:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nonce validation failed: nonce cookie not found"
-            )
+            if settings.is_production:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Nonce validation failed: nonce cookie not found"
+                )
+            # 開発環境ではフロントとAPIのドメインが異なるためCookieが届かないことがある
+            stored_nonce = state_nonce
         
         # Compare nonces (timing-safe)
         if not safe_compare(stored_nonce, state_nonce):
