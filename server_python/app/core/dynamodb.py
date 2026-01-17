@@ -1,7 +1,6 @@
 """
 DynamoDB operations for sessions, logs, and intervention settings
 """
-import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from app.core.config import settings
@@ -346,6 +345,7 @@ async def get_or_create_intervention_settings(user_id: int) -> Dict[str, Any]:
                 "visualHintEnabled": item.get("visualHintEnabled", True),
             }
     except ClientError:
+        # Settings not found in DynamoDB - will create default settings below
         pass
     
     # Create default settings

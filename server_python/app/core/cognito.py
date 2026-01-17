@@ -4,7 +4,6 @@ AWS Cognito authentication
 from typing import Optional
 from fastapi import Request, HTTPException, status
 from jose import jwt, jwk
-from jose.utils import base64url_decode
 import httpx
 from app.core.config import settings
 from app.core.database import get_user_by_open_id, upsert_user

@@ -4,10 +4,8 @@ Authentication and authorization middleware
 from typing import Optional
 from fastapi import Request, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
 from app.core.config import settings
 from app.core.cognito import authenticate_request as cognito_authenticate_request
-from app.core.database import get_user_by_open_id
 from app.core.session import get_session_from_cookie, verify_session_token
 
 
@@ -47,6 +45,7 @@ async def get_current_user_optional(
             if user:
                 return user
         except Exception:
+            # Invalid or expired session token - silently continue to allow other auth methods
             pass
     
     return None
