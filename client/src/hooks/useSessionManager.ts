@@ -299,11 +299,10 @@ export function useSessionManager() {
 
     try {
       await deleteMutation.mutateAsync({ sessionId });
-      sessionsQuery.refetch();
     } catch (error) {
       console.error('Failed to delete session:', error);
     }
-  }, [isAuthenticated, deleteMutation, sessionsQuery]);
+  }, [isAuthenticated, deleteMutation]);
 
   return {
     // State
