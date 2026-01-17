@@ -3,7 +3,8 @@ Session management for cookie-based authentication
 """
 from typing import Optional
 from fastapi import Request
-import jwt
+from jose import jwt
+from jose.exceptions import JWTError
 from app.core.config import settings
 
 
@@ -32,7 +33,7 @@ async def verify_session_token(token: str) -> Optional[dict]:
         from app.core.database import get_user_by_open_id
         user = await get_user_by_open_id(open_id)
         return user
-    except jwt.PyJWTError:
+    except JWTError:
         return None
     except Exception:
         return None

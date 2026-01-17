@@ -11,7 +11,7 @@ import httpx
 from app.core.config import settings
 from app.core.cognito import authenticate_request
 from app.core.session import COOKIE_NAME
-import jwt
+from jose import jwt
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 

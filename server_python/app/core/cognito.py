@@ -4,8 +4,8 @@ AWS Cognito authentication
 import json
 from typing import Optional
 from fastapi import Request, HTTPException, status
-import jwt
-from jwt.algorithms import RSAAlgorithm
+from jose import jwt, jwk
+from jose.exceptions import JWTError, ExpiredSignatureError
 import httpx
 from app.core.config import settings
 from app.core.database import get_user_by_open_id, upsert_user
@@ -87,7 +87,7 @@ async def verify_cognito_token(token: str) -> dict:
         )
     
     # Construct the public key
-    public_key = RSAAlgorithm.from_jwk(json.dumps(key))
+    public_key = jwk.construct(key)
     
     # Verify and decode the token
     try:
@@ -96,14 +96,14 @@ async def verify_cognito_token(token: str) -> dict:
             public_key,
             algorithms=["RS256"],
             audience=settings.cognito_client_id,
-            issuer=issuer
+            issuer=issuer,
         )
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired"
         )
-    except jwt.PyJWTError as e:
+    except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token validation failed: {str(e)}"
