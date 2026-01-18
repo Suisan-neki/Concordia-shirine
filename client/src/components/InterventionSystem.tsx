@@ -33,7 +33,7 @@ const SCENE_ENTRY_DELAY_SEC = 8;
 const INTERVENTION_MESSAGES: Record<string, { title: string; message: string; icon: string }> = {
   monologue: {
     title: '発言のバランス',
-    message: '一方的な発言が続いています。他の方にも発言の機会を設けてみませんか',
+    message: '一方的な発言が続いています。\n他の方にも発言の機会を設けてみませんか？',
     icon: '🌊',
   },
   silence: {
