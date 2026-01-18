@@ -220,11 +220,13 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-20"
+            className="fixed bottom-24 left-4 right-4 sm:left-6 sm:right-auto z-20"
           >
-            <div className="bg-shrine-vermilion/20 border border-shrine-vermilion/30 rounded-lg px-4 py-2 backdrop-blur-sm">
-              <p className="text-sm text-shrine-vermilion font-serif-jp">
-                同調圧力が検出されています。判断の自由を守ってください
+            <div className="bg-shrine-vermilion/20 border border-shrine-vermilion/30 rounded-lg px-4 py-2 backdrop-blur-sm sm:max-w-sm">
+              <p className="text-sm text-shrine-vermilion font-serif-jp whitespace-pre-line">
+                圧力を感じる空間になっていませんか？
+                {'\n'}
+                判断の自由を大切にしましょう
               </p>
             </div>
           </motion.div>
