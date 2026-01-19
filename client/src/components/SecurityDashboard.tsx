@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { FactoryAnimation } from './FactoryAnimation';
+import FactoryAnimation from './FactoryAnimation';
 
 /**
  * SecurityDashboardコンポーネントのプロパティ
