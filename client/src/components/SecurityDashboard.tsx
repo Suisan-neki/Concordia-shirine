@@ -12,13 +12,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { SecurityMetrics } from '@/lib/conversationLog';
 import type { SceneType } from '@/lib/waveEngine';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import FactoryAnimation from './FactoryAnimation';
 
 /**
@@ -107,6 +100,7 @@ const sceneExplanations: Record<SceneType, { cyber: string[]; human: string[]; r
 export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityDashboardProps) {
   const [activeLayer, setActiveLayer] = useState<'cyber' | 'human' | 'ai' | null>(null);
   const [isConceptOpen, setIsConceptOpen] = useState(false);
+  const [isManjuOpen, setIsManjuOpen] = useState(false);
   const explanation = sceneExplanations[scene];
   
   return (
@@ -165,15 +159,38 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                     variant="outline"
                     size="sm"
                     className="self-start text-xs"
-                    onClick={() => setIsConceptOpen(true)}
+                    onClick={() => setIsConceptOpen(prev => !prev)}
                   >
-                    もっとくわしく
+                    {isConceptOpen ? '閉じる' : 'もっとくわしく'}
                   </Button>
                 </div>
-                {/* お饅頭工場アニメーション */}
-                <div className="mt-6">
-                  <FactoryAnimation />
-                </div>
+                {isConceptOpen && (
+                  <div className="mt-6 flex flex-col gap-6">
+                    <div className="space-y-4 text-sm text-foreground leading-relaxed">
+                      <p>
+                        サイバーセキュリティは"すでに情報がある"世界を前提に成り立つ。
+                        ここで「対話」という場面にしぼって考えると、重要な情報はログや文書としてではなく、
+                        まず人と人の1on1で非公式に立ち上がる。
+                        インシデントの兆候や内部不正の違和感、組織の歪みや倫理的な葛藤は、
+                        語られるか沈黙するかの境界に置かれている。
+                      </p>
+                      <p>
+                        問題は、対話が行われる環境だ。立場の差や察しを求める空気の中では、人は発話を無意識に制限し、
+                        重要な情報ほど自己検閲で削ぎ落とされる。私はこれを、発話制約を内包した心理的に非安全な環境と捉える。
+                        そこで生まれる情報は、サイバーセキュリティが守る以前にすでに意味的な「重み」を失っている。
+                        情報が十分に生成されなければ、暗号化やアクセス制御の議論は本質に届かない。
+                      </p>
+                      <p>
+                        だからヒューマンセキュリティは倫理の話にとどまらず、情報が正確かつ十分に生成されるための前提条件でもある。
+                        同時に、技術的に信頼できる基盤がなければ人は語れず、ヒューマンセキュリティは空洞化する。
+                        対話という最小単位の場面では、両者は相互に支え合っている。
+                      </p>
+                    </div>
+                    <div>
+                      <FactoryAnimation />
+                    </div>
+                  </div>
+                )}
                 
                 {/* 因果連鎖図：左右対比レイアウト（旧バージョン - 必要に応じて削除可能） */}
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8" style={{ display: 'none' }}>
@@ -444,38 +461,6 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                 </div>
               </div>
 
-              <Dialog open={isConceptOpen} onOpenChange={setIsConceptOpen}>
-                <DialogContent className="bg-card/95 backdrop-blur-md border-border/50 max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle className="text-lg font-serif-jp">
-                      「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」
-                    </DialogTitle>
-                    <DialogDescription>
-                      対話という場面に限定して、背景にある考え方をまとめています。
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 text-sm text-foreground leading-relaxed">
-                    <p>
-                      サイバーセキュリティは"すでに情報がある"世界を前提に成り立つ。
-                      ここで「対話」という場面にしぼって考えると、重要な情報はログや文書としてではなく、
-                      まず人と人の1on1で非公式に立ち上がる。
-                      インシデントの兆候や内部不正の違和感、組織の歪みや倫理的な葛藤は、
-                      語られるか沈黙するかの境界に置かれている。
-                    </p>
-                    <p>
-                      問題は、対話が行われる環境だ。立場の差や察しを求める空気の中では、人は発話を無意識に制限し、
-                      重要な情報ほど自己検閲で削ぎ落とされる。私はこれを、発話制約を内包した心理的に非安全な環境と捉える。
-                      そこで生まれる情報は、サイバーセキュリティが守る以前にすでに意味的な「重み」を失っている。
-                      情報が十分に生成されなければ、暗号化やアクセス制御の議論は本質に届かない。
-                    </p>
-                    <p>
-                      だからヒューマンセキュリティは倫理の話にとどまらず、情報が正確かつ十分に生成されるための前提条件でもある。
-                      同時に、技術的に信頼できる基盤がなければ人は語れず、ヒューマンセキュリティは空洞化する。
-                      対話という最小単位の場面では、両者は相互に支え合っている。
-                    </p>
-                  </div>
-                </DialogContent>
-              </Dialog>
               
               {/* 現在の状態 */}
               <div className="mb-8">
