@@ -1,12 +1,12 @@
 /**
- * Concordia Shrine - Factory Animation Component (L-Shape Layout v6)
+ * Concordia Shrine - Factory Animation Component (L-Shape Layout v7)
  * 
  * ヒューマンセキュリティとサイバーセキュリティの相互依存関係を
  * 食品工場のL字型レーンのメタファーで表現するアニメーション
  */
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type Scenario = 'ideal' | 'human-failure' | 'cyber-failure';
 
@@ -107,29 +107,24 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
               </motion.div>
             </div>
 
-            {/* 横レーン（作業員の下） */}
-            <div className="absolute top-[220px] left-8" style={{ width: '500px' }}>
-              <ConveyorBelt direction="horizontal" />
+            {/* L字型コンベア（連結） */}
+            <div className="absolute top-[220px] left-8">
+              <LShapeConveyor />
             </div>
 
-            {/* 縦レーン（右側、横レーンと繋がる） */}
-            <div className="absolute top-[220px] left-[508px]" style={{ height: '320px', width: '80px' }}>
-              <ConveyorBelt direction="vertical" />
-            </div>
-
-            {/* サイバーセキュリティボックス（L字の角に配置・透明化） */}
+            {/* ロボットアーム（L字の角に配置） */}
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               className="absolute"
-              style={{ top: '180px', left: '460px' }}
+              style={{ top: '140px', left: '420px' }}
             >
               <div className="text-xs font-medium mb-2 text-center" style={{ color: isCyberFailure ? 'var(--shrine-vermilion)' : 'var(--shrine-barrier)' }}>
                 サイバーセキュリティ
               </div>
-              <TransparentCyberSecurityBox working={!isCyberFailure} animationKey={animationKey} />
-              <div className="mt-2 text-xs text-center text-muted-foreground max-w-[120px]">
+              <RobotArms working={!isCyberFailure} animationKey={animationKey} />
+              <div className="mt-2 text-xs text-center text-muted-foreground max-w-[160px]">
                 {isCyberFailure ? '機能せず' : '包装中'}
               </div>
             </motion.div>
@@ -155,21 +150,21 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
           {isIdeal && (
             <>
               <span className="font-medium text-shrine-gold">✨ 理想状態:</span> 
-              協力的な雰囲気の中で高品質な情報（お饅頭）が生成され、サイバーセキュリティボックスを通過することで
-              技術的な保護（包装）によってしっかりと守られます。両方が揃って初めて、価値ある情報が完成します。
+              協力的な雰囲気の中で高品質な情報（お饅頭）が生成され、ロボットアームによって
+              包装紙に包まれ、リボンが付けられます。両方が揃って初めて、価値ある情報が完成します。
             </>
           )}
           {isHumanFailure && (
             <>
               <span className="font-medium text-shrine-vermilion">⚠️ ヒューマンセキュリティの欠如:</span> 
               対立的な雰囲気では、低品質な情報（ぐしゃぐしゃのお饅頭）しか生成されません。
-              サイバーセキュリティボックスで包装しても、中身が粗悪では意味がありません。
+              ロボットアームで包装しても、中身が粗悪では意味がありません。
             </>
           )}
           {isCyberFailure && (
             <>
               <span className="font-medium text-shrine-vermilion">⚠️ サイバーセキュリティの欠如:</span> 
-              協力的な雰囲気で高品質な情報が生成されても、サイバーセキュリティボックスが機能しなければ
+              協力的な雰囲気で高品質な情報が生成されても、ロボットアームが機能しなければ
               包装されずに腐敗してしまい、価値が損なわれてしまいます。
             </>
           )}
@@ -324,23 +319,21 @@ function Worker({ mood, animationKey, withHand }: { mood: 'happy' | 'angry'; ani
 }
 
 /**
- * ベルトコンベアのコンポーネント
+ * L字型コンベアのコンポーネント（連結）
  */
-function ConveyorBelt({ direction }: { direction: 'horizontal' | 'vertical' }) {
-  const isHorizontal = direction === 'horizontal';
-  
+function LShapeConveyor() {
   return (
-    <div 
-      className={`relative bg-gradient-to-b from-slate-400 to-slate-500 rounded-lg border-2 border-slate-600 overflow-hidden ${
-        isHorizontal ? 'w-full h-16' : 'w-full h-full'
-      }`}
-    >
-      {/* ベルトの動き */}
-      {isHorizontal ? (
+    <div className="relative">
+      {/* 横レーン */}
+      <div 
+        className="absolute top-0 left-0 bg-gradient-to-b from-slate-400 to-slate-500 rounded-lg border-2 border-slate-600 overflow-hidden"
+        style={{ width: '500px', height: '80px' }}
+      >
+        {/* ベルトの動き（左から右へ） */}
         <motion.div
           className="absolute inset-0 flex items-center"
-          initial={{ x: 0 }}
-          animate={{ x: -20 }}
+          initial={{ x: -20 }}
+          animate={{ x: 0 }}
           transition={{
             duration: 1,
             repeat: Infinity,
@@ -355,11 +348,29 @@ function ConveyorBelt({ direction }: { direction: 'horizontal' | 'vertical' }) {
             />
           ))}
         </motion.div>
-      ) : (
+        
+        {/* ライト */}
+        <motion.div
+          className="absolute bottom-1 left-0 right-0 flex justify-around"
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="w-2 h-2 rounded-full bg-cyan-400" />
+          ))}
+        </motion.div>
+      </div>
+
+      {/* 縦レーン */}
+      <div 
+        className="absolute bg-gradient-to-r from-slate-400 to-slate-500 rounded-lg border-2 border-slate-600 overflow-hidden"
+        style={{ top: '0px', left: '500px', width: '80px', height: '320px' }}
+      >
+        {/* ベルトの動き（上から下へ） */}
         <motion.div
           className="absolute inset-0 flex flex-col items-center"
-          initial={{ y: 0 }}
-          animate={{ y: -20 }}
+          initial={{ y: -20 }}
+          animate={{ y: 0 }}
           transition={{
             duration: 1,
             repeat: Infinity,
@@ -374,18 +385,119 @@ function ConveyorBelt({ direction }: { direction: 'horizontal' | 'vertical' }) {
             />
           ))}
         </motion.div>
-      )}
-      
-      {/* ライト */}
-      <motion.div
-        className={`absolute ${isHorizontal ? 'bottom-1 left-0 right-0 flex justify-around' : 'right-1 top-0 bottom-0 flex flex-col justify-around'}`}
-        animate={{ opacity: [0.5, 1, 0.5] }}
-        transition={{ duration: 2, repeat: Infinity }}
-      >
-        {[...Array(isHorizontal ? 10 : 8)].map((_, i) => (
-          <div key={i} className="w-2 h-2 rounded-full bg-cyan-400" />
-        ))}
-      </motion.div>
+        
+        {/* ライト */}
+        <motion.div
+          className="absolute right-1 top-0 bottom-0 flex flex-col justify-around"
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="w-2 h-2 rounded-full bg-cyan-400" />
+          ))}
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ロボットアームのコンポーネント
+ */
+function RobotArms({ working, animationKey }: { working: boolean; animationKey: number }) {
+  return (
+    <div className="relative flex gap-8">
+      {/* 1台目のアーム（包装紙を引く） */}
+      <div className="relative">
+        <svg width="80" height="120" viewBox="0 0 80 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* ベース */}
+          <rect x="25" y="100" width="30" height="20" fill="#8B4513" stroke="currentColor" strokeWidth="2" />
+          <rect x="20" y="95" width="40" height="5" fill="#FFD700" stroke="currentColor" strokeWidth="1" />
+          
+          {/* アーム */}
+          {working ? (
+            <motion.g
+              key={`arm1-${animationKey}`}
+              animate={{ 
+                rotate: [0, -15, -15, 0],
+                y: [0, -10, -10, 0]
+              }}
+              transition={{ 
+                duration: 10,
+                times: [0, 0.35, 0.45, 0.5],
+                ease: 'easeInOut',
+                repeat: Infinity
+              }}
+              style={{ transformOrigin: '40px 100px' }}
+            >
+              <rect x="35" y="40" width="10" height="60" fill="#D2691E" stroke="currentColor" strokeWidth="2" />
+              <circle cx="40" cy="40" r="8" fill="#A0522D" stroke="currentColor" strokeWidth="2" />
+              <rect x="32" y="32" width="16" height="8" fill="#696969" stroke="currentColor" strokeWidth="1" />
+            </motion.g>
+          ) : (
+            <g>
+              <rect x="35" y="40" width="10" height="60" fill="#D2691E" stroke="currentColor" strokeWidth="2" />
+              <circle cx="40" cy="40" r="8" fill="#A0522D" stroke="currentColor" strokeWidth="2" />
+              <rect x="32" y="32" width="16" height="8" fill="#696969" stroke="currentColor" strokeWidth="1" />
+              {/* 💤エフェクト */}
+              <motion.text
+                x="45"
+                y="25"
+                fontSize="20"
+                fill="currentColor"
+                animate={{ 
+                  opacity: [0, 1, 1, 0],
+                  y: [25, 15, 5, -5]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  repeatDelay: 0.5
+                }}
+              >
+                💤
+              </motion.text>
+            </g>
+          )}
+        </svg>
+      </div>
+
+      {/* 2台目のアーム（リボンを付ける） */}
+      <div className="relative">
+        <svg width="80" height="120" viewBox="0 0 80 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* ベース */}
+          <rect x="25" y="100" width="30" height="20" fill="#8B4513" stroke="currentColor" strokeWidth="2" />
+          <rect x="20" y="95" width="40" height="5" fill="#FFD700" stroke="currentColor" strokeWidth="1" />
+          
+          {/* アーム */}
+          {working ? (
+            <motion.g
+              key={`arm2-${animationKey}`}
+              animate={{ 
+                rotate: [0, 15, 15, 0],
+                y: [0, -10, -10, 0]
+              }}
+              transition={{ 
+                duration: 10,
+                times: [0, 0.4, 0.5, 0.55],
+                ease: 'easeInOut',
+                repeat: Infinity
+              }}
+              style={{ transformOrigin: '40px 100px' }}
+            >
+              <rect x="35" y="40" width="10" height="60" fill="#D2691E" stroke="currentColor" strokeWidth="2" />
+              <circle cx="40" cy="40" r="8" fill="#A0522D" stroke="currentColor" strokeWidth="2" />
+              <rect x="32" y="32" width="16" height="8" fill="#696969" stroke="currentColor" strokeWidth="1" />
+            </motion.g>
+          ) : (
+            <g>
+              <rect x="35" y="40" width="10" height="60" fill="#D2691E" stroke="currentColor" strokeWidth="2" />
+              <circle cx="40" cy="40" r="8" fill="#A0522D" stroke="currentColor" strokeWidth="2" />
+              <rect x="32" y="32" width="16" height="8" fill="#696969" stroke="currentColor" strokeWidth="1" />
+            </g>
+          )}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -464,130 +576,54 @@ function Manju({ quality, isWrapped, isRotted }: { quality: 'good' | 'poor'; isW
   
   return (
     <div className="relative">
-      <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {isGood && !isRotted ? (
+      <svg width="70" height="70" viewBox="0 0 70 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {isWrapped ? (
+          // 包装されたお饅頭（茶色の包装紙+青いリボン）
+          <>
+            {/* 包装紙（茶色） */}
+            <rect x="5" y="10" width="60" height="50" rx="4" fill="#D2691E" stroke="#8B4513" strokeWidth="2" />
+            
+            {/* お饅頭（包装紙の上に乗っている） */}
+            <ellipse cx="35" cy="30" rx="22" ry="18" fill="#F5E6D3" stroke="#D4A574" strokeWidth="1.5" />
+            <ellipse cx="35" cy="26" rx="18" ry="10" fill="#FFFFFF" opacity="0.3" />
+            
+            {/* リボン（青・右下の角） */}
+            <g transform="translate(48, 48)">
+              {/* リボンの結び目 */}
+              <circle cx="0" cy="0" r="5" fill="#4169E1" stroke="#1E3A8A" strokeWidth="1.5" />
+              {/* リボンの左側 */}
+              <path d="M -5 0 Q -10 -3 -12 -6 Q -14 -8 -10 -10 Q -8 -11 -6 -9 Q -4 -7 -5 -4 Z" fill="#4169E1" stroke="#1E3A8A" strokeWidth="1" />
+              {/* リボンの右側 */}
+              <path d="M 5 0 Q 10 3 12 6 Q 14 8 10 10 Q 8 11 6 9 Q 4 7 5 4 Z" fill="#4169E1" stroke="#1E3A8A" strokeWidth="1" />
+              {/* リボンの下側 */}
+              <path d="M 0 5 Q -2 10 -3 13 L -1 14 L 0 11 L 1 14 L 3 13 Q 2 10 0 5 Z" fill="#4169E1" stroke="#1E3A8A" strokeWidth="1" />
+            </g>
+          </>
+        ) : isGood && !isRotted ? (
           // 綺麗なお饅頭 - 一重の白い丸
           <>
-            <circle cx="25" cy="28" r="20" fill="#F5E6D3" stroke="#D4A574" strokeWidth="2" />
-            <ellipse cx="25" cy="24" rx="16" ry="8" fill="#FFFFFF" opacity="0.3" />
-            
-            {/* 包装紙（包装されている場合） */}
-            {isWrapped && (
-              <>
-                {/* 半透明の包装紙 */}
-                <rect x="10" y="10" width="30" height="36" rx="3" fill="url(#wrappingGradient)" opacity="0.6" />
-                <rect x="10" y="10" width="30" height="36" rx="3" fill="none" stroke="#10b981" strokeWidth="2" strokeDasharray="3 2" />
-                
-                {/* リボン */}
-                <line x1="25" y1="10" x2="25" y2="46" stroke="#10b981" strokeWidth="2.5" />
-                <path d="M 15 25 L 25 25 L 35 25" stroke="#10b981" strokeWidth="2.5" />
-                
-                {/* 光沢 */}
-                <circle cx="18" cy="18" r="4" fill="white" opacity="0.5" />
-                
-                {/* グラデーション定義 */}
-                <defs>
-                  <linearGradient id="wrappingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#d1fae5" />
-                    <stop offset="100%" stopColor="#a7f3d0" />
-                  </linearGradient>
-                </defs>
-              </>
-            )}
+            <circle cx="35" cy="38" r="20" fill="#F5E6D3" stroke="#D4A574" strokeWidth="2" />
+            <ellipse cx="35" cy="34" rx="16" ry="8" fill="#FFFFFF" opacity="0.3" />
           </>
         ) : isRotted ? (
           // 腐ったお饅頭（元は綺麗だったが腐った）
           <>
-            <circle cx="25" cy="28" r="20" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="2" />
-            <circle cx="20" cy="26" r="3" fill="#3D5A40" opacity="0.7" />
-            <circle cx="28" cy="28" r="2" fill="#3D5A40" opacity="0.7" />
-            <circle cx="24" cy="32" r="2" fill="#3D5A40" opacity="0.7" />
+            <circle cx="35" cy="38" r="20" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="2" />
+            <circle cx="30" cy="36" r="3" fill="#3D5A40" opacity="0.7" />
+            <circle cx="38" cy="38" r="2" fill="#3D5A40" opacity="0.7" />
+            <circle cx="34" cy="42" r="2" fill="#3D5A40" opacity="0.7" />
           </>
         ) : (
           // ぐしゃぐしゃのお饅頭
           <>
             <path
-              d="M 12 28 Q 18 36 25 33 Q 32 30 38 36 Q 36 22 32 18 Q 25 14 18 20 Q 14 24 12 28"
+              d="M 22 38 Q 28 46 35 43 Q 42 40 48 46 Q 46 32 42 28 Q 35 24 28 30 Q 24 34 22 38"
               fill="#B8A080"
               stroke="#8B7355"
               strokeWidth="2"
             />
-            <circle cx="22" cy="24" r="2.5" fill="#8B7355" opacity="0.5" />
-            <circle cx="30" cy="28" r="2" fill="#8B7355" opacity="0.5" />
-          </>
-        )}
-      </svg>
-    </div>
-  );
-}
-
-/**
- * 透明なサイバーセキュリティボックスのコンポーネント
- */
-function TransparentCyberSecurityBox({ working, animationKey }: { working: boolean; animationKey: number }) {
-  return (
-    <div className="relative">
-      <svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* 透明なボックス */}
-        <rect x="10" y="10" width="120" height="120" rx="4" fill="white" fillOpacity="0.05" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" />
-        
-        {/* 入口（左） */}
-        <rect x="0" y="50" width="15" height="40" fill="currentColor" opacity="0.05" />
-        
-        {/* 出口（下） */}
-        <rect x="50" y="125" width="40" height="15" fill="currentColor" opacity="0.05" />
-        
-        {working ? (
-          <>
-            {/* 包装機構（動作中） */}
-            <motion.g
-              key={`wrapping-${animationKey}`}
-              animate={{ rotate: [0, 360] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-              style={{ transformOrigin: '70px 70px' }}
-            >
-              <circle cx="70" cy="70" r="20" fill="none" stroke="#10b981" strokeWidth="2" strokeDasharray="4 4" />
-            </motion.g>
-            
-            {/* インジケーター（緑） */}
-            <motion.circle
-              cx="25"
-              cy="25"
-              r="4"
-              fill="#10b981"
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1, repeat: Infinity }}
-            />
-          </>
-        ) : (
-          <>
-            {/* 故障中 */}
-            <motion.circle
-              cx="25"
-              cy="25"
-              r="4"
-              fill="#ef4444"
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1, repeat: Infinity }}
-            />
-            
-            {/* 💤エフェクト */}
-            <motion.g
-              key={`sleep-${animationKey}`}
-              initial={{ opacity: 0, y: 0 }}
-              animate={{ 
-                opacity: [0, 1, 1, 0],
-                y: [0, -20, -40, -60],
-                x: [0, 5, 10, 15]
-              }}
-              transition={{ 
-                duration: 2,
-                repeat: Infinity,
-                repeatDelay: 0.5
-              }}
-            >
-              <text x="70" y="70" fontSize="24" fill="currentColor">💤</text>
-            </motion.g>
+            <circle cx="32" cy="34" r="2.5" fill="#8B7355" opacity="0.5" />
+            <circle cx="40" cy="38" r="2" fill="#8B7355" opacity="0.5" />
           </>
         )}
       </svg>
