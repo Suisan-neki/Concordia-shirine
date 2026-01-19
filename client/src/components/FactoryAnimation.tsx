@@ -25,10 +25,8 @@ function FactoryAnimationCore({ scenario }: FactoryAnimationProps) {
       {/* レーンとロボットアーム */}
       <ConveyorBelt />
       
-      {/* ロボットアーム - 画像のように垂直に配置 */}
-      <div className="absolute" style={{ top: '80px', left: '420px' }}>
-        <RobotArms working={isCyberGood} animationKey={animationKey} />
-      </div>
+      {/* ロボットアーム - 左は横レーンの途中、右はL字の角 */}
+      <RobotArms working={isCyberGood} animationKey={animationKey} />
       
       {/* お饅頭 */}
       <Manju 
@@ -410,18 +408,19 @@ function ConveyorBelt() {
  */
 function RobotArms({ working, animationKey }: { working: boolean; animationKey: number }) {
   return (
-    <div className="relative">
-      <div className="text-red-400 text-sm mb-2 font-medium text-center">サイバーセキュリティ</div>
-      <div className="flex gap-8">
-        {/* 1台目のアーム（包装紙を引く） */}
+    <>
+      {/* 1台目のアーム（包装紙を引く）- 横レーンの上側、180度回転 */}
+      <div className="absolute" style={{ top: '240px', left: '320px', transform: 'rotate(180deg)' }}>
         <ArticulatedRobotArm 
           working={working} 
           animationKey={animationKey}
           taskType="wrapping"
           startTime={0.35}
         />
+      </div>
 
-        {/* 2台目のアーム（リボンを付ける） */}
+      {/* 2台目のアーム（リボンを付ける）- L字の角、90度回転 */}
+      <div className="absolute" style={{ top: '140px', left: '600px', transform: 'rotate(-90deg)' }}>
         <ArticulatedRobotArm 
           working={working} 
           animationKey={animationKey}
@@ -429,7 +428,12 @@ function RobotArms({ working, animationKey }: { working: boolean; animationKey: 
           startTime={0.40}
         />
       </div>
-    </div>
+      
+      {/* ラベル */}
+      <div className="absolute text-red-400 text-sm font-medium" style={{ top: '120px', left: '420px' }}>
+        サイバーセキュリティ
+      </div>
+    </>
   );
 }
 
