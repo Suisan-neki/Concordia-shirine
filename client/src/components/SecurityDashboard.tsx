@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { FactoryAnimation } from './FactoryAnimation';
 
 /**
  * SecurityDashboardコンポーネントのプロパティ
@@ -186,8 +187,13 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                     もっとくわしく
                   </Button>
                 </div>
-                {/* 因果連鎖図：左右対比レイアウト */}
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+                {/* お饅頭工場アニメーション */}
+                <div className="mt-6">
+                  <FactoryAnimation />
+                </div>
+                
+                {/* 因果連鎖図：左右対比レイアウト（旧バージョン - 必要に応じて削除可能） */}
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8" style={{ display: 'none' }}>
                   {/* 左側：うまくいくパターン */}
                   <div className="flex flex-col">
                     <h4 className="text-sm font-medium text-shrine-jade text-center mb-3">両方が担保されている場合</h4>
