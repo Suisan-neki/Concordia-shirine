@@ -1,12 +1,12 @@
 /**
- * Concordia Shrine - Factory Animation Component (L-Shape Layout v5)
+ * Concordia Shrine - Factory Animation Component (L-Shape Layout v6)
  * 
  * ヒューマンセキュリティとサイバーセキュリティの相互依存関係を
  * 食品工場のL字型レーンのメタファーで表現するアニメーション
  */
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
 
 type Scenario = 'ideal' | 'human-failure' | 'cyber-failure';
 
@@ -394,77 +394,108 @@ function ConveyorBelt({ direction }: { direction: 'horizontal' | 'vertical' }) {
  * お饅頭のアニメーションコンポーネント（1個ずつループ）
  */
 function ManjuAnimation({ quality, shouldWrap }: { quality: 'good' | 'poor'; shouldWrap: boolean }) {
+  const [currentProgress, setCurrentProgress] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentProgress(prev => {
+        const next = prev + 0.01;
+        return next >= 1 ? 0 : next;
+      });
+    }, 100); // 10秒で1周 (100ms * 100 = 10000ms)
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // 進行度に応じて位置を計算
+  let x = 0;
+  let y = 0;
+  let opacity = 1;
+
+  if (currentProgress < 0.4) {
+    // 横レーン（0-40%）
+    x = currentProgress * 1250; // 0 to 500
+    y = 0;
+  } else if (currentProgress < 0.45) {
+    // 角（40-45%）
+    x = 500;
+    y = 0;
+  } else if (currentProgress < 0.9) {
+    // 縦レーン（45-90%）
+    x = 500;
+    y = (currentProgress - 0.45) * 711; // 0 to 320
+  } else {
+    // フェードアウト（90-100%）
+    x = 500;
+    y = 320;
+    opacity = 1 - ((currentProgress - 0.9) / 0.1);
+  }
+
+  // 包装または腐敗のタイミング（横レーンの終わり、40-45%の間）
+  const shouldTransform = currentProgress >= 0.4 && currentProgress < 0.9;
+  const isWrapped = shouldTransform && shouldWrap;
+  const isRotted = shouldTransform && !shouldWrap && quality === 'good';
+
   return (
-    <motion.div
-      className="absolute"
-      style={{ top: '212px', left: '40px' }}
-      initial={{ opacity: 0 }}
-      animate={{
-        opacity: [0, 1, 1, 1, 1, 1, 1, 0],
-        x: [0, 0, 500, 500, 500, 500, 500, 500],
-        y: [0, 0, 0, 0, 80, 160, 240, 300],
-      }}
-      transition={{
-        duration: 10,
-        times: [0, 0.05, 0.4, 0.45, 0.6, 0.75, 0.9, 1],
-        ease: 'linear',
-        repeat: Infinity
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        top: '212px',
+        left: '40px',
+        transform: `translate(${x}px, ${y}px)`,
+        opacity: opacity,
+        transition: 'transform 0.1s linear, opacity 0.1s linear'
       }}
     >
       <Manju 
         quality={quality} 
-        shouldWrap={shouldWrap}
+        isWrapped={isWrapped}
+        isRotted={isRotted}
       />
-    </motion.div>
+    </div>
   );
 }
 
 /**
- * お饅頭のコンポーネント（状態管理を含む）
+ * お饅頭のコンポーネント（プロップスで状態を受け取る）
  */
-function Manju({ quality, shouldWrap }: { quality: 'good' | 'poor'; shouldWrap: boolean }) {
-  const [currentState, setCurrentState] = useState<'initial' | 'wrapped' | 'rotted'>('initial');
-  
-  useEffect(() => {
-    // 状態をリセット
-    setCurrentState('initial');
-    
-    // 4秒後に包装または腐敗の処理
-    const timer = setTimeout(() => {
-      if (shouldWrap) {
-        setCurrentState('wrapped');
-      } else if (quality === 'good') {
-        // 良いお饅頭がサイバーセキュリティボックスを通過すると腐る
-        setCurrentState('rotted');
-      }
-    }, 4000);
-    
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [quality, shouldWrap]);
-  
+function Manju({ quality, isWrapped, isRotted }: { quality: 'good' | 'poor'; isWrapped: boolean; isRotted: boolean }) {
   const isGood = quality === 'good';
-  const isWrapped = currentState === 'wrapped';
-  const isRotted = currentState === 'rotted';
   
   return (
     <div className="relative">
       <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {isGood && !isRotted && !isWrapped ? (
-          // 綺麗なお饅頭（包装前）- 一重の白い丸
+        {isGood && !isRotted ? (
+          // 綺麗なお饅頭 - 一重の白い丸
           <>
             <circle cx="25" cy="28" r="20" fill="#F5E6D3" stroke="#D4A574" strokeWidth="2" />
             <ellipse cx="25" cy="24" rx="16" ry="8" fill="#FFFFFF" opacity="0.3" />
+            
+            {/* 包装紙（包装されている場合） */}
+            {isWrapped && (
+              <>
+                {/* 半透明の包装紙 */}
+                <rect x="10" y="10" width="30" height="36" rx="3" fill="url(#wrappingGradient)" opacity="0.6" />
+                <rect x="10" y="10" width="30" height="36" rx="3" fill="none" stroke="#10b981" strokeWidth="2" strokeDasharray="3 2" />
+                
+                {/* リボン */}
+                <line x1="25" y1="10" x2="25" y2="46" stroke="#10b981" strokeWidth="2.5" />
+                <path d="M 15 25 L 25 25 L 35 25" stroke="#10b981" strokeWidth="2.5" />
+                
+                {/* 光沢 */}
+                <circle cx="18" cy="18" r="4" fill="white" opacity="0.5" />
+                
+                {/* グラデーション定義 */}
+                <defs>
+                  <linearGradient id="wrappingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#d1fae5" />
+                    <stop offset="100%" stopColor="#a7f3d0" />
+                  </linearGradient>
+                </defs>
+              </>
+            )}
           </>
-        ) : isGood && !isRotted && isWrapped ? (
-          // 綺麗なお饅頭（包装後）- 緑の枠線と光沢
-          <>
-            <circle cx="25" cy="28" r="20" fill="#F5E6D3" stroke="#10b981" strokeWidth="2.5" opacity="0.9" />
-            <ellipse cx="25" cy="24" rx="16" ry="8" fill="#FFFFFF" opacity="0.4" />
-            <circle cx="18" cy="22" r="5" fill="white" opacity="0.5" />
-          </>
-        ) : isGood && isRotted ? (
+        ) : isRotted ? (
           // 腐ったお饅頭（元は綺麗だったが腐った）
           <>
             <circle cx="25" cy="28" r="20" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="2" />
