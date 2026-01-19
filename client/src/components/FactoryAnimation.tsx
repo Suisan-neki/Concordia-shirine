@@ -409,8 +409,8 @@ function ConveyorBelt() {
 function RobotArms({ working, animationKey }: { working: boolean; animationKey: number }) {
   return (
     <>
-      {/* 1台目のアーム（包装紙を引く）- 横レーンの上側、180度回転 */}
-      <div className="absolute" style={{ top: '240px', left: '320px', transform: 'rotate(180deg)' }}>
+      {/* 1台目のアーム（包装紙を引く）- 横レーンの左上、垂直下向き */}
+      <div className="absolute" style={{ top: '100px', left: '200px' }}>
         <ArticulatedRobotArm 
           working={working} 
           animationKey={animationKey}
@@ -419,8 +419,8 @@ function RobotArms({ working, animationKey }: { working: boolean; animationKey: 
         />
       </div>
 
-      {/* 2台目のアーム（リボンを付ける）- L字の角、90度回転 */}
-      <div className="absolute" style={{ top: '140px', left: '600px', transform: 'rotate(-90deg)' }}>
+      {/* 2台目のアーム（リボンを付ける）- 縦レーンの右側、水平左向き */}
+      <div className="absolute" style={{ top: '280px', left: '640px', transform: 'rotate(-90deg)' }}>
         <ArticulatedRobotArm 
           working={working} 
           animationKey={animationKey}
@@ -430,7 +430,7 @@ function RobotArms({ working, animationKey }: { working: boolean; animationKey: 
       </div>
       
       {/* ラベル */}
-      <div className="absolute text-red-400 text-sm font-medium" style={{ top: '120px', left: '420px' }}>
+      <div className="absolute text-red-400 text-sm font-medium" style={{ top: '80px', left: '380px' }}>
         サイバーセキュリティ
       </div>
     </>
