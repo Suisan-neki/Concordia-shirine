@@ -1,5 +1,5 @@
 /**
- * Concordia Shrine - Factory Animation Component (L-Shape Layout v2)
+ * Concordia Shrine - Factory Animation Component (L-Shape Layout v3)
  * 
  * ヒューマンセキュリティとサイバーセキュリティの相互依存関係を
  * 食品工場のL字型レーンのメタファーで表現するアニメーション
@@ -71,7 +71,7 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
       </div>
 
       {/* 工場アニメーション */}
-      <div className="relative w-full bg-gradient-to-b from-muted/30 to-muted/10 rounded-xl border border-border overflow-hidden" style={{ minHeight: '500px', height: '500px' }}>
+      <div className="relative w-full bg-gradient-to-b from-muted/30 to-muted/10 rounded-xl border border-border overflow-hidden" style={{ minHeight: '600px', height: '600px' }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={animationKey}
@@ -80,7 +80,7 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
             exit={{ opacity: 0 }}
             className="w-full h-full p-8 relative"
           >
-            {/* 左側: ヒューマンセキュリティエリア（作業員2人） */}
+            {/* 作業員エリア（上部左側） */}
             <div className="absolute top-8 left-8 flex flex-col items-center">
               <div className="text-xs font-medium mb-4 text-center" style={{ color: isHumanFailure ? 'var(--shrine-vermilion)' : 'var(--shrine-jade)' }}>
                 ヒューマンセキュリティ
@@ -107,13 +107,13 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
               </motion.div>
             </div>
 
-            {/* 横レーン（上部・短縮版） */}
-            <div className="absolute top-32 left-52" style={{ width: '280px' }}>
+            {/* 横レーン（作業員の下） */}
+            <div className="absolute top-[220px] left-8" style={{ width: '500px' }}>
               <ConveyorBelt direction="horizontal" />
             </div>
 
-            {/* 縦レーン（右側） */}
-            <div className="absolute right-8 top-32" style={{ height: 'calc(100% - 160px)', width: '80px' }}>
+            {/* 縦レーン（右側、横レーンと繋がる） */}
+            <div className="absolute top-[220px] left-[508px]" style={{ height: '320px', width: '80px' }}>
               <ConveyorBelt direction="vertical" />
             </div>
 
@@ -123,7 +123,7 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               className="absolute"
-              style={{ top: '90px', right: '-10px' }}
+              style={{ top: '180px', left: '460px' }}
             >
               <div className="text-xs font-medium mb-2 text-center" style={{ color: isCyberFailure ? 'var(--shrine-vermilion)' : 'var(--shrine-barrier)' }}>
                 サイバーセキュリティ
@@ -134,8 +134,8 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
               </div>
             </motion.div>
 
-            {/* お饅頭のアニメーション */}
-            <ManjuAnimation
+            {/* お饅頭のループアニメーション */}
+            <ManjuLoopAnimation
               key={animationKey}
               quality={isHumanFailure ? 'poor' : 'good'}
               shouldWrap={!isCyberFailure}
@@ -305,9 +305,11 @@ function Worker({ mood, animationKey, withHand }: { mood: 'happy' | 'angry'; ani
             initial={{ y: 0 }}
             animate={{ y: [0, 15, 15, 0] }}
             transition={{ 
-              duration: 2,
-              times: [0, 0.3, 0.7, 1],
-              ease: 'easeInOut'
+              duration: 3,
+              times: [0, 0.2, 0.6, 1],
+              ease: 'easeInOut',
+              repeat: Infinity,
+              repeatDelay: 1
             }}
           >
             <circle cx="45" cy="55" r="3" fill="lightblue" opacity="0.7" />
@@ -346,7 +348,7 @@ function ConveyorBelt({ direction }: { direction: 'horizontal' | 'vertical' }) {
             ease: 'linear'
           }}
         >
-          {[...Array(20)].map((_, i) => (
+          {[...Array(30)].map((_, i) => (
             <div
               key={i}
               className="w-5 h-1 bg-slate-600/50 mx-2"
@@ -365,7 +367,7 @@ function ConveyorBelt({ direction }: { direction: 'horizontal' | 'vertical' }) {
             ease: 'linear'
           }}
         >
-          {[...Array(30)].map((_, i) => (
+          {[...Array(20)].map((_, i) => (
             <div
               key={i}
               className="h-5 w-1 bg-slate-600/50 my-2"
@@ -381,7 +383,7 @@ function ConveyorBelt({ direction }: { direction: 'horizontal' | 'vertical' }) {
         animate={{ opacity: [0.5, 1, 0.5] }}
         transition={{ duration: 2, repeat: Infinity }}
       >
-        {[...Array(isHorizontal ? 6 : 6)].map((_, i) => (
+        {[...Array(isHorizontal ? 10 : 8)].map((_, i) => (
           <div key={i} className="w-2 h-2 rounded-full bg-cyan-400" />
         ))}
       </motion.div>
@@ -390,29 +392,61 @@ function ConveyorBelt({ direction }: { direction: 'horizontal' | 'vertical' }) {
 }
 
 /**
+ * お饅頭のループアニメーションコンポーネント
+ */
+function ManjuLoopAnimation({ quality, shouldWrap }: { quality: 'good' | 'poor'; shouldWrap: boolean }) {
+  const [manjus, setManjus] = useState<number[]>([0]);
+  
+  useEffect(() => {
+    // 4秒ごとに新しいお饅頭を追加
+    const interval = setInterval(() => {
+      setManjus(prev => [...prev, prev.length]);
+    }, 4000);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <>
+      {manjus.map((id) => (
+        <ManjuAnimation
+          key={id}
+          quality={quality}
+          shouldWrap={shouldWrap}
+          delay={id * 4}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
  * お饅頭のアニメーションコンポーネント
  */
-function ManjuAnimation({ quality, shouldWrap }: { quality: 'good' | 'poor'; shouldWrap: boolean }) {
+function ManjuAnimation({ quality, shouldWrap, delay }: { quality: 'good' | 'poor'; shouldWrap: boolean; delay: number }) {
   return (
     <motion.div
       className="absolute"
-      style={{ top: '124px', left: '260px' }}
+      style={{ top: '212px', left: '40px' }}
       initial={{ opacity: 0 }}
       animate={{
         opacity: [0, 1, 1, 1, 1, 1, 1, 0],
-        x: [0, 0, 280, 280, 280, 280, 280, 280],
-        y: [0, 0, 0, 0, 100, 200, 300, 350],
+        x: [0, 0, 500, 500, 500, 500, 500, 500],
+        y: [0, 0, 0, 0, 80, 160, 240, 300],
       }}
       transition={{
-        duration: 8,
-        times: [0, 0.1, 0.4, 0.45, 0.6, 0.75, 0.9, 1],
-        ease: 'linear'
+        duration: 10,
+        times: [0, 0.05, 0.4, 0.45, 0.6, 0.75, 0.9, 1],
+        ease: 'linear',
+        delay: delay,
+        repeat: Infinity,
+        repeatDelay: 0
       }}
     >
       <ManjuWithWrapper 
         quality={quality} 
         shouldWrap={shouldWrap}
-        wrapDelay={3.2}
+        wrapDelay={4}
       />
     </motion.div>
   );
@@ -502,8 +536,8 @@ function TransparentCyberSecurityBox({ working, animationKey }: { working: boole
         {/* 透明なボックス */}
         <rect x="10" y="10" width="120" height="120" rx="4" fill="white" fillOpacity="0.1" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" />
         
-        {/* 入口（上） */}
-        <rect x="50" y="0" width="40" height="15" fill="currentColor" opacity="0.1" />
+        {/* 入口（左） */}
+        <rect x="0" y="50" width="15" height="40" fill="currentColor" opacity="0.1" />
         
         {/* 出口（下） */}
         <rect x="50" y="125" width="40" height="15" fill="currentColor" opacity="0.1" />
