@@ -166,25 +166,19 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                 </div>
                 {isConceptOpen && (
                   <div className="mt-6 flex flex-col gap-6">
-                    <div className="space-y-4 text-sm text-foreground leading-relaxed">
-                      <p>
-                        サイバーセキュリティは"すでに情報がある"世界を前提に成り立つ。
-                        ここで「対話」という場面にしぼって考えると、重要な情報はログや文書としてではなく、
-                        まず人と人の1on1で非公式に立ち上がる。
-                        インシデントの兆候や内部不正の違和感、組織の歪みや倫理的な葛藤は、
-                        語られるか沈黙するかの境界に置かれている。
-                      </p>
-                      <p>
-                        問題は、対話が行われる環境だ。立場の差や察しを求める空気の中では、人は発話を無意識に制限し、
-                        重要な情報ほど自己検閲で削ぎ落とされる。私はこれを、発話制約を内包した心理的に非安全な環境と捉える。
-                        そこで生まれる情報は、サイバーセキュリティが守る以前にすでに意味的な「重み」を失っている。
-                        情報が十分に生成されなければ、暗号化やアクセス制御の議論は本質に届かない。
-                      </p>
-                      <p>
-                        だからヒューマンセキュリティは倫理の話にとどまらず、情報が正確かつ十分に生成されるための前提条件でもある。
-                        同時に、技術的に信頼できる基盤がなければ人は語れず、ヒューマンセキュリティは空洞化する。
-                        対話という最小単位の場面では、両者は相互に支え合っている。
-                      </p>
+                    <div className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+                      {`サイバーセキュリティは"すでに情報がある"世界を前提に成り立つ。
+
+ここで「対話」という場面にしぼって考えると、重要な情報はログや文書としてではなくまずは人と人の1on1で立ち上がる。
+問題は対話が行われる環境だ。
+立場の差や暗黙の了解、察しを求める空気の中では、人は発話を無意識に制限し、重要な情報ほど自己検閲で削ぎ落とされてしまう。
+私はこれを、発話制約を内包した「心理的に非安全な環境」と捉えたい。
+そこで生まれる情報は、サイバーセキュリティが守る以前にすでに意味的な「重み」を失っている。
+情報が十分に生成されなければ、暗号化やアクセス制御の議論は本質に届かない。
+
+だからこそヒューマンセキュリティは倫理の話にとどまらず、情報が正確かつ十分に生成されるための前提条件でもある。
+これと同時に技術的に信頼できる基盤がなければ人は安心して語ることができず、ヒューマンセキュリティは空洞化してしまう。
+対話という最小単位の場面では、両者は相互に支え合っている。`}
                     </div>
                     <div>
                       <FactoryAnimation />
@@ -509,7 +503,6 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                   >
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm font-medium text-foreground">{layer.name}</h4>
-                      <span className="text-xs text-muted-foreground">{layer.description}</span>
                     </div>
                     
                     <div className="space-y-2">
