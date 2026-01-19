@@ -76,18 +76,18 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
   const getPosition = (p: number) => {
     if (p < 0.4) {
       // 横レーン（左から右へ）
-      const x = 120 + (p / 0.4) * 380;
-      const y = 180;
+      const x = 120 + (p / 0.4) * 498;
+      const y = 195;
       return { x, y };
     } else if (p < 0.5) {
       // L字の角 - 包装エリア（座標を固定）
-      const x = 500;
-      const y = 180;
+      const x = 618;
+      const y = 195;
       return { x, y };
     } else {
       // 縦レーン（上から下へ）
       const verticalProgress = (p - 0.5) / 0.5;
-      const x = 520;
+      const x = 638;
       const y = 200 + verticalProgress * 220;
       return { x, y };
     }
@@ -331,26 +331,6 @@ function ConveyorBelt() {
         className="absolute bg-gradient-to-r from-slate-400 to-slate-500 rounded-lg border-2 border-slate-600 overflow-hidden"
         style={{ top: '0px', left: '0px', width: '500px', height: '80px' }}
       >
-        {/* ベルトの動き（左から右へ） */}
-        <motion.div
-          className="absolute inset-0 flex items-center"
-          initial={{ x: -20 }}
-          animate={{ x: 0 }}
-          transition={{
-            duration: 1,
-            repeat: Infinity,
-            ease: 'linear'
-          }}
-        >
-          {[...Array(30)].map((_, i) => (
-            <div
-              key={i}
-              className="w-5 h-1 bg-slate-600/50 mx-2"
-              style={{ minWidth: '20px' }}
-            />
-          ))}
-        </motion.div>
-        
         {/* ライト */}
         <motion.div
           className="absolute bottom-1 left-0 right-0 flex justify-around"
@@ -365,29 +345,9 @@ function ConveyorBelt() {
 
       {/* 縦レーン */}
       <div 
-        className="absolute bg-gradient-to-r from-slate-400 to-slate-500 rounded-lg border-2 border-slate-600 overflow-hidden"
+        className="absolute bg-gradient-to-r from-slate-500 to-slate-400 rounded-lg border-2 border-slate-600 overflow-hidden"
         style={{ top: '0px', left: '500px', width: '80px', height: '320px' }}
       >
-        {/* ベルトの動き（上から下へ） */}
-        <motion.div
-          className="absolute inset-0 flex flex-col items-center"
-          initial={{ y: -20 }}
-          animate={{ y: 0 }}
-          transition={{
-            duration: 1,
-            repeat: Infinity,
-            ease: 'linear'
-          }}
-        >
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="h-5 w-1 bg-slate-600/50 my-2"
-              style={{ minHeight: '20px' }}
-            />
-          ))}
-        </motion.div>
-        
         {/* ライト */}
         <motion.div
           className="absolute right-1 top-0 bottom-0 flex flex-col justify-around"
@@ -399,6 +359,31 @@ function ConveyorBelt() {
           ))}
         </motion.div>
       </div>
+
+      {/* 境界の段差を消すための継ぎ目 */}
+      <div
+        className="absolute bg-slate-500"
+        style={{ top: '0px', left: '498px', width: '4px', height: '80px' }}
+      />
+
+      {/* 点線をL字でつなぐ */}
+      <motion.svg
+        className="absolute pointer-events-none"
+        width="580"
+        height="320"
+        viewBox="0 0 580 320"
+        style={{ top: '0px', left: '0px' }}
+      >
+        <motion.path
+          d="M 0 40 H 540 V 320"
+          fill="none"
+          stroke="rgba(100, 116, 139, 0.5)"
+          strokeWidth="4"
+          strokeDasharray="20 16"
+          animate={{ strokeDashoffset: -36 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+        />
+      </motion.svg>
     </div>
   );
 }
@@ -410,7 +395,7 @@ function RobotArms({ working, animationKey }: { working: boolean; animationKey: 
   return (
     <>
       {/* 1台目のアーム（包装紙を引く）- 横レーンの左上、垂直下向き */}
-      <div className="absolute" style={{ top: '100px', left: '200px' }}>
+      <div className="absolute" style={{ top: '50px', left: '470px', transform: 'rotate(180deg)' }}>
         <ArticulatedRobotArm 
           working={working} 
           animationKey={animationKey}
@@ -420,7 +405,7 @@ function RobotArms({ working, animationKey }: { working: boolean; animationKey: 
       </div>
 
       {/* 2台目のアーム（リボンを付ける）- 縦レーンの右側、水平左向き */}
-      <div className="absolute" style={{ top: '280px', left: '640px', transform: 'rotate(-90deg)' }}>
+      <div className="absolute" style={{ top: '210px', left: '640px', transform: 'rotate(-90deg)' }}>
         <ArticulatedRobotArm 
           working={working} 
           animationKey={animationKey}
@@ -458,7 +443,7 @@ function ArticulatedRobotArm({
   const endTime = startTime + 0.10;
   
   // 各関節の回転角度のキーフレーム
-  const shoulderRotation = working ? [0, 0, -35, -35, -15, 0] : [0];
+  const shoulderRotation = [0];
   const elbowRotation = working ? [0, 0, -45, -45, -30, 0] : [0];
   const wristRotation = working ? [0, 0, -20, -20, 10, 0] : [0];
   const gripperScale = working ? [1, 1, 0.5, 0.5, 0.5, 1] : [1];
