@@ -1,253 +1,211 @@
-/**
- * Concordia Shrine - Factory Animation Component (L-Shape Layout v7)
- * 
- * ヒューマンセキュリティとサイバーセキュリティの相互依存関係を
- * 食品工場のL字型レーンのメタファーで表現するアニメーション
- */
-
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type Scenario = 'ideal' | 'human-failure' | 'cyber-failure';
-
 interface FactoryAnimationProps {
-  /** 初期シナリオ */
-  initialScenario?: Scenario;
+  scenario: 'ideal' | 'human-failure' | 'cyber-failure';
 }
 
-/**
- * FactoryAnimationコンポーネント
- * 
- * お饅頭工場のL字型レーンを使って、ヒューマンセキュリティとサイバーセキュリティの
- * 相互依存関係を視覚的に表現する。
- */
-export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimationProps) {
-  const [scenario, setScenario] = useState<Scenario>(initialScenario);
+function FactoryAnimationCore({ scenario }: FactoryAnimationProps) {
   const [animationKey, setAnimationKey] = useState(0);
 
-  // シナリオが変更されたらアニメーションをリセット
+  // シナリオが変わったらアニメーションをリセット
   useEffect(() => {
     setAnimationKey(prev => prev + 1);
   }, [scenario]);
 
-  const isIdeal = scenario === 'ideal';
-  const isHumanFailure = scenario === 'human-failure';
-  const isCyberFailure = scenario === 'cyber-failure';
+  const isHumanGood = scenario !== 'human-failure';
+  const isCyberGood = scenario !== 'cyber-failure';
+  const mood = isHumanGood ? 'happy' : 'angry';
 
   return (
-    <div className="w-full">
-      {/* シナリオ切り替えボタン */}
-      <div className="flex flex-wrap gap-2 mb-6 justify-center">
-        <button
-          onClick={() => setScenario('ideal')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            isIdeal
-              ? 'bg-shrine-gold text-white shadow-lg'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-          }`}
-        >
-          理想状態（両方◎）
-        </button>
-        <button
-          onClick={() => setScenario('human-failure')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            isHumanFailure
-              ? 'bg-shrine-vermilion text-white shadow-lg'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-          }`}
-        >
-          ヒューマン欠如
-        </button>
-        <button
-          onClick={() => setScenario('cyber-failure')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            isCyberFailure
-              ? 'bg-shrine-vermilion text-white shadow-lg'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-          }`}
-        >
-          サイバー欠如
-        </button>
+    <div className="relative w-full h-[500px] bg-gradient-to-b from-slate-900 to-slate-800 rounded-lg p-8">
+      {/* 作業員エリア */}
+      <WorkerArea mood={mood} animationKey={animationKey} />
+      
+      {/* レーンとロボットアーム */}
+      <ConveyorBelt />
+      
+      {/* ロボットアーム */}
+      <div className="absolute" style={{ top: '120px', left: '460px' }}>
+        <RobotArms working={isCyberGood} animationKey={animationKey} />
       </div>
-
-      {/* 工場アニメーション */}
-      <div className="relative w-full bg-gradient-to-b from-muted/30 to-muted/10 rounded-xl border border-border overflow-hidden" style={{ minHeight: '600px', height: '600px' }}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={animationKey}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="w-full h-full p-8 relative"
-          >
-            {/* 作業員エリア（上部左側） */}
-            <div className="absolute top-8 left-8 flex flex-col items-center">
-              <div className="text-xs font-medium mb-4 text-center" style={{ color: isHumanFailure ? 'var(--shrine-vermilion)' : 'var(--shrine-jade)' }}>
-                ヒューマンセキュリティ
-              </div>
-              
-              {/* 作業員2人 */}
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.5 }}
-                className="relative flex gap-4"
-              >
-                <TwoWorkers mood={isHumanFailure ? 'angry' : 'happy'} animationKey={animationKey} />
-              </motion.div>
-
-              {/* 説明テキスト */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="mt-4 text-xs text-center text-muted-foreground max-w-[140px]"
-              >
-                {isHumanFailure ? '対立的な雰囲気' : '協力的な雰囲気'}
-              </motion.div>
-            </div>
-
-            {/* L字型コンベア（連結） */}
-            <div className="absolute top-[220px] left-8">
-              <LShapeConveyor />
-            </div>
-
-            {/* ロボットアーム（L字の角に配置） */}
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="absolute"
-              style={{ top: '140px', left: '420px' }}
-            >
-              <div className="text-xs font-medium mb-2 text-center" style={{ color: isCyberFailure ? 'var(--shrine-vermilion)' : 'var(--shrine-barrier)' }}>
-                サイバーセキュリティ
-              </div>
-              <RobotArms working={!isCyberFailure} animationKey={animationKey} />
-              <div className="mt-2 text-xs text-center text-muted-foreground max-w-[160px]">
-                {isCyberFailure ? '機能せず' : '包装中'}
-              </div>
-            </motion.div>
-
-            {/* お饅頭のアニメーション（1個ずつ） */}
-            <ManjuAnimation
-              key={animationKey}
-              quality={isHumanFailure ? 'poor' : 'good'}
-              shouldWrap={!isCyberFailure}
-            />
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* 説明文 */}
-      <motion.div
-        key={`explanation-${scenario}`}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mt-6 p-4 rounded-lg bg-muted/30 border border-border"
-      >
-        <p className="text-sm text-foreground leading-relaxed">
-          {isIdeal && (
-            <>
-              <span className="font-medium text-shrine-gold">✨ 理想状態:</span> 
-              協力的な雰囲気の中で高品質な情報（お饅頭）が生成され、ロボットアームによって
-              包装紙に包まれ、リボンが付けられます。両方が揃って初めて、価値ある情報が完成します。
-            </>
-          )}
-          {isHumanFailure && (
-            <>
-              <span className="font-medium text-shrine-vermilion">⚠️ ヒューマンセキュリティの欠如:</span> 
-              対立的な雰囲気では、低品質な情報（ぐしゃぐしゃのお饅頭）しか生成されません。
-              ロボットアームで包装しても、中身が粗悪では意味がありません。
-            </>
-          )}
-          {isCyberFailure && (
-            <>
-              <span className="font-medium text-shrine-vermilion">⚠️ サイバーセキュリティの欠如:</span> 
-              協力的な雰囲気で高品質な情報が生成されても、ロボットアームが機能しなければ
-              包装されずに腐敗してしまい、価値が損なわれてしまいます。
-            </>
-          )}
-        </p>
-      </motion.div>
+      
+      {/* お饅頭 */}
+      <Manju 
+        isGood={isHumanGood} 
+        cyberWorking={isCyberGood}
+        animationKey={animationKey}
+      />
     </div>
   );
 }
 
 /**
- * 2人の作業員のSVGコンポーネント
+ * お饅頭のコンポーネント
  */
-function TwoWorkers({ mood, animationKey }: { mood: 'happy' | 'angry'; animationKey: number }) {
-  const isHappy = mood === 'happy';
-  
-  return (
-    <div className="relative flex gap-6">
-      {/* 感情エフェクト */}
-      <AnimatePresence>
-        {isHappy ? (
-          <motion.div
-            key={`heart-${animationKey}`}
-            initial={{ opacity: 0, y: 0, scale: 0 }}
-            animate={{ 
-              opacity: [0, 1, 1, 0],
-              y: [0, -30, -60, -90],
-              scale: [0, 1, 1.2, 0.8]
-            }}
-            transition={{ 
-              duration: 2,
-              repeat: Infinity,
-              repeatDelay: 1
-            }}
-            className="absolute top-0 left-1/2 transform -translate-x-1/2 text-2xl"
-          >
-            ❤️
-          </motion.div>
-        ) : (
-          <>
-            <motion.div
-              key={`anger-left-${animationKey}`}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ 
-                opacity: [0, 1, 1, 0],
-                scale: [0, 1, 1.2, 0],
-                x: [-10, -20, -30, -40]
-              }}
-              transition={{ 
-                duration: 1.5,
-                repeat: Infinity,
-                repeatDelay: 0.5
-              }}
-              className="absolute top-0 left-0 text-xl"
-            >
-              💢
-            </motion.div>
-            <motion.div
-              key={`anger-right-${animationKey}`}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ 
-                opacity: [0, 1, 1, 0],
-                scale: [0, 1, 1.2, 0],
-                x: [10, 20, 30, 40]
-              }}
-              transition={{ 
-                duration: 1.5,
-                repeat: Infinity,
-                repeatDelay: 0.5,
-                delay: 0.3
-              }}
-              className="absolute top-0 right-0 text-xl"
-            >
-              💢
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberWorking: boolean; animationKey: number }) {
+  const [progress, setProgress] = useState(0);
+  const [currentState, setCurrentState] = useState<'initial' | 'wrapped' | 'rotted'>('initial');
 
-      {/* 作業員1 */}
-      <Worker mood={mood} animationKey={animationKey} withHand={true} />
+  useEffect(() => {
+    setProgress(0);
+    setCurrentState('initial');
+    
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        const next = prev + 0.01;
+        
+        // 包装/腐敗のタイミング（40-45%）
+        if (next >= 0.40 && next < 0.45 && currentState === 'initial') {
+          if (cyberWorking) {
+            setCurrentState('wrapped');
+          } else {
+            setCurrentState('rotted');
+          }
+        }
+        
+        if (next >= 1) {
+          return 0;
+        }
+        return next;
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [animationKey, cyberWorking]);
+
+  // 座標計算
+  const getPosition = (p: number) => {
+    if (p < 0.4) {
+      // 横レーン（左から右へ）
+      const x = 120 + (p / 0.4) * 380;
+      const y = 180;
+      return { x, y };
+    } else if (p < 0.45) {
+      // L字の角
+      const cornerProgress = (p - 0.4) / 0.05;
+      const x = 500;
+      const y = 180 + cornerProgress * 20;
+      return { x, y };
+    } else {
+      // 縦レーン（上から下へ）
+      const verticalProgress = (p - 0.45) / 0.55;
+      const x = 520;
+      const y = 200 + verticalProgress * 220;
+      return { x, y };
+    }
+  };
+
+  const { x, y } = getPosition(progress);
+  const opacity = progress > 0.9 ? 1 - (progress - 0.9) / 0.1 : 1;
+
+  return (
+    <motion.div
+      key={`manju-${animationKey}`}
+      className="absolute"
+      style={{
+        left: `${x}px`,
+        top: `${y}px`,
+        opacity,
+        transform: 'translate(-50%, -50%)'
+      }}
+    >
+      {/* 包装紙（包装後のみ表示） */}
+      {currentState === 'wrapped' && (
+        <div className="absolute" style={{ left: '-30px', top: '-30px', width: '60px', height: '60px' }}>
+          {/* 茶色の包装紙 */}
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-700 to-amber-900 rounded-sm opacity-90" />
+          
+          {/* 青いリボン（右下の角） */}
+          <div className="absolute" style={{ right: '2px', bottom: '2px' }}>
+            {/* リボンの結び目 */}
+            <div className="absolute w-3 h-3 bg-blue-500 rounded-full" style={{ right: '0px', bottom: '0px' }} />
+            {/* リボンの左側 */}
+            <div className="absolute w-4 h-2 bg-blue-500 rounded-full" style={{ right: '3px', bottom: '1px', transform: 'rotate(-30deg)' }} />
+            {/* リボンの右側 */}
+            <div className="absolute w-4 h-2 bg-blue-500 rounded-full" style={{ right: '-2px', bottom: '1px', transform: 'rotate(30deg)' }} />
+            {/* リボンの下垂れ */}
+            <div className="absolute w-1 h-3 bg-blue-500" style={{ right: '1px', bottom: '-3px' }} />
+          </div>
+        </div>
+      )}
       
-      {/* 作業員2 */}
-      <Worker mood={mood} animationKey={animationKey} withHand={false} />
+      {/* お饅頭本体 */}
+      <div className="relative">
+        {isGood && currentState !== 'rotted' ? (
+          // 綺麗なお饅頭
+          <div className="relative">
+            <div className="w-8 h-8 bg-gradient-to-br from-amber-50 to-amber-100 rounded-full border-2 border-amber-200" />
+            {/* 光沢 */}
+            <div className="absolute top-1 left-2 w-3 h-3 bg-white rounded-full opacity-60" />
+          </div>
+        ) : (
+          // ぐしゃぐしゃ/腐ったお饅頭
+          <div className="relative">
+            <div className="w-8 h-8 bg-gradient-to-br from-gray-600 to-gray-800 rounded-full border-2 border-gray-700" style={{ 
+              clipPath: 'polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%)'
+            }} />
+            {/* カビの斑点 */}
+            <div className="absolute top-1 left-1 w-1 h-1 bg-green-700 rounded-full" />
+            <div className="absolute top-3 left-2 w-1 h-1 bg-green-700 rounded-full" />
+            <div className="absolute top-2 left-4 w-1 h-1 bg-green-700 rounded-full" />
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+/**
+ * 作業員エリアのコンポーネント
+ */
+function WorkerArea({ mood, animationKey }: { mood: 'happy' | 'angry'; animationKey: number }) {
+  return (
+    <div className="absolute top-8 left-8">
+      <div className="text-cyan-400 text-sm mb-2 font-medium">ヒューマンセキュリティ</div>
+      <div className="flex gap-4">
+        {/* 感情エフェクト */}
+        <AnimatePresence mode="wait">
+          {mood === 'happy' ? (
+            <motion.div
+              key={`heart-${animationKey}`}
+              className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-3xl"
+              initial={{ y: 0, opacity: 1 }}
+              animate={{ y: -30, opacity: 0 }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              ❤️
+            </motion.div>
+          ) : (
+            <>
+              <motion.div
+                key={`anger1-${animationKey}`}
+                className="absolute -top-8 left-0 text-2xl"
+                initial={{ x: 0, opacity: 1 }}
+                animate={{ x: -20, opacity: 0 }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              >
+                💢
+              </motion.div>
+              <motion.div
+                key={`anger2-${animationKey}`}
+                className="absolute -top-8 right-0 text-2xl"
+                initial={{ x: 0, opacity: 1 }}
+                animate={{ x: 20, opacity: 0 }}
+                transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+              >
+                💢
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* 作業員1 */}
+        <Worker mood={mood} animationKey={animationKey} withHand={true} />
+        
+        {/* 作業員2 */}
+        <Worker mood={mood} animationKey={animationKey} withHand={false} />
+      </div>
     </div>
   );
 }
@@ -298,36 +256,36 @@ function Worker({ mood, animationKey, withHand }: { mood: 'happy' | 'angry'; ani
           <motion.g
             key={`hand-${animationKey}`}
             initial={{ y: 0 }}
-            animate={{ y: [0, 15, 15, 0] }}
+            animate={{ y: [0, 15, 0] }}
             transition={{ 
               duration: 10,
-              times: [0, 0.05, 0.15, 0.2],
+              times: [0, 0.05, 0.1],
               ease: 'easeInOut',
               repeat: Infinity
             }}
           >
             <circle cx="45" cy="55" r="3" fill="lightblue" opacity="0.7" />
-            <line x1="40" y1="50" x2="45" y2="55" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </motion.g>
         )}
-        {!withHand && (
-          <circle cx="45" cy="55" r="3" fill="lightblue" opacity="0.7" />
-        )}
+        
+        {/* 足 */}
+        <rect x="22" y="75" width="6" height="15" rx="1" fill="white" stroke="currentColor" strokeWidth="1" />
+        <rect x="32" y="75" width="6" height="15" rx="1" fill="white" stroke="currentColor" strokeWidth="1" />
       </svg>
     </div>
   );
 }
 
 /**
- * L字型コンベアのコンポーネント（連結）
+ * ベルトコンベアのコンポーネント
  */
-function LShapeConveyor() {
+function ConveyorBelt() {
   return (
-    <div className="relative">
+    <div className="absolute" style={{ top: '160px', left: '100px' }}>
       {/* 横レーン */}
       <div 
-        className="absolute top-0 left-0 bg-gradient-to-b from-slate-400 to-slate-500 rounded-lg border-2 border-slate-600 overflow-hidden"
-        style={{ width: '500px', height: '80px' }}
+        className="absolute bg-gradient-to-r from-slate-400 to-slate-500 rounded-lg border-2 border-slate-600 overflow-hidden"
+        style={{ top: '0px', left: '0px', width: '500px', height: '80px' }}
       >
         {/* ベルトの動き（左から右へ） */}
         <motion.div
@@ -355,7 +313,7 @@ function LShapeConveyor() {
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          {[...Array(10)].map((_, i) => (
+          {[...Array(12)].map((_, i) => (
             <div key={i} className="w-2 h-2 rounded-full bg-cyan-400" />
           ))}
         </motion.div>
@@ -402,231 +360,322 @@ function LShapeConveyor() {
 }
 
 /**
- * ロボットアームのコンポーネント
+ * ロボットアームのコンポーネント（改善版：多関節構造と現実的な動作）
  */
 function RobotArms({ working, animationKey }: { working: boolean; animationKey: number }) {
   return (
-    <div className="relative flex gap-8">
-      {/* 1台目のアーム（包装紙を引く） */}
-      <div className="relative">
-        <svg width="80" height="120" viewBox="0 0 80 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* ベース */}
-          <rect x="25" y="100" width="30" height="20" fill="#8B4513" stroke="currentColor" strokeWidth="2" />
-          <rect x="20" y="95" width="40" height="5" fill="#FFD700" stroke="currentColor" strokeWidth="1" />
-          
-          {/* アーム */}
-          {working ? (
-            <motion.g
-              key={`arm1-${animationKey}`}
-              animate={{ 
-                rotate: [0, -15, -15, 0],
-                y: [0, -10, -10, 0]
-              }}
-              transition={{ 
-                duration: 10,
-                times: [0, 0.35, 0.45, 0.5],
-                ease: 'easeInOut',
-                repeat: Infinity
-              }}
-              style={{ transformOrigin: '40px 100px' }}
-            >
-              <rect x="35" y="40" width="10" height="60" fill="#D2691E" stroke="currentColor" strokeWidth="2" />
-              <circle cx="40" cy="40" r="8" fill="#A0522D" stroke="currentColor" strokeWidth="2" />
-              <rect x="32" y="32" width="16" height="8" fill="#696969" stroke="currentColor" strokeWidth="1" />
-            </motion.g>
-          ) : (
-            <g>
-              <rect x="35" y="40" width="10" height="60" fill="#D2691E" stroke="currentColor" strokeWidth="2" />
-              <circle cx="40" cy="40" r="8" fill="#A0522D" stroke="currentColor" strokeWidth="2" />
-              <rect x="32" y="32" width="16" height="8" fill="#696969" stroke="currentColor" strokeWidth="1" />
-              {/* 💤エフェクト */}
-              <motion.text
-                x="45"
-                y="25"
-                fontSize="20"
-                fill="currentColor"
-                animate={{ 
-                  opacity: [0, 1, 1, 0],
-                  y: [25, 15, 5, -5]
-                }}
-                transition={{ 
-                  duration: 2,
-                  repeat: Infinity,
-                  repeatDelay: 0.5
-                }}
-              >
-                💤
-              </motion.text>
-            </g>
-          )}
-        </svg>
-      </div>
+    <div className="relative">
+      <div className="text-red-400 text-sm mb-2 font-medium text-center">サイバーセキュリティ</div>
+      <div className="flex gap-12">
+        {/* 1台目のアーム（包装紙を引く） */}
+        <ArticulatedRobotArm 
+          working={working} 
+          animationKey={animationKey}
+          taskType="wrapping"
+          startTime={0.35}
+        />
 
-      {/* 2台目のアーム（リボンを付ける） */}
-      <div className="relative">
-        <svg width="80" height="120" viewBox="0 0 80 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* ベース */}
-          <rect x="25" y="100" width="30" height="20" fill="#8B4513" stroke="currentColor" strokeWidth="2" />
-          <rect x="20" y="95" width="40" height="5" fill="#FFD700" stroke="currentColor" strokeWidth="1" />
-          
-          {/* アーム */}
-          {working ? (
-            <motion.g
-              key={`arm2-${animationKey}`}
-              animate={{ 
-                rotate: [0, 15, 15, 0],
-                y: [0, -10, -10, 0]
-              }}
-              transition={{ 
-                duration: 10,
-                times: [0, 0.4, 0.5, 0.55],
-                ease: 'easeInOut',
-                repeat: Infinity
-              }}
-              style={{ transformOrigin: '40px 100px' }}
-            >
-              <rect x="35" y="40" width="10" height="60" fill="#D2691E" stroke="currentColor" strokeWidth="2" />
-              <circle cx="40" cy="40" r="8" fill="#A0522D" stroke="currentColor" strokeWidth="2" />
-              <rect x="32" y="32" width="16" height="8" fill="#696969" stroke="currentColor" strokeWidth="1" />
-            </motion.g>
-          ) : (
-            <g>
-              <rect x="35" y="40" width="10" height="60" fill="#D2691E" stroke="currentColor" strokeWidth="2" />
-              <circle cx="40" cy="40" r="8" fill="#A0522D" stroke="currentColor" strokeWidth="2" />
-              <rect x="32" y="32" width="16" height="8" fill="#696969" stroke="currentColor" strokeWidth="1" />
-            </g>
-          )}
-        </svg>
+        {/* 2台目のアーム（リボンを付ける） */}
+        <ArticulatedRobotArm 
+          working={working} 
+          animationKey={animationKey}
+          taskType="ribbon"
+          startTime={0.40}
+        />
       </div>
     </div>
   );
 }
 
 /**
- * お饅頭のアニメーションコンポーネント（1個ずつループ）
+ * 多関節ロボットアームコンポーネント
+ * 3セグメント構造（ベース、下部アーム、上部アーム、グリッパー）
  */
-function ManjuAnimation({ quality, shouldWrap }: { quality: 'good' | 'poor'; shouldWrap: boolean }) {
-  const [currentProgress, setCurrentProgress] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentProgress(prev => {
-        const next = prev + 0.01;
-        return next >= 1 ? 0 : next;
-      });
-    }, 100); // 10秒で1周 (100ms * 100 = 10000ms)
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // 進行度に応じて位置を計算
-  let x = 0;
-  let y = 0;
-  let opacity = 1;
-
-  if (currentProgress < 0.4) {
-    // 横レーン（0-40%）
-    x = currentProgress * 1250; // 0 to 500
-    y = 0;
-  } else if (currentProgress < 0.45) {
-    // 角（40-45%）
-    x = 500;
-    y = 0;
-  } else if (currentProgress < 0.9) {
-    // 縦レーン（45-90%）
-    x = 500;
-    y = (currentProgress - 0.45) * 711; // 0 to 320
-  } else {
-    // フェードアウト（90-100%）
-    x = 500;
-    y = 320;
-    opacity = 1 - ((currentProgress - 0.9) / 0.1);
-  }
-
-  // 包装または腐敗のタイミング（横レーンの終わり、40-45%の間）
-  const shouldTransform = currentProgress >= 0.4 && currentProgress < 0.9;
-  const isWrapped = shouldTransform && shouldWrap;
-  const isRotted = shouldTransform && !shouldWrap && quality === 'good';
-
-  return (
-    <div
-      className="absolute pointer-events-none"
-      style={{
-        top: '212px',
-        left: '40px',
-        transform: `translate(${x}px, ${y}px)`,
-        opacity: opacity,
-        transition: 'transform 0.1s linear, opacity 0.1s linear'
-      }}
-    >
-      <Manju 
-        quality={quality} 
-        isWrapped={isWrapped}
-        isRotted={isRotted}
-      />
-    </div>
-  );
-}
-
-/**
- * お饅頭のコンポーネント（プロップスで状態を受け取る）
- */
-function Manju({ quality, isWrapped, isRotted }: { quality: 'good' | 'poor'; isWrapped: boolean; isRotted: boolean }) {
-  const isGood = quality === 'good';
+function ArticulatedRobotArm({ 
+  working, 
+  animationKey, 
+  taskType,
+  startTime 
+}: { 
+  working: boolean; 
+  animationKey: number; 
+  taskType: 'wrapping' | 'ribbon';
+  startTime: number;
+}) {
+  // 動作シーケンスのキーフレーム
+  // 待機 → 下降 → 掴む → 持ち上げる → 作業 → 戻る
+  const duration = 10;
+  const endTime = startTime + 0.10;
+  
+  // 各関節の回転角度のキーフレーム
+  const shoulderRotation = working ? [0, 0, -35, -35, -15, 0] : [0];
+  const elbowRotation = working ? [0, 0, -45, -45, -30, 0] : [0];
+  const wristRotation = working ? [0, 0, -20, -20, 10, 0] : [0];
+  const gripperScale = working ? [1, 1, 0.5, 0.5, 0.5, 1] : [1];
+  
+  // タイミング配列
+  const times = [0, startTime - 0.05, startTime, startTime + 0.03, endTime, endTime + 0.05];
   
   return (
     <div className="relative">
-      <svg width="70" height="70" viewBox="0 0 70 70" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {isWrapped ? (
-          // 包装されたお饅頭（茶色の包装紙+青いリボン）
-          <>
-            {/* 包装紙（茶色） */}
-            <rect x="5" y="10" width="60" height="50" rx="4" fill="#D2691E" stroke="#8B4513" strokeWidth="2" />
-            
-            {/* お饅頭（包装紙の上に乗っている） */}
-            <ellipse cx="35" cy="30" rx="22" ry="18" fill="#F5E6D3" stroke="#D4A574" strokeWidth="1.5" />
-            <ellipse cx="35" cy="26" rx="18" ry="10" fill="#FFFFFF" opacity="0.3" />
-            
-            {/* リボン（青・右下の角） */}
-            <g transform="translate(48, 48)">
-              {/* リボンの結び目 */}
-              <circle cx="0" cy="0" r="5" fill="#4169E1" stroke="#1E3A8A" strokeWidth="1.5" />
-              {/* リボンの左側 */}
-              <path d="M -5 0 Q -10 -3 -12 -6 Q -14 -8 -10 -10 Q -8 -11 -6 -9 Q -4 -7 -5 -4 Z" fill="#4169E1" stroke="#1E3A8A" strokeWidth="1" />
-              {/* リボンの右側 */}
-              <path d="M 5 0 Q 10 3 12 6 Q 14 8 10 10 Q 8 11 6 9 Q 4 7 5 4 Z" fill="#4169E1" stroke="#1E3A8A" strokeWidth="1" />
-              {/* リボンの下側 */}
-              <path d="M 0 5 Q -2 10 -3 13 L -1 14 L 0 11 L 1 14 L 3 13 Q 2 10 0 5 Z" fill="#4169E1" stroke="#1E3A8A" strokeWidth="1" />
+      <svg width="100" height="160" viewBox="0 0 100 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* ベース台座 */}
+        <g>
+          <rect x="35" y="140" width="30" height="20" rx="2" fill="#2C3E50" stroke="#34495E" strokeWidth="2" />
+          <rect x="30" y="135" width="40" height="5" rx="1" fill="#34495E" stroke="#2C3E50" strokeWidth="1" />
+          <circle cx="50" cy="147" r="3" fill="#7F8C8D" />
+        </g>
+        
+        {working ? (
+          <motion.g
+            key={`shoulder-${animationKey}-${taskType}`}
+            animate={{ rotate: shoulderRotation }}
+            transition={{ 
+              duration,
+              times,
+              ease: 'easeInOut',
+              repeat: Infinity
+            }}
+            style={{ transformOrigin: '50px 140px' }}
+          >
+            {/* 下部アーム（肩から肘） */}
+            <g>
+              {/* アーム本体 */}
+              <rect x="44" y="85" width="12" height="55" rx="2" fill="#FFD700" stroke="#FFA500" strokeWidth="2" />
+              {/* 油圧シリンダー風のディテール */}
+              <line x1="47" y1="90" x2="47" y2="135" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+              <line x1="53" y1="90" x2="53" y2="135" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+              {/* 肩関節 */}
+              <circle cx="50" cy="140" r="8" fill="#FFA500" stroke="#FF8C00" strokeWidth="2" />
+              <circle cx="50" cy="140" r="4" fill="#FFD700" />
             </g>
-          </>
-        ) : isGood && !isRotted ? (
-          // 綺麗なお饅頭 - 一重の白い丸
-          <>
-            <circle cx="35" cy="38" r="20" fill="#F5E6D3" stroke="#D4A574" strokeWidth="2" />
-            <ellipse cx="35" cy="34" rx="16" ry="8" fill="#FFFFFF" opacity="0.3" />
-          </>
-        ) : isRotted ? (
-          // 腐ったお饅頭（元は綺麗だったが腐った）
-          <>
-            <circle cx="35" cy="38" r="20" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="2" />
-            <circle cx="30" cy="36" r="3" fill="#3D5A40" opacity="0.7" />
-            <circle cx="38" cy="38" r="2" fill="#3D5A40" opacity="0.7" />
-            <circle cx="34" cy="42" r="2" fill="#3D5A40" opacity="0.7" />
-          </>
+            
+            {/* 肘関節を中心に回転する上部アーム */}
+            <motion.g
+              animate={{ rotate: elbowRotation }}
+              transition={{ 
+                duration,
+                times,
+                ease: 'easeInOut',
+                repeat: Infinity
+              }}
+              style={{ transformOrigin: '50px 85px' }}
+            >
+              {/* 上部アーム（肘から手首） */}
+              <g>
+                {/* アーム本体 */}
+                <rect x="44" y="40" width="12" height="45" rx="2" fill="#FFD700" stroke="#FFA500" strokeWidth="2" />
+                {/* 油圧シリンダー風のディテール */}
+                <line x1="47" y1="45" x2="47" y2="80" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+                <line x1="53" y1="45" x2="53" y2="80" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+                {/* 肘関節 */}
+                <circle cx="50" cy="85" r="7" fill="#FFA500" stroke="#FF8C00" strokeWidth="2" />
+                <circle cx="50" cy="85" r="3" fill="#FFD700" />
+              </g>
+              
+              {/* 手首関節を中心に回転するグリッパー */}
+              <motion.g
+                animate={{ rotate: wristRotation }}
+                transition={{ 
+                  duration,
+                  times,
+                  ease: 'easeInOut',
+                  repeat: Infinity
+                }}
+                style={{ transformOrigin: '50px 40px' }}
+              >
+                {/* 手首関節 */}
+                <circle cx="50" cy="40" r="6" fill="#FFA500" stroke="#FF8C00" strokeWidth="2" />
+                <circle cx="50" cy="40" r="2" fill="#FFD700" />
+                
+                {/* グリッパー（開閉動作） */}
+                <motion.g
+                  animate={{ scaleX: gripperScale }}
+                  transition={{ 
+                    duration,
+                    times,
+                    ease: 'easeInOut',
+                    repeat: Infinity
+                  }}
+                  style={{ transformOrigin: '50px 35px' }}
+                >
+                  {/* 左側のグリッパー */}
+                  <g>
+                    <rect x="38" y="28" width="8" height="14" rx="1" fill="#696969" stroke="#505050" strokeWidth="1.5" />
+                    <rect x="40" y="30" width="4" height="2" fill="#505050" />
+                    <rect x="40" y="34" width="4" height="2" fill="#505050" />
+                    <rect x="40" y="38" width="4" height="2" fill="#505050" />
+                  </g>
+                  {/* 右側のグリッパー */}
+                  <g>
+                    <rect x="54" y="28" width="8" height="14" rx="1" fill="#696969" stroke="#505050" strokeWidth="1.5" />
+                    <rect x="56" y="30" width="4" height="2" fill="#505050" />
+                    <rect x="56" y="34" width="4" height="2" fill="#505050" />
+                    <rect x="56" y="38" width="4" height="2" fill="#505050" />
+                  </g>
+                </motion.g>
+                
+                {/* 作業中のエフェクト */}
+                {taskType === 'wrapping' && (
+                  <motion.g
+                    animate={{ 
+                      opacity: [0, 0, 1, 1, 0, 0],
+                      y: [0, 0, 5, 5, 0, 0]
+                    }}
+                    transition={{ 
+                      duration,
+                      times,
+                      ease: 'easeInOut',
+                      repeat: Infinity
+                    }}
+                  >
+                    {/* 包装紙を引くエフェクト */}
+                    <rect x="35" y="45" width="30" height="2" fill="#8B4513" opacity="0.7" />
+                  </motion.g>
+                )}
+                
+                {taskType === 'ribbon' && (
+                  <motion.g
+                    animate={{ 
+                      opacity: [0, 0, 1, 1, 0, 0],
+                      scale: [0.5, 0.5, 1, 1, 0.5, 0.5]
+                    }}
+                    transition={{ 
+                      duration,
+                      times,
+                      ease: 'easeInOut',
+                      repeat: Infinity
+                    }}
+                    style={{ transformOrigin: '50px 45px' }}
+                  >
+                    {/* リボンを付けるエフェクト */}
+                    <circle cx="50" cy="45" r="4" fill="#4169E1" opacity="0.7" />
+                  </motion.g>
+                )}
+              </motion.g>
+            </motion.g>
+          </motion.g>
         ) : (
-          // ぐしゃぐしゃのお饅頭
-          <>
-            <path
-              d="M 22 38 Q 28 46 35 43 Q 42 40 48 46 Q 46 32 42 28 Q 35 24 28 30 Q 24 34 22 38"
-              fill="#B8A080"
-              stroke="#8B7355"
-              strokeWidth="2"
-            />
-            <circle cx="32" cy="34" r="2.5" fill="#8B7355" opacity="0.5" />
-            <circle cx="40" cy="38" r="2" fill="#8B7355" opacity="0.5" />
-          </>
+          // 停止状態（💤エフェクト付き）
+          <g>
+            {/* 下部アーム */}
+            <rect x="44" y="85" width="12" height="55" rx="2" fill="#FFD700" stroke="#FFA500" strokeWidth="2" />
+            <line x1="47" y1="90" x2="47" y2="135" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+            <line x1="53" y1="90" x2="53" y2="135" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+            <circle cx="50" cy="140" r="8" fill="#FFA500" stroke="#FF8C00" strokeWidth="2" />
+            <circle cx="50" cy="140" r="4" fill="#FFD700" />
+            
+            {/* 上部アーム */}
+            <rect x="44" y="40" width="12" height="45" rx="2" fill="#FFD700" stroke="#FFA500" strokeWidth="2" />
+            <line x1="47" y1="45" x2="47" y2="80" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+            <line x1="53" y1="45" x2="53" y2="80" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+            <circle cx="50" cy="85" r="7" fill="#FFA500" stroke="#FF8C00" strokeWidth="2" />
+            <circle cx="50" cy="85" r="3" fill="#FFD700" />
+            
+            {/* 手首とグリッパー */}
+            <circle cx="50" cy="40" r="6" fill="#FFA500" stroke="#FF8C00" strokeWidth="2" />
+            <circle cx="50" cy="40" r="2" fill="#FFD700" />
+            <rect x="38" y="28" width="8" height="14" rx="1" fill="#696969" stroke="#505050" strokeWidth="1.5" />
+            <rect x="54" y="28" width="8" height="14" rx="1" fill="#696969" stroke="#505050" strokeWidth="1.5" />
+            
+            {/* 💤エフェクト */}
+            <motion.text
+              x="60"
+              y="20"
+              fontSize="24"
+              fill="currentColor"
+              animate={{ 
+                opacity: [0, 1, 1, 0],
+                y: [20, 10, 0, -10]
+              }}
+              transition={{ 
+                duration: 2,
+                repeat: Infinity,
+                ease: 'easeOut',
+                delay: taskType === 'ribbon' ? 0.5 : 0
+              }}
+            >
+              💤
+            </motion.text>
+          </g>
         )}
       </svg>
     </div>
   );
 }
+
+/**
+ * FactoryAnimationコンポーネントをエクスポート
+ */
+export function FactoryAnimation() {
+  const [scenario, setScenario] = useState<'ideal' | 'human-failure' | 'cyber-failure'>('ideal');
+
+  return (
+    <div className="space-y-4">
+      {/* シナリオ選択ボタン */}
+      <div className="flex gap-2 justify-center flex-wrap">
+        <button
+          onClick={() => setScenario('ideal')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            scenario === 'ideal'
+              ? 'bg-shrine-jade text-white'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
+        >
+          理想状態（両方が機能）
+        </button>
+        <button
+          onClick={() => setScenario('human-failure')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            scenario === 'human-failure'
+              ? 'bg-red-500 text-white'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
+        >
+          ヒューマン失敗（質が悪い）
+        </button>
+        <button
+          onClick={() => setScenario('cyber-failure')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            scenario === 'cyber-failure'
+              ? 'bg-orange-500 text-white'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
+        >
+          サイバー失敗（保護なし）
+        </button>
+      </div>
+
+      {/* アニメーション */}
+      <FactoryAnimationCore scenario={scenario} />
+
+      {/* 説明文 */}
+      <div className="text-xs text-muted-foreground leading-relaxed p-4 bg-muted/30 rounded-lg">
+        {scenario === 'ideal' && (
+          <p>
+            <span className="font-medium text-foreground">理想状態：</span>
+            ヒューマンセキュリティが質の高い情報（綺麗なお饅頭）を作り、サイバーセキュリティがそれを保護（包装とリボン）します。
+            両者が協力することで、価値ある情報が安全に届けられます。
+          </p>
+        )}
+        {scenario === 'human-failure' && (
+          <p>
+            <span className="font-medium text-foreground">ヒューマン失敗：</span>
+            心理的安全性が低く、質の悪い情報（ぐしゃぐしゃのお饅頭）が生まれます。
+            サイバーセキュリティが包装しても、中身が悪ければ価値は生まれません。
+          </p>
+        )}
+        {scenario === 'cyber-failure' && (
+          <p>
+            <span className="font-medium text-foreground">サイバー失敗：</span>
+            質の高い情報が生まれても、サイバーセキュリティが機能しない（ロボットアームが眠っている）と、
+            情報は保護されず腐敗してしまいます。技術的な防御が不可欠です。
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// デフォルトエクスポート（内部で使用）
+export default FactoryAnimationCore;
