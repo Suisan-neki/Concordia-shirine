@@ -25,8 +25,8 @@ function FactoryAnimationCore({ scenario }: FactoryAnimationProps) {
       {/* レーンとロボットアーム */}
       <ConveyorBelt />
       
-      {/* ロボットアーム */}
-      <div className="absolute" style={{ top: '120px', left: '460px' }}>
+      {/* ロボットアーム - 画像のように垂直に配置 */}
+      <div className="absolute" style={{ top: '80px', left: '420px' }}>
         <RobotArms working={isCyberGood} animationKey={animationKey} />
       </div>
       
@@ -74,22 +74,21 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
     return () => clearInterval(interval);
   }, [animationKey, cyberWorking]);
 
-  // 座標計算
+  // 座標計算 - 包装紙を引くタイミングでのズレを修正
   const getPosition = (p: number) => {
     if (p < 0.4) {
       // 横レーン（左から右へ）
       const x = 120 + (p / 0.4) * 380;
       const y = 180;
       return { x, y };
-    } else if (p < 0.45) {
-      // L字の角
-      const cornerProgress = (p - 0.4) / 0.05;
+    } else if (p < 0.5) {
+      // L字の角 - 包装エリア（座標を固定）
       const x = 500;
-      const y = 180 + cornerProgress * 20;
+      const y = 180;
       return { x, y };
     } else {
       // 縦レーン（上から下へ）
-      const verticalProgress = (p - 0.45) / 0.55;
+      const verticalProgress = (p - 0.5) / 0.5;
       const x = 520;
       const y = 200 + verticalProgress * 220;
       return { x, y };
@@ -100,59 +99,118 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
   const opacity = progress > 0.9 ? 1 - (progress - 0.9) / 0.1 : 1;
 
   return (
-    <motion.div
-      key={`manju-${animationKey}`}
-      className="absolute"
-      style={{
-        left: `${x}px`,
+    <div 
+      className="absolute transition-all duration-100"
+      style={{ 
+        left: `${x}px`, 
         top: `${y}px`,
         opacity,
         transform: 'translate(-50%, -50%)'
       }}
     >
-      {/* 包装紙（包装後のみ表示） */}
-      {currentState === 'wrapped' && (
-        <div className="absolute" style={{ left: '-30px', top: '-30px', width: '60px', height: '60px' }}>
-          {/* 茶色の包装紙 */}
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-700 to-amber-900 rounded-sm opacity-90" />
-          
-          {/* 青いリボン（右下の角） */}
-          <div className="absolute" style={{ right: '2px', bottom: '2px' }}>
-            {/* リボンの結び目 */}
-            <div className="absolute w-3 h-3 bg-blue-500 rounded-full" style={{ right: '0px', bottom: '0px' }} />
-            {/* リボンの左側 */}
-            <div className="absolute w-4 h-2 bg-blue-500 rounded-full" style={{ right: '3px', bottom: '1px', transform: 'rotate(-30deg)' }} />
-            {/* リボンの右側 */}
-            <div className="absolute w-4 h-2 bg-blue-500 rounded-full" style={{ right: '-2px', bottom: '1px', transform: 'rotate(30deg)' }} />
-            {/* リボンの下垂れ */}
-            <div className="absolute w-1 h-3 bg-blue-500" style={{ right: '1px', bottom: '-3px' }} />
-          </div>
-        </div>
-      )}
-      
-      {/* お饅頭本体 */}
-      <div className="relative">
-        {isGood && currentState !== 'rotted' ? (
-          // 綺麗なお饅頭
-          <div className="relative">
-            <div className="w-8 h-8 bg-gradient-to-br from-amber-50 to-amber-100 rounded-full border-2 border-amber-200" />
-            {/* 光沢 */}
-            <div className="absolute top-1 left-2 w-3 h-3 bg-white rounded-full opacity-60" />
-          </div>
-        ) : (
-          // ぐしゃぐしゃ/腐ったお饅頭
-          <div className="relative">
-            <div className="w-8 h-8 bg-gradient-to-br from-gray-600 to-gray-800 rounded-full border-2 border-gray-700" style={{ 
-              clipPath: 'polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%)'
-            }} />
-            {/* カビの斑点 */}
-            <div className="absolute top-1 left-1 w-1 h-1 bg-green-700 rounded-full" />
-            <div className="absolute top-3 left-2 w-1 h-1 bg-green-700 rounded-full" />
-            <div className="absolute top-2 left-4 w-1 h-1 bg-green-700 rounded-full" />
-          </div>
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {currentState === 'initial' && (
+          <>
+            {/* 初期状態のお饅頭 */}
+            <circle 
+              cx="20" 
+              cy="20" 
+              r="15" 
+              fill={isGood ? "#FFF5E1" : "#8B7355"}
+              stroke={isGood ? "#D2691E" : "#654321"}
+              strokeWidth="2"
+            />
+            {isGood ? (
+              <>
+                {/* 綺麗なお饅頭 */}
+                <ellipse cx="20" cy="18" rx="8" ry="4" fill="#FFE4B5" opacity="0.6" />
+                <circle cx="15" cy="20" r="1" fill="#D2691E" opacity="0.3" />
+                <circle cx="25" cy="20" r="1" fill="#D2691E" opacity="0.3" />
+              </>
+            ) : (
+              <>
+                {/* ぐしゃぐしゃのお饅頭 */}
+                <path d="M 10 20 Q 15 15 20 20 T 30 20" stroke="#654321" strokeWidth="1.5" fill="none" />
+                <path d="M 12 25 Q 20 22 28 25" stroke="#654321" strokeWidth="1.5" fill="none" />
+                <circle cx="14" cy="18" r="1.5" fill="#3E2723" />
+                <circle cx="26" cy="18" r="1.5" fill="#3E2723" />
+              </>
+            )}
+          </>
         )}
-      </div>
-    </motion.div>
+        
+        {currentState === 'wrapped' && (
+          <>
+            {/* 包装されたお饅頭 */}
+            <rect x="5" y="5" width="30" height="30" rx="3" fill="#8B4513" stroke="#654321" strokeWidth="2" />
+            <rect x="8" y="8" width="24" height="24" rx="2" fill="#A0522D" opacity="0.5" />
+            
+            {/* リボン（蝶結び） */}
+            <g transform="translate(20, 20)">
+              {/* 中央の結び目 */}
+              <ellipse cx="0" cy="0" rx="3" ry="2" fill="#DC143C" />
+              
+              {/* 左側のリボン */}
+              <path 
+                d="M -3 0 Q -8 -6 -12 -4 Q -10 0 -12 4 Q -8 6 -3 0" 
+                fill="#DC143C" 
+                stroke="#B22222" 
+                strokeWidth="0.5"
+              />
+              {/* 左リボンのハイライト */}
+              <path 
+                d="M -6 -2 Q -8 -4 -10 -3" 
+                stroke="#FF6B6B" 
+                strokeWidth="1" 
+                fill="none" 
+                opacity="0.6"
+              />
+              
+              {/* 右側のリボン */}
+              <path 
+                d="M 3 0 Q 8 -6 12 -4 Q 10 0 12 4 Q 8 6 3 0" 
+                fill="#DC143C" 
+                stroke="#B22222" 
+                strokeWidth="0.5"
+              />
+              {/* 右リボンのハイライト */}
+              <path 
+                d="M 6 -2 Q 8 -4 10 -3" 
+                stroke="#FF6B6B" 
+                strokeWidth="1" 
+                fill="none" 
+                opacity="0.6"
+              />
+              
+              {/* 下に垂れるリボンの端 */}
+              <path 
+                d="M -1 2 L -3 8 L -1 10" 
+                fill="#DC143C" 
+                stroke="#B22222" 
+                strokeWidth="0.5"
+              />
+              <path 
+                d="M 1 2 L 3 8 L 1 10" 
+                fill="#DC143C" 
+                stroke="#B22222" 
+                strokeWidth="0.5"
+              />
+            </g>
+          </>
+        )}
+        
+        {currentState === 'rotted' && (
+          <>
+            {/* 腐敗したお饅頭 */}
+            <circle cx="20" cy="20" r="15" fill="#4A5D4A" stroke="#2E3B2E" strokeWidth="2" />
+            <circle cx="15" cy="15" r="3" fill="#6B8E6B" opacity="0.6" />
+            <circle cx="25" cy="18" r="2" fill="#6B8E6B" opacity="0.6" />
+            <circle cx="18" cy="25" r="2.5" fill="#6B8E6B" opacity="0.6" />
+            <path d="M 10 20 Q 20 15 30 20" stroke="#2E3B2E" strokeWidth="1.5" fill="none" />
+          </>
+        )}
+      </svg>
+    </div>
   );
 }
 
@@ -163,48 +221,36 @@ function WorkerArea({ mood, animationKey }: { mood: 'happy' | 'angry'; animation
   return (
     <div className="absolute top-8 left-8">
       <div className="text-cyan-400 text-sm mb-2 font-medium">ヒューマンセキュリティ</div>
-      <div className="flex gap-4">
-        {/* 感情エフェクト */}
+      
+      {/* ハートのアニメーション */}
+      <div className="absolute -top-2 left-16">
         <AnimatePresence mode="wait">
-          {mood === 'happy' ? (
+          {mood === 'happy' && (
             <motion.div
               key={`heart-${animationKey}`}
-              className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-3xl"
-              initial={{ y: 0, opacity: 1 }}
-              animate={{ y: -30, opacity: 0 }}
-              transition={{ duration: 2, repeat: Infinity }}
+              initial={{ opacity: 0, scale: 0.5, y: 0 }}
+              animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1, 1, 1.2], y: [0, -10, -20, -30] }}
+              exit={{ opacity: 0 }}
+              transition={{ 
+                duration: 2,
+                repeat: Infinity,
+                ease: 'easeOut'
+              }}
+              className="text-3xl"
             >
               ❤️
             </motion.div>
-          ) : (
-            <>
-              <motion.div
-                key={`anger1-${animationKey}`}
-                className="absolute -top-8 left-0 text-2xl"
-                initial={{ x: 0, opacity: 1 }}
-                animate={{ x: -20, opacity: 0 }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              >
-                💢
-              </motion.div>
-              <motion.div
-                key={`anger2-${animationKey}`}
-                className="absolute -top-8 right-0 text-2xl"
-                initial={{ x: 0, opacity: 1 }}
-                animate={{ x: 20, opacity: 0 }}
-                transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
-              >
-                💢
-              </motion.div>
-            </>
           )}
         </AnimatePresence>
 
-        {/* 作業員1 */}
-        <Worker mood={mood} animationKey={animationKey} withHand={true} />
-        
-        {/* 作業員2 */}
-        <Worker mood={mood} animationKey={animationKey} withHand={false} />
+        {/* 作業員1と2を少し右側に配置 */}
+        <div className="flex gap-8" style={{ marginLeft: '20px' }}>
+          {/* 作業員1 */}
+          <Worker mood={mood} animationKey={animationKey} withHand={true} />
+          
+          {/* 作業員2 */}
+          <Worker mood={mood} animationKey={animationKey} withHand={false} />
+        </div>
       </div>
     </div>
   );
@@ -366,7 +412,7 @@ function RobotArms({ working, animationKey }: { working: boolean; animationKey: 
   return (
     <div className="relative">
       <div className="text-red-400 text-sm mb-2 font-medium text-center">サイバーセキュリティ</div>
-      <div className="flex gap-12">
+      <div className="flex gap-8">
         {/* 1台目のアーム（包装紙を引く） */}
         <ArticulatedRobotArm 
           working={working} 
@@ -548,8 +594,57 @@ function ArticulatedRobotArm({
                     }}
                     style={{ transformOrigin: '50px 45px' }}
                   >
-                    {/* リボンを付けるエフェクト */}
-                    <circle cx="50" cy="45" r="4" fill="#4169E1" opacity="0.7" />
+                    {/* リボンを付けるエフェクト（蝶結び） */}
+                    <g>
+                      {/* 中央の結び目 */}
+                      <ellipse cx="50" cy="45" rx="3" ry="2" fill="#DC143C" />
+                      
+                      {/* 左側のリボン */}
+                      <path 
+                        d="M 47 45 Q 42 39 38 41 Q 40 45 38 49 Q 42 51 47 45" 
+                        fill="#DC143C" 
+                        stroke="#B22222" 
+                        strokeWidth="0.5"
+                      />
+                      {/* 左リボンのハイライト */}
+                      <path 
+                        d="M 44 43 Q 42 41 40 42" 
+                        stroke="#FF6B6B" 
+                        strokeWidth="1" 
+                        fill="none" 
+                        opacity="0.6"
+                      />
+                      
+                      {/* 右側のリボン */}
+                      <path 
+                        d="M 53 45 Q 58 39 62 41 Q 60 45 62 49 Q 58 51 53 45" 
+                        fill="#DC143C" 
+                        stroke="#B22222" 
+                        strokeWidth="0.5"
+                      />
+                      {/* 右リボンのハイライト */}
+                      <path 
+                        d="M 56 43 Q 58 41 60 42" 
+                        stroke="#FF6B6B" 
+                        strokeWidth="1" 
+                        fill="none" 
+                        opacity="0.6"
+                      />
+                      
+                      {/* 下に垂れるリボンの端 */}
+                      <path 
+                        d="M 49 47 L 47 53 L 49 55" 
+                        fill="#DC143C" 
+                        stroke="#B22222" 
+                        strokeWidth="0.5"
+                      />
+                      <path 
+                        d="M 51 47 L 53 53 L 51 55" 
+                        fill="#DC143C" 
+                        stroke="#B22222" 
+                        strokeWidth="0.5"
+                      />
+                    </g>
                   </motion.g>
                 )}
               </motion.g>
@@ -605,41 +700,41 @@ function ArticulatedRobotArm({
 }
 
 /**
- * FactoryAnimationコンポーネントをエクスポート
+ * メインのFactoryAnimationコンポーネント
  */
-export function FactoryAnimation() {
+export default function FactoryAnimation() {
   const [scenario, setScenario] = useState<'ideal' | 'human-failure' | 'cyber-failure'>('ideal');
 
   return (
     <div className="space-y-4">
       {/* シナリオ選択ボタン */}
-      <div className="flex gap-2 justify-center flex-wrap">
+      <div className="flex gap-2 justify-center">
         <button
           onClick={() => setScenario('ideal')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg transition-colors ${
             scenario === 'ideal'
-              ? 'bg-shrine-jade text-white'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              ? 'bg-green-600 text-white'
+              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
           }`}
         >
           理想状態（両方が機能）
         </button>
         <button
           onClick={() => setScenario('human-failure')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg transition-colors ${
             scenario === 'human-failure'
-              ? 'bg-red-500 text-white'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              ? 'bg-orange-600 text-white'
+              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
           }`}
         >
           ヒューマン失敗（質が悪い）
         </button>
         <button
           onClick={() => setScenario('cyber-failure')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-4 py-2 rounded-lg transition-colors ${
             scenario === 'cyber-failure'
-              ? 'bg-orange-500 text-white'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              ? 'bg-orange-600 text-white'
+              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
           }`}
         >
           サイバー失敗（保護なし）
@@ -650,32 +745,23 @@ export function FactoryAnimation() {
       <FactoryAnimationCore scenario={scenario} />
 
       {/* 説明文 */}
-      <div className="text-xs text-muted-foreground leading-relaxed p-4 bg-muted/30 rounded-lg">
+      <div className="text-sm text-slate-300 leading-relaxed">
         {scenario === 'ideal' && (
           <p>
-            <span className="font-medium text-foreground">理想状態：</span>
-            ヒューマンセキュリティが質の高い情報（綺麗なお饅頭）を作り、サイバーセキュリティがそれを保護（包装とリボン）します。
-            両者が協力することで、価値ある情報が安全に届けられます。
+            <span className="font-semibold text-green-400">理想状態</span>：ヒューマンセキュリティが質の高い情報（綺麗なお饅頭）を作り、サイバーセキュリティがそれを保護（包装とリボン）します。教養が深まることで、両者が支え合って真価を発揮します。
           </p>
         )}
         {scenario === 'human-failure' && (
           <p>
-            <span className="font-medium text-foreground">ヒューマン失敗：</span>
-            心理的安全性が低く、質の悪い情報（ぐしゃぐしゃのお饅頭）が生まれます。
-            サイバーセキュリティが包装しても、中身が悪ければ価値は生まれません。
+            <span className="font-semibold text-orange-400">ヒューマン失敗</span>：対話の質が低く情報が生まれても、サイバーセキュリティが機能しても意味がありません。質の悪い情報（ぐしゃぐしゃのお饅頭）を保護しても価値は生まれません。
           </p>
         )}
         {scenario === 'cyber-failure' && (
           <p>
-            <span className="font-medium text-foreground">サイバー失敗：</span>
-            質の高い情報が生まれても、サイバーセキュリティが機能しない（ロボットアームが眠っている）と、
-            情報は保護されず腐敗してしまいます。技術的な防御が不可欠です。
+            <span className="font-semibold text-orange-400">サイバー失敗</span>：質の高い情報が生まれても、サイバーセキュリティが機能しない（ロボットアームが眠っている）と、情報は保護されず腐敗してしまいます。技術的な防御が不可欠です。
           </p>
         )}
       </div>
     </div>
   );
 }
-
-// デフォルトエクスポート（内部で使用）
-export default FactoryAnimationCore;
