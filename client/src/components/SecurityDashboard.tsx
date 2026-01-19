@@ -53,27 +53,10 @@ const securityLayers = [
     name: 'ヒューマンセキュリティ',
     description: '心理的な防御層',
     items: [
-      { name: '同意保護', description: '同調圧力から判断の自由を守る', icon: '💚' },
+      { name: '同意の保護', description: '同調圧力から判断の自由を守る', icon: '💚' },
       { name: '空気の可視化', description: '見えない圧力を可視化し気づきを促す', icon: '🌊' },
       { name: '介入支援', description: '適切なタイミングで場の改善を促す', icon: '✨' },
       { name: '記録と振り返り', description: '対話を記録し後から振り返る機会を提供', icon: '📝' }
-    ]
-  },
-  {
-    id: 'ai',
-    name: 'AI時代のセキュリティ',
-    description: 'AI特有の脅威に対する防御層',
-    items: [
-      { name: 'プロンプトインジェクション対策', description: 'LLMへの悪意ある指示を検出・ブロック', icon: '🛡️' },
-      { name: 'モデルポイズニング対策', description: '外部APIの信頼性とレスポンスの整合性を検証', icon: '🔍' },
-      { name: 'データポイズニング対策', description: '外部データの信頼性を検証', icon: '✅' },
-      { name: 'メンバーシップ推論攻撃対策', description: '学習データの漏洩を防止', icon: '🔒' },
-      { name: 'モデル反転攻撃対策', description: '機密情報の漏洩を防止', icon: '🛡️' },
-      { name: 'シャドウモデル対策', description: 'モデル出力の異常を検知', icon: '👁️' },
-      { name: 'AIサプライチェーン攻撃対策', description: '外部依存関係の信頼性を検証', icon: '🔗' },
-      { name: 'アライメント破壊対策', description: '安全制約の検証と違反検出', icon: '⚖️' },
-      { name: 'ソーシャルエンジニアリング対策', description: 'AI生成コンテンツの検証', icon: '🎭' },
-      { name: 'AIガバナンス / AIセーフティ', description: '監査と運用フレームワーク', icon: '📊' }
     ]
   }
 ];
@@ -174,8 +157,8 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                       「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」
                     </h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      対話の場では、ヒューマンとサイバーの循環が情報の重みを育てます。
-                      どちらか一方だけでは成り立たず、相互に支え合ってこそ真価を発揮します。
+                      対話の場では、ヒューマンセキュリティとサイバーセキュリティの相乗効果が情報の重みを育てます。
+                      どちらか一方だけでは成り立たず、支え合ってこそ真価を発揮します。
                     </p>
                   </div>
                   <Button
