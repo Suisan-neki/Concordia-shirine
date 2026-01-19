@@ -1,5 +1,89 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+
+const MOVE_DURATION_MS = 10000;
+const PAUSE_DURATION_MS = 500;
+const ARM_ACTION_MS = 1000;
+const ARM_DELAY_MS = 500;
+
+const ARM_1_POSITION = { top: 50, left: 505 };
+const ARM_2_POSITION = { top: 200, left: 655 };
+const ARM_CENTER_OFFSET_X = 50;
+const ARM_CENTER_OFFSET_Y = 60;
+
+const MANJU_PATH = {
+  startX: 120,
+  startY: 195,
+  cornerX: 618,
+  cornerY: 195,
+  turnEndX: 638,
+  turnEndY: 200,
+  endY: 420
+};
+
+type ManjuTimeline = {
+  pArm1: number;
+  pArm2: number;
+  move1Ms: number;
+  move2Ms: number;
+  turnMs: number;
+  move3Ms: number;
+  move4Ms: number;
+  totalMs: number;
+  arm1PauseStartMs: number;
+  arm2PauseStartMs: number;
+};
+
+type ManjuSegment =
+  | { type: 'move'; durationMs: number; from: number; to: number; onEnter?: () => void }
+  | { type: 'pause'; durationMs: number; hold: number; onEnter?: () => void };
+
+function getManjuTimeline(): ManjuTimeline {
+  const arm1StopX = ARM_1_POSITION.left + ARM_CENTER_OFFSET_X;
+  const arm2StopY = ARM_2_POSITION.top + ARM_CENTER_OFFSET_Y;
+  const clampedArm1StopX = Math.min(MANJU_PATH.cornerX, Math.max(MANJU_PATH.startX, arm1StopX));
+  const clampedArm2StopY = Math.min(MANJU_PATH.endY, Math.max(MANJU_PATH.turnEndY, arm2StopY));
+
+  const horizontalTotal = MANJU_PATH.cornerX - MANJU_PATH.startX;
+  const verticalTotal = MANJU_PATH.endY - MANJU_PATH.turnEndY;
+
+  const pArm1 = Math.min(0.4, Math.max(0, ((clampedArm1StopX - MANJU_PATH.startX) / horizontalTotal) * 0.4));
+  const pArm2 = Math.min(
+    1,
+    Math.max(0.5, 0.5 + ((clampedArm2StopY - MANJU_PATH.turnEndY) / verticalTotal) * 0.5)
+  );
+
+  const dist1 = Math.max(clampedArm1StopX - MANJU_PATH.startX, 0);
+  const dist2 = Math.max(MANJU_PATH.cornerX - clampedArm1StopX, 0);
+  const distTurn = Math.hypot(MANJU_PATH.turnEndX - MANJU_PATH.cornerX, MANJU_PATH.turnEndY - MANJU_PATH.cornerY);
+  const dist3 = Math.max(clampedArm2StopY - MANJU_PATH.turnEndY, 0);
+  const dist4 = Math.max(MANJU_PATH.endY - clampedArm2StopY, 0);
+
+  const totalDist = dist1 + dist2 + distTurn + dist3 + dist4;
+  const speed = totalDist > 0 ? totalDist / MOVE_DURATION_MS : 0.1;
+
+  const move1Ms = dist1 / speed;
+  const move2Ms = dist2 / speed;
+  const turnMs = distTurn / speed;
+  const move3Ms = dist3 / speed;
+  const move4Ms = dist4 / speed;
+
+  const arm1PauseStartMs = move1Ms + ARM_DELAY_MS;
+  const arm2PauseStartMs = move1Ms + ARM_DELAY_MS + ARM_ACTION_MS + move2Ms + turnMs + move3Ms + ARM_DELAY_MS;
+  const totalMs =
+    move1Ms +
+    ARM_DELAY_MS +
+    ARM_ACTION_MS +
+    move2Ms +
+    turnMs +
+    move3Ms +
+    ARM_DELAY_MS +
+    ARM_ACTION_MS +
+    move4Ms +
+    PAUSE_DURATION_MS;
+
+  return { pArm1, pArm2, move1Ms, move2Ms, turnMs, move3Ms, move4Ms, totalMs, arm1PauseStartMs, arm2PauseStartMs };
+}
 
 interface FactoryAnimationProps {
   scenario: 'ideal' | 'human-failure' | 'cyber-failure';
@@ -43,52 +127,101 @@ function FactoryAnimationCore({ scenario }: FactoryAnimationProps) {
  */
 function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberWorking: boolean; animationKey: number }) {
   const [progress, setProgress] = useState(0);
-  const [currentState, setCurrentState] = useState<'initial' | 'wrapped' | 'rotted'>('initial');
+  const [currentState, setCurrentState] = useState<'initial' | 'wrapped' | 'ribboned' | 'rotted'>('initial');
 
   useEffect(() => {
+    let frameId = 0;
+    let startTime = performance.now();
+    let activeSegmentIndex = -1;
+    const timeline = getManjuTimeline();
+
     setProgress(0);
     setCurrentState('initial');
-    
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        const next = prev + 0.01;
-        
-        // 包装/腐敗のタイミング（40-45%）
-        if (next >= 0.40 && next < 0.45 && currentState === 'initial') {
-          if (cyberWorking) {
-            setCurrentState('wrapped');
-          } else {
-            setCurrentState('rotted');
-          }
-        }
-        
-        if (next >= 1) {
-          return 0;
-        }
-        return next;
-      });
-    }, 100);
 
-    return () => clearInterval(interval);
+    const segments: ManjuSegment[] = [
+      { type: 'move', durationMs: timeline.move1Ms, from: 0, to: timeline.pArm1 },
+      { type: 'pause', durationMs: ARM_DELAY_MS, hold: timeline.pArm1 },
+      { type: 'pause', durationMs: ARM_ACTION_MS, hold: timeline.pArm1 },
+      { 
+        type: 'move', 
+        durationMs: timeline.move2Ms, 
+        from: timeline.pArm1, 
+        to: 0.4,
+        onEnter: () => setCurrentState(cyberWorking ? 'wrapped' : 'rotted')
+      },
+      { type: 'move', durationMs: timeline.turnMs, from: 0.4, to: 0.5 },
+      { type: 'move', durationMs: timeline.move3Ms, from: 0.5, to: timeline.pArm2 },
+      { type: 'pause', durationMs: ARM_DELAY_MS, hold: timeline.pArm2 },
+      { type: 'pause', durationMs: ARM_ACTION_MS, hold: timeline.pArm2 },
+      { 
+        type: 'move', 
+        durationMs: timeline.move4Ms, 
+        from: timeline.pArm2, 
+        to: 1,
+        onEnter: () => {
+          setCurrentState(prev => (prev === 'rotted' ? 'rotted' : 'ribboned'));
+        }
+      },
+      { type: 'pause', durationMs: PAUSE_DURATION_MS, hold: 1 }
+    ];
+
+    const tick = (now: number) => {
+      let elapsed = now - startTime;
+      if (elapsed >= timeline.totalMs) {
+        startTime = now;
+        activeSegmentIndex = -1;
+        setProgress(0);
+        setCurrentState('initial');
+        elapsed = 0;
+      }
+
+      let remaining = elapsed;
+      let index = 0;
+      while (index < segments.length && remaining > segments[index].durationMs) {
+        remaining -= segments[index].durationMs;
+        index += 1;
+      }
+      if (index >= segments.length) index = segments.length - 1;
+
+      if (index !== activeSegmentIndex) {
+        activeSegmentIndex = index;
+        segments[index].onEnter?.();
+      }
+
+      const segment = segments[index];
+      if (segment.type === 'move') {
+        const t = segment.durationMs > 0 ? remaining / segment.durationMs : 1;
+        setProgress(segment.from + (segment.to - segment.from) * t);
+      } else {
+        setProgress(segment.hold);
+      }
+
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(frameId);
   }, [animationKey, cyberWorking]);
 
-  // 座標計算 - 包装紙を引くタイミングでのズレを修正
+  // 座標計算 - 停止ポイントに合わせた動き
   const getPosition = (p: number) => {
     if (p < 0.4) {
       // 横レーン（左から右へ）
-      const x = 120 + (p / 0.4) * 498;
-      const y = 195;
+      const x = MANJU_PATH.startX + (p / 0.4) * (MANJU_PATH.cornerX - MANJU_PATH.startX);
+      const y = MANJU_PATH.startY;
       return { x, y };
     } else if (p < 0.5) {
-      // L字の角 - 包装エリア（座標を固定）
-      const x = 618;
-      const y = 195;
+      // L字の角 - 直角の曲がりをなめらかに
+      const turnProgress = (p - 0.4) / 0.1;
+      const x = MANJU_PATH.cornerX + turnProgress * (MANJU_PATH.turnEndX - MANJU_PATH.cornerX);
+      const y = MANJU_PATH.cornerY + turnProgress * (MANJU_PATH.turnEndY - MANJU_PATH.cornerY);
       return { x, y };
     } else {
       // 縦レーン（上から下へ）
       const verticalProgress = (p - 0.5) / 0.5;
-      const x = 638;
-      const y = 200 + verticalProgress * 220;
+      const x = MANJU_PATH.turnEndX;
+      const y = MANJU_PATH.turnEndY + verticalProgress * (MANJU_PATH.endY - MANJU_PATH.turnEndY);
       return { x, y };
     }
   };
@@ -137,63 +270,67 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
           </>
         )}
         
-        {currentState === 'wrapped' && (
+        {(currentState === 'wrapped' || currentState === 'ribboned') && (
           <>
             {/* 包装されたお饅頭 */}
             <rect x="5" y="5" width="30" height="30" rx="3" fill="#8B4513" stroke="#654321" strokeWidth="2" />
             <rect x="8" y="8" width="24" height="24" rx="2" fill="#A0522D" opacity="0.5" />
             
-            {/* リボン（蝶結び） */}
-            <g transform="translate(20, 20)">
-              {/* 中央の結び目 */}
-              <ellipse cx="0" cy="0" rx="3" ry="2" fill="#DC143C" />
-              
-              {/* 左側のリボン */}
-              <path 
-                d="M -3 0 Q -8 -6 -12 -4 Q -10 0 -12 4 Q -8 6 -3 0" 
-                fill="#DC143C" 
-                stroke="#B22222" 
-                strokeWidth="0.5"
-              />
-              {/* 左リボンのハイライト */}
-              <path 
-                d="M -6 -2 Q -8 -4 -10 -3" 
-                stroke="#FF6B6B" 
-                strokeWidth="1" 
-                fill="none" 
-                opacity="0.6"
-              />
-              
-              {/* 右側のリボン */}
-              <path 
-                d="M 3 0 Q 8 -6 12 -4 Q 10 0 12 4 Q 8 6 3 0" 
-                fill="#DC143C" 
-                stroke="#B22222" 
-                strokeWidth="0.5"
-              />
-              {/* 右リボンのハイライト */}
-              <path 
-                d="M 6 -2 Q 8 -4 10 -3" 
-                stroke="#FF6B6B" 
-                strokeWidth="1" 
-                fill="none" 
-                opacity="0.6"
-              />
-              
-              {/* 下に垂れるリボンの端 */}
-              <path 
-                d="M -1 2 L -3 8 L -1 10" 
-                fill="#DC143C" 
-                stroke="#B22222" 
-                strokeWidth="0.5"
-              />
-              <path 
-                d="M 1 2 L 3 8 L 1 10" 
-                fill="#DC143C" 
-                stroke="#B22222" 
-                strokeWidth="0.5"
-              />
-            </g>
+            {currentState === 'ribboned' && (
+              <>
+                {/* リボン（蝶結び） */}
+                <g transform="translate(20, 20)">
+                  {/* 中央の結び目 */}
+                  <ellipse cx="0" cy="0" rx="3" ry="2" fill="#DC143C" />
+                  
+                  {/* 左側のリボン */}
+                  <path 
+                    d="M -3 0 Q -8 -6 -12 -4 Q -10 0 -12 4 Q -8 6 -3 0" 
+                    fill="#DC143C" 
+                    stroke="#B22222" 
+                    strokeWidth="0.5"
+                  />
+                  {/* 左リボンのハイライト */}
+                  <path 
+                    d="M -6 -2 Q -8 -4 -10 -3" 
+                    stroke="#FF6B6B" 
+                    strokeWidth="1" 
+                    fill="none" 
+                    opacity="0.6"
+                  />
+                  
+                  {/* 右側のリボン */}
+                  <path 
+                    d="M 3 0 Q 8 -6 12 -4 Q 10 0 12 4 Q 8 6 3 0" 
+                    fill="#DC143C" 
+                    stroke="#B22222" 
+                    strokeWidth="0.5"
+                  />
+                  {/* 右リボンのハイライト */}
+                  <path 
+                    d="M 6 -2 Q 8 -4 10 -3" 
+                    stroke="#FF6B6B" 
+                    strokeWidth="1" 
+                    fill="none" 
+                    opacity="0.6"
+                  />
+                  
+                  {/* 下に垂れるリボンの端 */}
+                  <path 
+                    d="M -1 2 L -3 8 L -1 10" 
+                    fill="#DC143C" 
+                    stroke="#B22222" 
+                    strokeWidth="0.5"
+                  />
+                  <path 
+                    d="M 1 2 L 3 8 L 1 10" 
+                    fill="#DC143C" 
+                    stroke="#B22222" 
+                    strokeWidth="0.5"
+                  />
+                </g>
+              </>
+            )}
           </>
         )}
         
@@ -218,31 +355,18 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
 function WorkerArea({ mood, animationKey }: { mood: 'happy' | 'angry'; animationKey: number }) {
   return (
     <div className="absolute top-8 left-8">
-      <div className="text-cyan-400 text-sm mb-2 font-medium">ヒューマンセキュリティ</div>
+      <div className="text-cyan-400 text-sm mb-2 font-medium" style={{ marginLeft: '60px', marginTop: '-20px' }}>
+        ヒューマンセキュリティ
+      </div>
       
-      {/* ハートのアニメーション */}
-      <div className="absolute -top-2 left-16">
-        <AnimatePresence mode="wait">
-          {mood === 'happy' && (
-            <motion.div
-              key={`heart-${animationKey}`}
-              initial={{ opacity: 0, scale: 0.5, y: 0 }}
-              animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1, 1, 1.2], y: [0, -10, -20, -30] }}
-              exit={{ opacity: 0 }}
-              transition={{ 
-                duration: 2,
-                repeat: Infinity,
-                ease: 'easeOut'
-              }}
-              className="text-3xl"
-            >
-              ❤️
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 作業員1と2を少し右側に配置 */}
-        <div className="flex gap-8" style={{ marginLeft: '20px' }}>
+      {/* 作業員1と2を少し右側に配置 */}
+      <div className="relative" style={{ marginLeft: '70px', marginTop: '25px' }}>
+        {mood === 'happy' && (
+          <div className="absolute left-1/2 -top-2 -translate-x-1/2 text-2xl">
+            ❤️
+          </div>
+        )}
+        <div className="flex gap-8">
           {/* 作業員1 */}
           <Worker mood={mood} animationKey={animationKey} withHand={true} />
           
@@ -392,30 +516,50 @@ function ConveyorBelt() {
  * ロボットアームのコンポーネント（改善版：多関節構造と現実的な動作）
  */
 function RobotArms({ working, animationKey }: { working: boolean; animationKey: number }) {
+  const timeline = getManjuTimeline();
+  const cycleDurationMs = timeline.totalMs;
+  const arm1ActionStart = timeline.arm1PauseStartMs / cycleDurationMs;
+  const arm2ActionStart = timeline.arm2PauseStartMs / cycleDurationMs;
+
   return (
     <>
       {/* 1台目のアーム（包装紙を引く）- 横レーンの左上、垂直下向き */}
-      <div className="absolute" style={{ top: '50px', left: '470px', transform: 'rotate(180deg)' }}>
+      <div className="absolute" style={{ top: `${ARM_1_POSITION.top}px`, left: `${ARM_1_POSITION.left}px`, transform: 'rotate(180deg)' }}>
         <ArticulatedRobotArm 
           working={working} 
           animationKey={animationKey}
           taskType="wrapping"
-          startTime={0.35}
+          actionStart={arm1ActionStart}
+          cycleDurationMs={cycleDurationMs}
+          actionDurationMs={ARM_ACTION_MS}
         />
       </div>
 
       {/* 2台目のアーム（リボンを付ける）- 縦レーンの右側、水平左向き */}
-      <div className="absolute" style={{ top: '210px', left: '640px', transform: 'rotate(-90deg)' }}>
+      <div className="absolute" style={{ top: `${ARM_2_POSITION.top}px`, left: `${ARM_2_POSITION.left}px`, transform: 'rotate(-90deg)' }}>
         <ArticulatedRobotArm 
           working={working} 
           animationKey={animationKey}
           taskType="ribbon"
-          startTime={0.40}
+          actionStart={arm2ActionStart}
+          cycleDurationMs={cycleDurationMs}
+          actionDurationMs={ARM_ACTION_MS}
         />
+      </div>
+
+      {/* 2台目アームのラベル */}
+      <div
+        className="absolute text-red-400 text-sm font-medium"
+        style={{ top: '270px', left: '875px', transform: 'translateX(-50%)' }}
+      >
+        サイバーセキュリティ
       </div>
       
       {/* ラベル */}
-      <div className="absolute text-red-400 text-sm font-medium" style={{ top: '80px', left: '380px' }}>
+      <div
+        className="absolute text-red-400 text-sm font-medium"
+        style={{ top: '20px', left: `${ARM_1_POSITION.left + ARM_CENTER_OFFSET_X}px`, transform: 'translateX(-50%)' }}
+      >
         サイバーセキュリティ
       </div>
     </>
@@ -430,26 +574,38 @@ function ArticulatedRobotArm({
   working, 
   animationKey, 
   taskType,
-  startTime 
+  actionStart,
+  cycleDurationMs,
+  actionDurationMs
 }: { 
   working: boolean; 
   animationKey: number; 
   taskType: 'wrapping' | 'ribbon';
-  startTime: number;
+  actionStart: number;
+  cycleDurationMs: number;
+  actionDurationMs: number;
 }) {
   // 動作シーケンスのキーフレーム
   // 待機 → 下降 → 掴む → 持ち上げる → 作業 → 戻る
-  const duration = 10;
-  const endTime = startTime + 0.10;
+  const duration = cycleDurationMs / 1000;
+  const actionDurationFraction = actionDurationMs / cycleDurationMs;
+  const lead = Math.min(0.05, actionDurationFraction * 0.5);
+  const actionEnd = Math.min(actionStart + actionDurationFraction, 1);
   
   // 各関節の回転角度のキーフレーム
-  const shoulderRotation = [0];
   const elbowRotation = working ? [0, 0, -45, -45, -30, 0] : [0];
   const wristRotation = working ? [0, 0, -20, -20, 10, 0] : [0];
   const gripperScale = working ? [1, 1, 0.5, 0.5, 0.5, 1] : [1];
   
   // タイミング配列
-  const times = [0, startTime - 0.05, startTime, startTime + 0.03, endTime, endTime + 0.05];
+  const times = [
+    0,
+    Math.max(actionStart - lead, 0),
+    actionStart,
+    Math.min(actionStart + actionDurationFraction * 0.3, actionEnd),
+    actionEnd,
+    1
+  ];
   
   return (
     <div className="relative">
@@ -462,17 +618,7 @@ function ArticulatedRobotArm({
         </g>
         
         {working ? (
-          <motion.g
-            key={`shoulder-${animationKey}-${taskType}`}
-            animate={{ rotate: shoulderRotation }}
-            transition={{ 
-              duration,
-              times,
-              ease: 'easeInOut',
-              repeat: Infinity
-            }}
-            style={{ transformOrigin: '50px 140px' }}
-          >
+          <g>
             {/* 下部アーム（肩から肘） */}
             <g>
               {/* アーム本体 */}
@@ -487,6 +633,7 @@ function ArticulatedRobotArm({
             
             {/* 肘関節を中心に回転する上部アーム */}
             <motion.g
+              key={`arm-${animationKey}-${taskType}`}
               animate={{ rotate: elbowRotation }}
               transition={{ 
                 duration,
@@ -494,7 +641,7 @@ function ArticulatedRobotArm({
                 ease: 'easeInOut',
                 repeat: Infinity
               }}
-              style={{ transformOrigin: '50px 85px' }}
+              style={{ transformOrigin: '50px 85px', transformBox: 'view-box' }}
             >
               {/* 上部アーム（肘から手首） */}
               <g>
@@ -517,7 +664,7 @@ function ArticulatedRobotArm({
                   ease: 'easeInOut',
                   repeat: Infinity
                 }}
-                style={{ transformOrigin: '50px 40px' }}
+                style={{ transformOrigin: '50px 40px', transformBox: 'view-box' }}
               >
                 {/* 手首関節 */}
                 <circle cx="50" cy="40" r="6" fill="#FFA500" stroke="#FF8C00" strokeWidth="2" />
@@ -638,7 +785,7 @@ function ArticulatedRobotArm({
                 )}
               </motion.g>
             </motion.g>
-          </motion.g>
+          </g>
         ) : (
           // 停止状態（💤エフェクト付き）
           <g>
@@ -716,7 +863,7 @@ export default function FactoryAnimation() {
               : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
           }`}
         >
-          ヒューマン失敗（質が悪い）
+          ヒューマンセキュリティが欠如した状態
         </button>
         <button
           onClick={() => setScenario('cyber-failure')}
@@ -726,7 +873,7 @@ export default function FactoryAnimation() {
               : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
           }`}
         >
-          サイバー失敗（保護なし）
+          サイバーセキュリティが欠如した状態
         </button>
       </div>
 
@@ -737,17 +884,17 @@ export default function FactoryAnimation() {
       <div className="text-sm text-slate-300 leading-relaxed">
         {scenario === 'ideal' && (
           <p>
-            <span className="font-semibold text-green-400">理想状態</span>：ヒューマンセキュリティが質の高い情報（綺麗なお饅頭）を作り、サイバーセキュリティがそれを保護（包装とリボン）します。教養が深まることで、両者が支え合って真価を発揮します。
+            <span className="font-semibold text-green-400">理想状態</span>：ヒューマンセキュリティが質の高い情報（綺麗なお饅頭）を作り、サイバーセキュリティがそれを保護（包装とリボン）します。両者が支え合って真価を発揮します。
           </p>
         )}
         {scenario === 'human-failure' && (
           <p>
-            <span className="font-semibold text-orange-400">ヒューマン失敗</span>：対話の質が低く情報が生まれても、サイバーセキュリティが機能しても意味がありません。質の悪い情報（ぐしゃぐしゃのお饅頭）を保護しても価値は生まれません。
+            <span className="font-semibold text-orange-400">ヒューマンセキュリティが欠如した状態</span>：対話の質が低く情報が生まれても、サイバーセキュリティが機能しても意味がありません。質の悪い情報（ぐしゃぐしゃのお饅頭）を保護しても価値は生まれません。
           </p>
         )}
         {scenario === 'cyber-failure' && (
           <p>
-            <span className="font-semibold text-orange-400">サイバー失敗</span>：質の高い情報が生まれても、サイバーセキュリティが機能しない（ロボットアームが眠っている）と、情報は保護されず腐敗してしまいます。技術的な防御が不可欠です。
+            <span className="font-semibold text-orange-400">サイバーセキュリティが欠如した状態</span>：質の高い情報が生まれても、サイバーセキュリティが機能しない（ロボットアームが眠っている）と、情報は保護されず腐敗してしまいます。技術的な防御が不可欠です。
           </p>
         )}
       </div>
