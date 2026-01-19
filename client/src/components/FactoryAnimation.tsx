@@ -1,5 +1,5 @@
 /**
- * Concordia Shrine - Factory Animation Component (L-Shape Layout v3)
+ * Concordia Shrine - Factory Animation Component (L-Shape Layout v4)
  * 
  * ヒューマンセキュリティとサイバーセキュリティの相互依存関係を
  * 食品工場のL字型レーンのメタファーで表現するアニメーション
@@ -134,8 +134,8 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
               </div>
             </motion.div>
 
-            {/* お饅頭のループアニメーション */}
-            <ManjuLoopAnimation
+            {/* お饅頭のアニメーション（1個ずつ） */}
+            <ManjuAnimation
               key={animationKey}
               quality={isHumanFailure ? 'poor' : 'good'}
               shouldWrap={!isCyberFailure}
@@ -305,11 +305,10 @@ function Worker({ mood, animationKey, withHand }: { mood: 'happy' | 'angry'; ani
             initial={{ y: 0 }}
             animate={{ y: [0, 15, 15, 0] }}
             transition={{ 
-              duration: 3,
-              times: [0, 0.2, 0.6, 1],
+              duration: 10,
+              times: [0, 0.05, 0.15, 0.2],
               ease: 'easeInOut',
-              repeat: Infinity,
-              repeatDelay: 1
+              repeat: Infinity
             }}
           >
             <circle cx="45" cy="55" r="3" fill="lightblue" opacity="0.7" />
@@ -392,38 +391,9 @@ function ConveyorBelt({ direction }: { direction: 'horizontal' | 'vertical' }) {
 }
 
 /**
- * お饅頭のループアニメーションコンポーネント
+ * お饅頭のアニメーションコンポーネント（1個ずつループ）
  */
-function ManjuLoopAnimation({ quality, shouldWrap }: { quality: 'good' | 'poor'; shouldWrap: boolean }) {
-  const [manjus, setManjus] = useState<number[]>([0]);
-  
-  useEffect(() => {
-    // 4秒ごとに新しいお饅頭を追加
-    const interval = setInterval(() => {
-      setManjus(prev => [...prev, prev.length]);
-    }, 4000);
-    
-    return () => clearInterval(interval);
-  }, []);
-  
-  return (
-    <>
-      {manjus.map((id) => (
-        <ManjuAnimation
-          key={id}
-          quality={quality}
-          shouldWrap={shouldWrap}
-          delay={id * 4}
-        />
-      ))}
-    </>
-  );
-}
-
-/**
- * お饅頭のアニメーションコンポーネント
- */
-function ManjuAnimation({ quality, shouldWrap, delay }: { quality: 'good' | 'poor'; shouldWrap: boolean; delay: number }) {
+function ManjuAnimation({ quality, shouldWrap }: { quality: 'good' | 'poor'; shouldWrap: boolean }) {
   return (
     <motion.div
       className="absolute"
@@ -438,9 +408,7 @@ function ManjuAnimation({ quality, shouldWrap, delay }: { quality: 'good' | 'poo
         duration: 10,
         times: [0, 0.05, 0.4, 0.45, 0.6, 0.75, 0.9, 1],
         ease: 'linear',
-        delay: delay,
-        repeat: Infinity,
-        repeatDelay: 0
+        repeat: Infinity
       }}
     >
       <ManjuWithWrapper 
@@ -464,14 +432,20 @@ function ManjuWithWrapper({ quality, shouldWrap, wrapDelay }: { quality: 'good' 
       const timer = setTimeout(() => {
         setIsWrapped(true);
       }, wrapDelay * 1000);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        setIsWrapped(false);
+      };
     } else {
       setIsWrapped(false);
       // サイバーセキュリティが機能しない場合、お饅頭が腐る
       const rottedTimer = setTimeout(() => {
         setIsRotted(true);
       }, wrapDelay * 1000);
-      return () => clearTimeout(rottedTimer);
+      return () => {
+        clearTimeout(rottedTimer);
+        setIsRotted(false);
+      };
     }
   }, [shouldWrap, wrapDelay]);
   
@@ -479,46 +453,43 @@ function ManjuWithWrapper({ quality, shouldWrap, wrapDelay }: { quality: 'good' 
   
   return (
     <div className="relative">
-      <AnimatePresence>
-        {isWrapped && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1.2, opacity: 0.7 }}
-            exit={{ scale: 0, opacity: 0 }}
-            className="absolute inset-0 bg-transparent border-2 border-dashed border-shrine-barrier rounded-lg"
-            style={{ width: '60px', height: '60px', transform: 'translate(-10px, -10px)' }}
-          />
-        )}
-      </AnimatePresence>
-      
-      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {isGood && !isRotted ? (
-          // 綺麗なお饅頭
+      <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {isGood && !isRotted && !isWrapped ? (
+          // 綺麗なお饅頭（包装前）
           <>
-            <ellipse cx="20" cy="25" rx="15" ry="10" fill="#F5E6D3" stroke="#D4A574" strokeWidth="1.5" />
-            <ellipse cx="20" cy="18" rx="12" ry="10" fill="#F5E6D3" stroke="#D4A574" strokeWidth="1.5" />
-            <path d="M 15 18 Q 20 20 25 18" stroke="#D4A574" strokeWidth="1" fill="none" />
+            <circle cx="25" cy="30" r="18" fill="#F5E6D3" stroke="#D4A574" strokeWidth="2" />
+            <ellipse cx="25" cy="22" rx="14" ry="12" fill="#F5E6D3" stroke="#D4A574" strokeWidth="2" />
+            <path d="M 18 22 Q 25 24 32 22" stroke="#D4A574" strokeWidth="1.5" fill="none" />
+          </>
+        ) : isGood && !isRotted && isWrapped ? (
+          // 綺麗なお饅頭（包装後）- 少し光沢が出る
+          <>
+            <circle cx="25" cy="30" r="18" fill="#F5E6D3" stroke="#10b981" strokeWidth="2.5" opacity="0.9" />
+            <ellipse cx="25" cy="22" rx="14" ry="12" fill="#F5E6D3" stroke="#10b981" strokeWidth="2.5" opacity="0.9" />
+            <path d="M 18 22 Q 25 24 32 22" stroke="#D4A574" strokeWidth="1.5" fill="none" />
+            {/* 光沢エフェクト */}
+            <circle cx="20" cy="20" r="4" fill="white" opacity="0.4" />
           </>
         ) : isGood && isRotted ? (
           // 腐ったお饅頭（元は綺麗だったが腐った）
           <>
-            <ellipse cx="20" cy="25" rx="15" ry="10" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="1.5" />
-            <ellipse cx="20" cy="18" rx="12" ry="10" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="1.5" />
-            <circle cx="16" cy="20" r="2" fill="#3D5A40" opacity="0.7" />
-            <circle cx="24" cy="22" r="1.5" fill="#3D5A40" opacity="0.7" />
-            <circle cx="20" cy="24" r="1" fill="#3D5A40" opacity="0.7" />
+            <circle cx="25" cy="30" r="18" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="2" />
+            <ellipse cx="25" cy="22" rx="14" ry="12" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="2" />
+            <circle cx="20" cy="24" r="3" fill="#3D5A40" opacity="0.7" />
+            <circle cx="28" cy="26" r="2" fill="#3D5A40" opacity="0.7" />
+            <circle cx="24" cy="30" r="2" fill="#3D5A40" opacity="0.7" />
           </>
         ) : (
           // ぐしゃぐしゃのお饅頭
           <>
             <path
-              d="M 10 25 Q 15 30 20 28 Q 25 26 30 30 Q 28 20 25 18 Q 20 15 15 20 Q 12 22 10 25"
+              d="M 12 30 Q 18 38 25 35 Q 32 32 38 38 Q 36 24 32 20 Q 25 16 18 22 Q 14 26 12 30"
               fill="#B8A080"
               stroke="#8B7355"
-              strokeWidth="1.5"
+              strokeWidth="2"
             />
-            <circle cx="18" cy="22" r="2" fill="#8B7355" opacity="0.5" />
-            <circle cx="24" cy="25" r="1.5" fill="#8B7355" opacity="0.5" />
+            <circle cx="22" cy="26" r="2.5" fill="#8B7355" opacity="0.5" />
+            <circle cx="30" cy="30" r="2" fill="#8B7355" opacity="0.5" />
           </>
         )}
       </svg>
@@ -534,13 +505,13 @@ function TransparentCyberSecurityBox({ working, animationKey }: { working: boole
     <div className="relative">
       <svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
         {/* 透明なボックス */}
-        <rect x="10" y="10" width="120" height="120" rx="4" fill="white" fillOpacity="0.1" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" />
+        <rect x="10" y="10" width="120" height="120" rx="4" fill="white" fillOpacity="0.05" stroke="currentColor" strokeWidth="2" strokeDasharray="5 5" />
         
         {/* 入口（左） */}
-        <rect x="0" y="50" width="15" height="40" fill="currentColor" opacity="0.1" />
+        <rect x="0" y="50" width="15" height="40" fill="currentColor" opacity="0.05" />
         
         {/* 出口（下） */}
-        <rect x="50" y="125" width="40" height="15" fill="currentColor" opacity="0.1" />
+        <rect x="50" y="125" width="40" height="15" fill="currentColor" opacity="0.05" />
         
         {working ? (
           <>
@@ -553,27 +524,6 @@ function TransparentCyberSecurityBox({ working, animationKey }: { working: boole
             >
               <circle cx="70" cy="70" r="20" fill="none" stroke="#10b981" strokeWidth="2" strokeDasharray="4 4" />
             </motion.g>
-            
-            {/* 包装紙のアニメーション */}
-            <motion.rect
-              key={`paper-${animationKey}`}
-              x="50"
-              y="60"
-              width="40"
-              height="20"
-              rx="2"
-              fill="#D4A574"
-              opacity="0.5"
-              animate={{
-                scaleX: [0, 1, 1, 0],
-                opacity: [0, 0.5, 0.5, 0]
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                repeatDelay: 1
-              }}
-            />
             
             {/* インジケーター（緑） */}
             <motion.circle
