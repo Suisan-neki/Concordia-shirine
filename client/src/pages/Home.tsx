@@ -51,7 +51,7 @@ interface TranscriptItem {
 }
 
 export default function Home() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   // 認証状態を取得
   const { user, isAuthenticated, logout } = useAuth();
 
@@ -114,6 +114,15 @@ export default function Home() {
   const speechStartRef = useRef<number | null>(null);
   const sessionManagerRef = useRef(sessionManager);
   const isDemoModeRef = useRef(isDemoMode);
+
+  // ルートに応じてモーダルを切り替える
+  useEffect(() => {
+    const path = location.split('?')[0];
+    setIsSecurityDashboardOpen(path === '/security');
+    setIsSecurityDetailOpen(path === '/security-detail');
+    setIsSessionHistoryOpen(path === '/history');
+    setIsInterventionSettingsOpen(path === '/intervention-settings');
+  }, [location]);
 
   // 認証状態が変わったらセキュリティメトリクスを更新
   useEffect(() => {
@@ -627,7 +636,7 @@ export default function Home() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setIsSecurityDashboardOpen(true)}
+          onClick={() => navigate('/security')}
           className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
         >
           <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -639,7 +648,7 @@ export default function Home() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsSecurityDetailOpen(true)}
+            onClick={() => navigate('/security-detail')}
             className="bg-card/60 backdrop-blur-sm text-xs border-primary/30 hover:border-primary/50 px-2 sm:px-3"
           >
             <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -652,7 +661,7 @@ export default function Home() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setIsSessionHistoryOpen(true)}
+          onClick={() => navigate('/history')}
           className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
         >
           <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -664,7 +673,7 @@ export default function Home() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setIsInterventionSettingsOpen(true)}
+          onClick={() => navigate('/intervention-settings')}
           className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
         >
           <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -817,19 +826,28 @@ export default function Home() {
         metrics={securityMetrics}
         scene={scene}
         isOpen={isSecurityDashboardOpen}
-        onClose={() => setIsSecurityDashboardOpen(false)}
+        onClose={() => {
+          setIsSecurityDashboardOpen(false);
+          navigate('/');
+        }}
       />
 
       {/* セキュリティ詳細パネル（「実は裏で動いていました」） */}
       <SecurityDetailPanel
         isOpen={isSecurityDetailOpen}
-        onClose={() => setIsSecurityDetailOpen(false)}
+        onClose={() => {
+          setIsSecurityDetailOpen(false);
+          navigate('/');
+        }}
       />
 
       {/* セッション履歴 */}
       <SessionHistory
         isOpen={isSessionHistoryOpen}
-        onClose={() => setIsSessionHistoryOpen(false)}
+        onClose={() => {
+          setIsSessionHistoryOpen(false);
+          navigate('/');
+        }}
         onLoadSessions={handleLoadSessions}
         onDeleteSession={handleDeleteSession}
       />
@@ -837,7 +855,10 @@ export default function Home() {
       {/* 介入設定パネル */}
       <InterventionSettingsPanel
         isOpen={isInterventionSettingsOpen}
-        onClose={() => setIsInterventionSettingsOpen(false)}
+        onClose={() => {
+          setIsInterventionSettingsOpen(false);
+          navigate('/');
+        }}
         settings={interventionSettings}
         onUpdateSettings={updateInterventionSettings}
         isAuthenticated={isAuthenticated}

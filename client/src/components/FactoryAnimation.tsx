@@ -485,36 +485,18 @@ function ConveyorBelt() {
     <div className="absolute" style={{ top: '160px', left: '100px' }}>
       {/* 横レーン */}
       <div 
-        className="absolute bg-gradient-to-r from-slate-400 to-slate-500 rounded-lg border-2 border-slate-600 overflow-hidden"
+        className="absolute bg-slate-400 rounded-lg border-2 border-slate-600 overflow-hidden"
         style={{ top: '0px', left: '0px', width: '500px', height: '80px' }}
       >
         {/* ライト */}
-        <motion.div
-          className="absolute bottom-1 left-0 right-0 flex justify-around"
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          {[...Array(12)].map((_, i) => (
-            <div key={i} className="w-2 h-2 rounded-full bg-cyan-400" />
-          ))}
-        </motion.div>
       </div>
 
       {/* 縦レーン */}
       <div 
-        className="absolute bg-gradient-to-r from-slate-500 to-slate-400 rounded-lg border-2 border-slate-600 overflow-hidden"
+        className="absolute bg-slate-400 rounded-lg border-2 border-slate-600 overflow-hidden"
         style={{ top: '0px', left: '500px', width: '80px', height: '320px' }}
       >
         {/* ライト */}
-        <motion.div
-          className="absolute right-1 top-0 bottom-0 flex flex-col justify-around"
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="w-2 h-2 rounded-full bg-cyan-400" />
-          ))}
-        </motion.div>
       </div>
 
       {/* 境界の段差を消すための継ぎ目 */}
