@@ -9,10 +9,10 @@ const ARM_DELAY_MS = 500;
 const ARM_1_POSITION = { top: 50, left: 505 };
 const ARM_2_POSITION = { top: 200, left: 655 };
 const ARM_CENTER_OFFSET_X = 50;
-const ARM_CENTER_OFFSET_Y = 60;
+const ARM_CENTER_OFFSET_Y = 80;
 
 const MANJU_PATH = {
-  startX: 120,
+  startX: 190,
   startY: 195,
   cornerX: 618,
   cornerY: 195,
@@ -133,6 +133,7 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
     let frameId = 0;
     let startTime = performance.now();
     let activeSegmentIndex = -1;
+    let lastProgress = 0;
     const timeline = getManjuTimeline();
 
     setProgress(0);
@@ -147,7 +148,9 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
         durationMs: timeline.move2Ms, 
         from: timeline.pArm1, 
         to: 0.4,
-        onEnter: () => setCurrentState(cyberWorking ? 'wrapped' : 'rotted')
+        onEnter: () => {
+          if (cyberWorking) setCurrentState('wrapped');
+        }
       },
       { type: 'move', durationMs: timeline.turnMs, from: 0.4, to: 0.5 },
       { type: 'move', durationMs: timeline.move3Ms, from: 0.5, to: timeline.pArm2 },
@@ -159,7 +162,11 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
         from: timeline.pArm2, 
         to: 1,
         onEnter: () => {
-          setCurrentState(prev => (prev === 'rotted' ? 'rotted' : 'ribboned'));
+          if (!cyberWorking) {
+            setCurrentState('rotted');
+          } else {
+            setCurrentState('ribboned');
+          }
         }
       },
       { type: 'pause', durationMs: PAUSE_DURATION_MS, hold: 1 }
@@ -173,6 +180,7 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
         setProgress(0);
         setCurrentState('initial');
         elapsed = 0;
+        lastProgress = 0;
       }
 
       let remaining = elapsed;
@@ -189,11 +197,14 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
       }
 
       const segment = segments[index];
-      if (segment.type === 'move') {
-        const t = segment.durationMs > 0 ? remaining / segment.durationMs : 1;
-        setProgress(segment.from + (segment.to - segment.from) * t);
-      } else {
-        setProgress(segment.hold);
+      const nextProgress =
+        segment.type === 'move'
+          ? segment.from + (segment.to - segment.from) * (segment.durationMs > 0 ? remaining / segment.durationMs : 1)
+          : segment.hold;
+
+      if (nextProgress >= lastProgress) {
+        setProgress(nextProgress);
+        lastProgress = nextProgress;
       }
 
       frameId = requestAnimationFrame(tick);
@@ -231,7 +242,7 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
 
   return (
     <div 
-      className="absolute transition-all duration-100"
+      className="absolute transition-opacity duration-100"
       style={{ 
         left: `${x}px`, 
         top: `${y}px`,
@@ -361,17 +372,21 @@ function WorkerArea({ mood, animationKey }: { mood: 'happy' | 'angry'; animation
       
       {/* 作業員1と2を少し右側に配置 */}
       <div className="relative" style={{ marginLeft: '70px', marginTop: '25px' }}>
-        {mood === 'happy' && (
+        {mood === 'happy' ? (
           <div className="absolute left-1/2 -top-2 -translate-x-1/2 text-2xl">
             ❤️
+          </div>
+        ) : (
+          <div className="absolute left-1/2 -top-2 -translate-x-1/2 text-2xl">
+            💢
           </div>
         )}
         <div className="flex gap-8">
           {/* 作業員1 */}
-          <Worker mood={mood} animationKey={animationKey} withHand={true} />
+          <Worker mood={mood} animationKey={animationKey} animatedHand="right" />
           
           {/* 作業員2 */}
-          <Worker mood={mood} animationKey={animationKey} withHand={false} />
+          <Worker mood={mood} animationKey={animationKey} animatedHand="left" />
         </div>
       </div>
     </div>
@@ -381,7 +396,7 @@ function WorkerArea({ mood, animationKey }: { mood: 'happy' | 'angry'; animation
 /**
  * 作業員のSVGコンポーネント
  */
-function Worker({ mood, animationKey, withHand }: { mood: 'happy' | 'angry'; animationKey: number; withHand: boolean }) {
+function Worker({ mood, animationKey, animatedHand }: { mood: 'happy' | 'angry'; animationKey: number; animatedHand: 'left' | 'right' | 'none' }) {
   const isHappy = mood === 'happy';
   
   return (
@@ -416,13 +431,29 @@ function Worker({ mood, animationKey, withHand }: { mood: 'happy' | 'angry'; ani
           </>
         )}
         
-        {/* 左手（固定） */}
-        <circle cx="15" cy="55" r="3" fill="lightblue" opacity="0.7" />
-        
-        {/* 右手（動く・片方だけ） */}
-        {withHand && (
+        {/* 左手 */}
+        {animatedHand === 'left' ? (
           <motion.g
-            key={`hand-${animationKey}`}
+            key={`hand-left-${animationKey}`}
+            initial={{ y: 0 }}
+            animate={{ y: [0, 15, 0] }}
+            transition={{ 
+              duration: 10,
+              times: [0, 0.05, 0.1],
+              ease: 'easeInOut',
+              repeat: Infinity
+            }}
+          >
+            <circle cx="15" cy="55" r="3" fill="lightblue" opacity="0.7" />
+          </motion.g>
+        ) : (
+          <circle cx="15" cy="55" r="3" fill="lightblue" opacity="0.7" />
+        )}
+        
+        {/* 右手 */}
+        {animatedHand === 'right' ? (
+          <motion.g
+            key={`hand-right-${animationKey}`}
             initial={{ y: 0 }}
             animate={{ y: [0, 15, 0] }}
             transition={{ 
@@ -434,6 +465,8 @@ function Worker({ mood, animationKey, withHand }: { mood: 'happy' | 'angry'; ani
           >
             <circle cx="45" cy="55" r="3" fill="lightblue" opacity="0.7" />
           </motion.g>
+        ) : (
+          <circle cx="45" cy="55" r="3" fill="lightblue" opacity="0.7" />
         )}
         
         {/* 足 */}
