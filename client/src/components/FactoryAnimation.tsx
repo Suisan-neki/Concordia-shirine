@@ -1,5 +1,5 @@
 /**
- * Concordia Shrine - Factory Animation Component (L-Shape Layout v4)
+ * Concordia Shrine - Factory Animation Component (L-Shape Layout v5)
  * 
  * ヒューマンセキュリティとサイバーセキュリティの相互依存関係を
  * 食品工場のL字型レーンのメタファーで表現するアニメーション
@@ -411,85 +411,78 @@ function ManjuAnimation({ quality, shouldWrap }: { quality: 'good' | 'poor'; sho
         repeat: Infinity
       }}
     >
-      <ManjuWithWrapper 
+      <Manju 
         quality={quality} 
         shouldWrap={shouldWrap}
-        wrapDelay={4}
       />
     </motion.div>
   );
 }
 
 /**
- * お饅頭と包装のコンポーネント
+ * お饅頭のコンポーネント（状態管理を含む）
  */
-function ManjuWithWrapper({ quality, shouldWrap, wrapDelay }: { quality: 'good' | 'poor'; shouldWrap: boolean; wrapDelay: number }) {
-  const [isWrapped, setIsWrapped] = useState(false);
-  const [isRotted, setIsRotted] = useState(false);
+function Manju({ quality, shouldWrap }: { quality: 'good' | 'poor'; shouldWrap: boolean }) {
+  const [currentState, setCurrentState] = useState<'initial' | 'wrapped' | 'rotted'>('initial');
   
   useEffect(() => {
-    if (shouldWrap) {
-      const timer = setTimeout(() => {
-        setIsWrapped(true);
-      }, wrapDelay * 1000);
-      return () => {
-        clearTimeout(timer);
-        setIsWrapped(false);
-      };
-    } else {
-      setIsWrapped(false);
-      // サイバーセキュリティが機能しない場合、お饅頭が腐る
-      const rottedTimer = setTimeout(() => {
-        setIsRotted(true);
-      }, wrapDelay * 1000);
-      return () => {
-        clearTimeout(rottedTimer);
-        setIsRotted(false);
-      };
-    }
-  }, [shouldWrap, wrapDelay]);
+    // 状態をリセット
+    setCurrentState('initial');
+    
+    // 4秒後に包装または腐敗の処理
+    const timer = setTimeout(() => {
+      if (shouldWrap) {
+        setCurrentState('wrapped');
+      } else if (quality === 'good') {
+        // 良いお饅頭がサイバーセキュリティボックスを通過すると腐る
+        setCurrentState('rotted');
+      }
+    }, 4000);
+    
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [quality, shouldWrap]);
   
   const isGood = quality === 'good';
+  const isWrapped = currentState === 'wrapped';
+  const isRotted = currentState === 'rotted';
   
   return (
     <div className="relative">
       <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
         {isGood && !isRotted && !isWrapped ? (
-          // 綺麗なお饅頭（包装前）
+          // 綺麗なお饅頭（包装前）- 一重の白い丸
           <>
-            <circle cx="25" cy="30" r="18" fill="#F5E6D3" stroke="#D4A574" strokeWidth="2" />
-            <ellipse cx="25" cy="22" rx="14" ry="12" fill="#F5E6D3" stroke="#D4A574" strokeWidth="2" />
-            <path d="M 18 22 Q 25 24 32 22" stroke="#D4A574" strokeWidth="1.5" fill="none" />
+            <circle cx="25" cy="28" r="20" fill="#F5E6D3" stroke="#D4A574" strokeWidth="2" />
+            <ellipse cx="25" cy="24" rx="16" ry="8" fill="#FFFFFF" opacity="0.3" />
           </>
         ) : isGood && !isRotted && isWrapped ? (
-          // 綺麗なお饅頭（包装後）- 少し光沢が出る
+          // 綺麗なお饅頭（包装後）- 緑の枠線と光沢
           <>
-            <circle cx="25" cy="30" r="18" fill="#F5E6D3" stroke="#10b981" strokeWidth="2.5" opacity="0.9" />
-            <ellipse cx="25" cy="22" rx="14" ry="12" fill="#F5E6D3" stroke="#10b981" strokeWidth="2.5" opacity="0.9" />
-            <path d="M 18 22 Q 25 24 32 22" stroke="#D4A574" strokeWidth="1.5" fill="none" />
-            {/* 光沢エフェクト */}
-            <circle cx="20" cy="20" r="4" fill="white" opacity="0.4" />
+            <circle cx="25" cy="28" r="20" fill="#F5E6D3" stroke="#10b981" strokeWidth="2.5" opacity="0.9" />
+            <ellipse cx="25" cy="24" rx="16" ry="8" fill="#FFFFFF" opacity="0.4" />
+            <circle cx="18" cy="22" r="5" fill="white" opacity="0.5" />
           </>
         ) : isGood && isRotted ? (
           // 腐ったお饅頭（元は綺麗だったが腐った）
           <>
-            <circle cx="25" cy="30" r="18" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="2" />
-            <ellipse cx="25" cy="22" rx="14" ry="12" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="2" />
-            <circle cx="20" cy="24" r="3" fill="#3D5A40" opacity="0.7" />
-            <circle cx="28" cy="26" r="2" fill="#3D5A40" opacity="0.7" />
-            <circle cx="24" cy="30" r="2" fill="#3D5A40" opacity="0.7" />
+            <circle cx="25" cy="28" r="20" fill="#6B5D4F" stroke="#4A3F35" strokeWidth="2" />
+            <circle cx="20" cy="26" r="3" fill="#3D5A40" opacity="0.7" />
+            <circle cx="28" cy="28" r="2" fill="#3D5A40" opacity="0.7" />
+            <circle cx="24" cy="32" r="2" fill="#3D5A40" opacity="0.7" />
           </>
         ) : (
           // ぐしゃぐしゃのお饅頭
           <>
             <path
-              d="M 12 30 Q 18 38 25 35 Q 32 32 38 38 Q 36 24 32 20 Q 25 16 18 22 Q 14 26 12 30"
+              d="M 12 28 Q 18 36 25 33 Q 32 30 38 36 Q 36 22 32 18 Q 25 14 18 20 Q 14 24 12 28"
               fill="#B8A080"
               stroke="#8B7355"
               strokeWidth="2"
             />
-            <circle cx="22" cy="26" r="2.5" fill="#8B7355" opacity="0.5" />
-            <circle cx="30" cy="30" r="2" fill="#8B7355" opacity="0.5" />
+            <circle cx="22" cy="24" r="2.5" fill="#8B7355" opacity="0.5" />
+            <circle cx="30" cy="28" r="2" fill="#8B7355" opacity="0.5" />
           </>
         )}
       </svg>
