@@ -13,6 +13,10 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/security"} component={Home} />
+      <Route path={"/security-detail"} component={Home} />
+      <Route path={"/history"} component={Home} />
+      <Route path={"/intervention-settings"} component={Home} />
       <Route path={"/about"} component={About} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/404"} component={NotFound} />
