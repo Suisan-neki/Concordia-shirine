@@ -1,8 +1,8 @@
 /**
- * Concordia Shrine - Factory Animation Component
+ * Concordia Shrine - Factory Animation Component (L-Shape Layout)
  * 
  * ヒューマンセキュリティとサイバーセキュリティの相互依存関係を
- * 食品工場のレーンのメタファーで表現するアニメーション
+ * 食品工場のL字型レーンのメタファーで表現するアニメーション
  */
 
 import { useState, useEffect } from 'react';
@@ -18,7 +18,7 @@ interface FactoryAnimationProps {
 /**
  * FactoryAnimationコンポーネント
  * 
- * お饅頭工場のレーンを使って、ヒューマンセキュリティとサイバーセキュリティの
+ * お饅頭工場のL字型レーンを使って、ヒューマンセキュリティとサイバーセキュリティの
  * 相互依存関係を視覚的に表現する。
  */
 export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimationProps) {
@@ -71,118 +71,86 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
       </div>
 
       {/* 工場アニメーション */}
-      <div className="relative w-full bg-gradient-to-b from-muted/30 to-muted/10 rounded-xl border border-border overflow-hidden" style={{ minHeight: '400px' }}>
+      <div className="relative w-full bg-gradient-to-b from-muted/30 to-muted/10 rounded-xl border border-border overflow-hidden" style={{ minHeight: '500px', height: '500px' }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={animationKey}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="w-full h-full p-8"
+            className="w-full h-full p-8 relative"
           >
-            {/* 工場レイアウト */}
-            <div className="relative w-full h-full flex items-center">
-              {/* 左側: ヒューマンセキュリティエリア */}
-              <div className="flex-shrink-0 w-1/4 flex flex-col items-center justify-center">
-                <div className="text-xs font-medium mb-4 text-center" style={{ color: isHumanFailure ? 'var(--shrine-vermilion)' : 'var(--shrine-jade)' }}>
-                  ヒューマンセキュリティ
-                </div>
-                
-                {/* 作業員 */}
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="relative"
-                >
-                  {isHumanFailure ? (
-                    // 対立的な作業員
-                    <div className="flex gap-4">
-                      <WorkerSVG mood="angry" />
-                      <WorkerSVG mood="angry" />
-                    </div>
-                  ) : (
-                    // 協力的な作業員
-                    <div className="flex gap-4">
-                      <WorkerSVG mood="happy" />
-                      <WorkerSVG mood="happy" />
-                    </div>
-                  )}
-                </motion.div>
-
-                {/* 説明テキスト */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="mt-4 text-xs text-center text-muted-foreground max-w-[150px]"
-                >
-                  {isHumanFailure ? '対立的な雰囲気' : '協力的な雰囲気'}
-                </motion.div>
+            {/* 左側: ヒューマンセキュリティエリア（作業員） */}
+            <div className="absolute top-8 left-8 flex flex-col items-center">
+              <div className="text-xs font-medium mb-4 text-center" style={{ color: isHumanFailure ? 'var(--shrine-vermilion)' : 'var(--shrine-jade)' }}>
+                ヒューマンセキュリティ
               </div>
+              
+              {/* 作業員 */}
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="relative"
+              >
+                {isHumanFailure ? (
+                  <div className="flex gap-4">
+                    <WorkerWithHand mood="angry" animationKey={animationKey} />
+                  </div>
+                ) : (
+                  <div className="flex gap-4">
+                    <WorkerWithHand mood="happy" animationKey={animationKey} />
+                  </div>
+                )}
+              </motion.div>
 
-              {/* 中央: ベルトコンベア */}
-              <div className="flex-1 relative" style={{ height: '200px' }}>
-                {/* レーン */}
-                <div className="absolute top-1/2 left-0 right-0 transform -translate-y-1/2">
-                  <ConveyorBelt />
-                  
-                  {/* お饅頭のアニメーション */}
-                  <motion.div
-                    initial={{ x: -50, opacity: 0 }}
-                    animate={{ x: '100%', opacity: [0, 1, 1, 1, 0] }}
-                    transition={{
-                      duration: 4,
-                      delay: 1,
-                      ease: 'linear',
-                      opacity: { times: [0, 0.1, 0.8, 0.9, 1] }
-                    }}
-                    className="absolute top-1/2 left-0 transform -translate-y-1/2"
-                  >
-                    <Manju quality={isHumanFailure ? 'poor' : 'good'} wrapped={false} />
-                  </motion.div>
-                </div>
-              </div>
-
-              {/* 右側: サイバーセキュリティエリア */}
-              <div className="flex-shrink-0 w-1/4 flex flex-col items-center justify-center">
-                <div className="text-xs font-medium mb-4 text-center" style={{ color: isCyberFailure ? 'var(--shrine-vermilion)' : 'var(--shrine-barrier)' }}>
-                  サイバーセキュリティ
-                </div>
-
-                {/* 包装機 */}
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                >
-                  <PackagingMachine working={!isCyberFailure} />
-                </motion.div>
-
-                {/* 説明テキスト */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8 }}
-                  className="mt-4 text-xs text-center text-muted-foreground max-w-[150px]"
-                >
-                  {isCyberFailure ? '包装機能せず' : 'しっかり包装'}
-                </motion.div>
-              </div>
+              {/* 説明テキスト */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mt-4 text-xs text-center text-muted-foreground max-w-[120px]"
+              >
+                {isHumanFailure ? '対立的な雰囲気' : '協力的な雰囲気'}
+              </motion.div>
             </div>
 
-            {/* 最終製品の表示 */}
+            {/* 横レーン（上部） */}
+            <div className="absolute top-32 left-40" style={{ width: 'calc(100% - 280px)' }}>
+              <ConveyorBelt direction="horizontal" />
+            </div>
+
+            {/* 縦レーン（右側） */}
+            <div className="absolute right-8 top-32" style={{ height: 'calc(100% - 160px)', width: '80px' }}>
+              <ConveyorBelt direction="vertical" />
+            </div>
+
+            {/* 角の装飾 */}
+            <div className="absolute right-8 top-32 w-20 h-20 border-2 border-slate-600 rounded-br-lg" style={{ borderTop: 'none', borderLeft: 'none' }} />
+
+            {/* サイバーセキュリティボックス */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 5, duration: 0.5 }}
-              className="absolute bottom-8 right-8"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="absolute right-0 flex flex-col items-center"
+              style={{ top: '50%', transform: 'translateY(-50%)' }}
             >
-              <FinalProduct
-                quality={isHumanFailure ? 'poor' : 'good'}
-                protected={!isCyberFailure}
-              />
+              <div className="text-xs font-medium mb-2 text-center" style={{ color: isCyberFailure ? 'var(--shrine-vermilion)' : 'var(--shrine-barrier)' }}>
+                サイバーセキュリティ
+              </div>
+              <CyberSecurityBox working={!isCyberFailure} />
+              <div className="mt-2 text-xs text-center text-muted-foreground max-w-[100px]">
+                {isCyberFailure ? '機能せず' : '包装中'}
+              </div>
             </motion.div>
+
+            {/* お饅頭のアニメーション */}
+            <ManjuAnimation
+              key={animationKey}
+              quality={isHumanFailure ? 'poor' : 'good'}
+              shouldWrap={!isCyberFailure}
+            />
           </motion.div>
         </AnimatePresence>
       </div>
@@ -198,22 +166,22 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
           {isIdeal && (
             <>
               <span className="font-medium text-shrine-gold">✨ 理想状態:</span> 
-              協力的な雰囲気の中で高品質な情報（お饅頭）が生成され、技術的な保護（包装）によってしっかりと守られます。
-              両方が揃って初めて、価値ある情報が完成します。
+              協力的な雰囲気の中で高品質な情報（お饅頭）が生成され、サイバーセキュリティボックスを通過することで
+              技術的な保護（包装）によってしっかりと守られます。両方が揃って初めて、価値ある情報が完成します。
             </>
           )}
           {isHumanFailure && (
             <>
               <span className="font-medium text-shrine-vermilion">⚠️ ヒューマンセキュリティの欠如:</span> 
               対立的な雰囲気では、低品質な情報（ぐしゃぐしゃのお饅頭）しか生成されません。
-              いくら技術的に保護しても、中身が粗悪では意味がありません。
+              サイバーセキュリティボックスで包装しても、中身が粗悪では意味がありません。
             </>
           )}
           {isCyberFailure && (
             <>
               <span className="font-medium text-shrine-vermilion">⚠️ サイバーセキュリティの欠如:</span> 
-              協力的な雰囲気で高品質な情報が生成されても、技術的な保護がなければ外部に漏れたり改ざんされたりして、
-              価値が損なわれてしまいます。
+              協力的な雰囲気で高品質な情報が生成されても、サイバーセキュリティボックスが機能しなければ
+              包装されずに外部に漏れたり改ざんされたりして、価値が損なわれてしまいます。
             </>
           )}
         </p>
@@ -223,82 +191,125 @@ export function FactoryAnimation({ initialScenario = 'ideal' }: FactoryAnimation
 }
 
 /**
- * 作業員のSVGコンポーネント
+ * 手を動かす作業員のSVGコンポーネント
  */
-function WorkerSVG({ mood }: { mood: 'happy' | 'angry' }) {
+function WorkerWithHand({ mood, animationKey }: { mood: 'happy' | 'angry'; animationKey: number }) {
   const isHappy = mood === 'happy';
   
   return (
-    <svg width="60" height="80" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* 体 */}
-      <rect x="15" y="35" width="30" height="40" rx="2" fill="white" stroke="currentColor" strokeWidth="1.5" />
-      
-      {/* エプロン */}
-      <path d="M 20 35 L 20 75 L 40 75 L 40 35" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      
-      {/* 頭 */}
-      <circle cx="30" cy="20" r="12" fill="white" stroke="currentColor" strokeWidth="1.5" />
-      
-      {/* キャップ */}
-      <ellipse cx="30" cy="12" rx="14" ry="6" fill="white" stroke="currentColor" strokeWidth="1.5" />
-      
-      {/* 顔 */}
-      {isHappy ? (
-        <>
-          {/* 笑顔 */}
-          <circle cx="26" cy="18" r="1.5" fill="currentColor" />
-          <circle cx="34" cy="18" r="1.5" fill="currentColor" />
-          <path d="M 24 24 Q 30 27 36 24" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-        </>
-      ) : (
-        <>
-          {/* 怒り顔 */}
-          <line x1="24" y1="16" x2="28" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="32" y1="18" x2="36" y2="16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <path d="M 24 26 Q 30 23 36 26" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-        </>
-      )}
-      
-      {/* 手袋 */}
-      <circle cx="12" cy="50" r="4" fill="lightblue" opacity="0.7" />
-      <circle cx="48" cy="50" r="4" fill="lightblue" opacity="0.7" />
-    </svg>
+    <div className="relative">
+      <svg width="80" height="100" viewBox="0 0 80 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* 体 */}
+        <rect x="25" y="40" width="30" height="45" rx="2" fill="white" stroke="currentColor" strokeWidth="1.5" />
+        
+        {/* エプロン */}
+        <path d="M 30 40 L 30 85 L 50 85 L 50 40" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        
+        {/* 頭 */}
+        <circle cx="40" cy="25" r="12" fill="white" stroke="currentColor" strokeWidth="1.5" />
+        
+        {/* キャップ */}
+        <ellipse cx="40" cy="17" rx="14" ry="6" fill="white" stroke="currentColor" strokeWidth="1.5" />
+        
+        {/* 顔 */}
+        {isHappy ? (
+          <>
+            {/* 笑顔 */}
+            <circle cx="36" cy="23" r="1.5" fill="currentColor" />
+            <circle cx="44" cy="23" r="1.5" fill="currentColor" />
+            <path d="M 34 29 Q 40 32 46 29" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            {/* 怒り顔 */}
+            <line x1="34" y1="21" x2="38" y2="23" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="42" y1="23" x2="46" y2="21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M 34 31 Q 40 28 46 31" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          </>
+        )}
+        
+        {/* 左手（固定） */}
+        <circle cx="20" cy="55" r="4" fill="lightblue" opacity="0.7" />
+        
+        {/* 右手（動く） */}
+        <motion.g
+          key={`hand-${animationKey}`}
+          initial={{ y: 0 }}
+          animate={{ y: [0, 15, 15, 0] }}
+          transition={{ 
+            duration: 2,
+            times: [0, 0.3, 0.7, 1],
+            ease: 'easeInOut'
+          }}
+        >
+          <circle cx="60" cy="55" r="4" fill="lightblue" opacity="0.7" />
+          <line x1="55" y1="50" x2="60" y2="55" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </motion.g>
+      </svg>
+    </div>
   );
 }
 
 /**
  * ベルトコンベアのコンポーネント
  */
-function ConveyorBelt() {
+function ConveyorBelt({ direction }: { direction: 'horizontal' | 'vertical' }) {
+  const isHorizontal = direction === 'horizontal';
+  
   return (
-    <div className="relative w-full h-16 bg-gradient-to-b from-slate-400 to-slate-500 rounded-lg border-2 border-slate-600 overflow-hidden">
+    <div 
+      className={`relative bg-gradient-to-b from-slate-400 to-slate-500 rounded-lg border-2 border-slate-600 overflow-hidden ${
+        isHorizontal ? 'w-full h-16' : 'w-full h-full'
+      }`}
+    >
       {/* ベルトの動き */}
-      <motion.div
-        className="absolute inset-0 flex items-center"
-        initial={{ x: 0 }}
-        animate={{ x: -20 }}
-        transition={{
-          duration: 1,
-          repeat: Infinity,
-          ease: 'linear'
-        }}
-      >
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="w-5 h-1 bg-slate-600/50 mx-2"
-            style={{ minWidth: '20px' }}
-          />
-        ))}
-      </motion.div>
+      {isHorizontal ? (
+        <motion.div
+          className="absolute inset-0 flex items-center"
+          initial={{ x: 0 }}
+          animate={{ x: -20 }}
+          transition={{
+            duration: 1,
+            repeat: Infinity,
+            ease: 'linear'
+          }}
+        >
+          {[...Array(30)].map((_, i) => (
+            <div
+              key={i}
+              className="w-5 h-1 bg-slate-600/50 mx-2"
+              style={{ minWidth: '20px' }}
+            />
+          ))}
+        </motion.div>
+      ) : (
+        <motion.div
+          className="absolute inset-0 flex flex-col items-center"
+          initial={{ y: 0 }}
+          animate={{ y: -20 }}
+          transition={{
+            duration: 1,
+            repeat: Infinity,
+            ease: 'linear'
+          }}
+        >
+          {[...Array(30)].map((_, i) => (
+            <div
+              key={i}
+              className="h-5 w-1 bg-slate-600/50 my-2"
+              style={{ minHeight: '20px' }}
+            />
+          ))}
+        </motion.div>
+      )}
       
       {/* ライト */}
       <motion.div
-        className="absolute bottom-1 left-0 right-0 flex justify-around"
+        className={`absolute ${isHorizontal ? 'bottom-1 left-0 right-0 flex justify-around' : 'right-1 top-0 bottom-0 flex flex-col justify-around'}`}
         animate={{ opacity: [0.5, 1, 0.5] }}
         transition={{ duration: 2, repeat: Infinity }}
       >
-        {[...Array(8)].map((_, i) => (
+        {[...Array(isHorizontal ? 8 : 6)].map((_, i) => (
           <div key={i} className="w-2 h-2 rounded-full bg-cyan-400" />
         ))}
       </motion.div>
@@ -307,21 +318,66 @@ function ConveyorBelt() {
 }
 
 /**
- * お饅頭のコンポーネント
+ * お饅頭のアニメーションコンポーネント
  */
-function Manju({ quality, wrapped }: { quality: 'good' | 'poor'; wrapped: boolean }) {
+function ManjuAnimation({ quality, shouldWrap }: { quality: 'good' | 'poor'; shouldWrap: boolean }) {
+  return (
+    <motion.div
+      className="absolute"
+      style={{ top: '124px', left: '200px' }}
+      initial={{ opacity: 0 }}
+      animate={{
+        opacity: [0, 1, 1, 1, 1, 1, 1, 0],
+        x: [0, 0, 'calc(100vw - 480px)', 'calc(100vw - 480px)', 'calc(100vw - 480px)', 'calc(100vw - 480px)', 'calc(100vw - 480px)', 'calc(100vw - 480px)'],
+        y: [0, 0, 0, 0, 100, 200, 300, 350],
+      }}
+      transition={{
+        duration: 8,
+        times: [0, 0.1, 0.4, 0.45, 0.6, 0.75, 0.9, 1],
+        ease: 'linear'
+      }}
+    >
+      <ManjuWithWrapper 
+        quality={quality} 
+        shouldWrap={shouldWrap}
+        wrapDelay={4.5}
+      />
+    </motion.div>
+  );
+}
+
+/**
+ * お饅頭と包装のコンポーネント
+ */
+function ManjuWithWrapper({ quality, shouldWrap, wrapDelay }: { quality: 'good' | 'poor'; shouldWrap: boolean; wrapDelay: number }) {
+  const [isWrapped, setIsWrapped] = useState(false);
+  
+  useEffect(() => {
+    if (shouldWrap) {
+      const timer = setTimeout(() => {
+        setIsWrapped(true);
+      }, wrapDelay * 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setIsWrapped(false);
+    }
+  }, [shouldWrap, wrapDelay]);
+  
   const isGood = quality === 'good';
   
   return (
     <div className="relative">
-      {wrapped && (
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          className="absolute inset-0 bg-transparent border-2 border-dashed border-shrine-barrier rounded-lg"
-          style={{ width: '60px', height: '60px', transform: 'translate(-10px, -10px)' }}
-        />
-      )}
+      <AnimatePresence>
+        {isWrapped && (
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1.2, opacity: 0.7 }}
+            exit={{ scale: 0, opacity: 0 }}
+            className="absolute inset-0 bg-transparent border-2 border-dashed border-shrine-barrier rounded-lg"
+            style={{ width: '60px', height: '60px', transform: 'translate(-10px, -10px)' }}
+          />
+        )}
+      </AnimatePresence>
       
       <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
         {isGood ? (
@@ -350,37 +406,40 @@ function Manju({ quality, wrapped }: { quality: 'good' | 'poor'; wrapped: boolea
 }
 
 /**
- * 包装機のコンポーネント
+ * サイバーセキュリティボックスのコンポーネント
  */
-function PackagingMachine({ working }: { working: boolean }) {
+function CyberSecurityBox({ working }: { working: boolean }) {
   return (
     <div className="relative">
-      <svg width="80" height="100" viewBox="0 0 80 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* 機械本体 */}
-        <rect x="10" y="20" width="60" height="60" rx="4" fill="white" stroke="currentColor" strokeWidth="2" />
-        <rect x="15" y="25" width="50" height="20" rx="2" fill={working ? '#3b82f6' : '#9ca3af'} opacity="0.3" />
+      <svg width="100" height="120" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* ボックス本体 */}
+        <rect x="10" y="10" width="80" height="100" rx="4" fill="white" stroke="currentColor" strokeWidth="2" />
+        <rect x="15" y="15" width="70" height="30" rx="2" fill={working ? '#3b82f6' : '#9ca3af'} opacity="0.3" />
         
-        {/* アーム */}
+        {/* 入口 */}
+        <rect x="35" y="0" width="30" height="15" fill="currentColor" opacity="0.2" />
+        
+        {/* 出口 */}
+        <rect x="35" y="105" width="30" height="15" fill="currentColor" opacity="0.2" />
+        
+        {/* 包装機構 */}
         <motion.g
-          animate={working ? { y: [0, 10, 0] } : {}}
-          transition={{ duration: 2, repeat: Infinity }}
+          animate={working ? { rotate: [0, 360] } : {}}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          style={{ transformOrigin: '50px 60px' }}
         >
-          <rect x="30" y="45" width="20" height="4" rx="2" fill="currentColor" />
-          <rect x="38" y="49" width="4" height="15" rx="2" fill="currentColor" />
+          <circle cx="50" cy="60" r="15" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
         </motion.g>
         
         {/* インジケーター */}
         <motion.circle
           cx="25"
-          cy="35"
-          r="3"
+          cy="25"
+          r="4"
           fill={working ? '#10b981' : '#ef4444'}
           animate={working ? { opacity: [0.5, 1, 0.5] } : {}}
           transition={{ duration: 1, repeat: Infinity }}
         />
-        
-        {/* 台座 */}
-        <rect x="5" y="80" width="70" height="15" rx="2" fill="currentColor" opacity="0.2" />
       </svg>
       
       {!working && (
@@ -392,44 +451,6 @@ function PackagingMachine({ working }: { working: boolean }) {
           <div className="text-3xl">⚠️</div>
         </motion.div>
       )}
-    </div>
-  );
-}
-
-/**
- * 最終製品のコンポーネント
- */
-function FinalProduct({ quality, protected: isProtected }: { quality: 'good' | 'poor'; protected: boolean }) {
-  const isSuccess = quality === 'good' && isProtected;
-  
-  return (
-    <div className="flex flex-col items-center">
-      <motion.div
-        initial={{ scale: 0, rotate: -180 }}
-        animate={{ scale: 1, rotate: 0 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-        className={`relative p-4 rounded-lg border-2 ${
-          isSuccess
-            ? 'bg-shrine-gold/10 border-shrine-gold shadow-lg shadow-shrine-gold/20'
-            : 'bg-muted/50 border-muted-foreground/30'
-        }`}
-      >
-        <Manju quality={quality} wrapped={isProtected} />
-        
-        {isSuccess && (
-          <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="absolute -top-2 -right-2 text-2xl"
-          >
-            ✨
-          </motion.div>
-        )}
-      </motion.div>
-      
-      <div className={`mt-2 text-xs font-medium ${isSuccess ? 'text-shrine-gold' : 'text-muted-foreground'}`}>
-        {isSuccess ? '価値ある情報' : '価値のない情報'}
-      </div>
     </div>
   );
 }
