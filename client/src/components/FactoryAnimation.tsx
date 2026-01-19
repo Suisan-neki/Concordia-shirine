@@ -418,16 +418,16 @@ function Worker({ mood, animationKey, animatedHand }: { mood: 'happy' | 'angry';
         {isHappy ? (
           <>
             {/* 笑顔 */}
-            <circle cx="26" cy="23" r="1.5" fill="currentColor" />
-            <circle cx="34" cy="23" r="1.5" fill="currentColor" />
-            <path d="M 24 29 Q 30 32 36 29" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            <circle cx="26" cy="23" r="1.5" fill="#000000" />
+            <circle cx="34" cy="23" r="1.5" fill="#000000" />
+            <path d="M 24 29 Q 30 32 36 29" stroke="#000000" strokeWidth="1.5" fill="none" strokeLinecap="round" />
           </>
         ) : (
           <>
             {/* 怒り顔 */}
-            <line x1="24" y1="21" x2="28" y2="23" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <line x1="32" y1="23" x2="36" y2="21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M 24 31 Q 30 28 36 31" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            <line x1="24" y1="21" x2="28" y2="23" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="32" y1="23" x2="36" y2="21" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M 24 31 Q 30 28 36 31" stroke="#000000" strokeWidth="1.5" fill="none" strokeLinecap="round" />
           </>
         )}
         
