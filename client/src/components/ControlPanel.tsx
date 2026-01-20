@@ -56,9 +56,9 @@ export function ControlPanel({
         animate={{ opacity: 1, y: 0 }}
         className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-4"
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 w-full">
           {/* メインコントロール */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2 flex-1">
             {!isRecording ? (
               <Button
                 onClick={onStartRecording}
@@ -85,7 +85,7 @@ export function ControlPanel({
           </div>
           
           {/* デモモード切り替え */}
-          <div className="border-l border-border/50 pl-4">
+          <div className="border-l border-border/50 pl-4 flex-1 flex justify-center">
             <Button
               onClick={onToggleDemoMode}
               variant={isDemoMode ? 'secondary' : 'outline'}
