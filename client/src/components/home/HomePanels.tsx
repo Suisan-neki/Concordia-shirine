@@ -36,7 +36,7 @@ interface HomePanelsProps {
   onCloseSecurityDetail: () => void;
   isSessionHistoryOpen: boolean;
   onCloseSessionHistory: () => void;
-  onLoadSessions: () => Promise<void>;
+  onLoadSessions: () => Promise<Session[]>;
   onDeleteSession: (sessionId: string) => Promise<void>;
   isInterventionSettingsOpen: boolean;
   onCloseInterventionSettings: () => void;
@@ -151,7 +151,7 @@ export function HomePanels({
       <ReportDownloadPanel
         isOpen={isReportPanelOpen}
         onClose={onCloseReportPanel}
-        session={reportSession as Session | null}
+        session={reportSession}
       />
     </>
   );
