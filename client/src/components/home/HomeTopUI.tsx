@@ -1,9 +1,5 @@
 import { Button } from '@/components/ui/button';
-
-interface AuthUser {
-  name?: string;
-  role?: string;
-}
+import type { AuthUser } from '@/types/auth';
 
 interface HomeTopUIProps {
   isMobile: boolean;
