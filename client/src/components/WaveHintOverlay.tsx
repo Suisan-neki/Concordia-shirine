@@ -65,29 +65,35 @@ export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
       content: (
         <div className="space-y-4">
           <p className="text-sm text-foreground leading-relaxed">
-            この画面の波は、会話の状態を視覚化しています。対話のバランス（調和、一方的、沈黙、静寂）が波の色や動きとして表示されます。
+            この画面の波は、会話の状態を視覚化しています。
+            <br />
+            対話のバランス（調和、一方的、沈黙、静寂）が波の色や動きとして表示されます。
           </p>
 
           <div className="grid grid-cols-2 gap-4 mt-4">
             <div className="p-3 bg-shrine-jade/10 rounded-lg border border-shrine-jade/20">
               <div className="text-xs font-medium text-shrine-jade mb-1">調和</div>
               <p className="text-xs text-muted-foreground mb-2">バランスの良い対話が続いています</p>
-              <p className="text-[10px] text-foreground font-medium">この状態を保ちましょう</p>
+              <p className="text-[10px] text-foreground font-medium">この状態を保ちましょう。</p>
             </div>
             <div className="p-3 bg-shrine-vermilion/10 rounded-lg border border-shrine-vermilion/20">
               <div className="text-xs font-medium text-shrine-vermilion mb-1">一方的</div>
               <p className="text-xs text-muted-foreground mb-2">発言の偏りが検出されています</p>
-              <p className="text-[10px] text-foreground font-medium">他の参加者にも発言の機会を設けましょう</p>
+              <p className="text-[10px] text-foreground font-medium">他の参加者にも発言の機会を設けましょう。</p>
             </div>
             <div className="p-3 bg-shrine-wave-light/10 rounded-lg border border-shrine-wave-light/20">
               <div className="text-xs font-medium text-shrine-wave-light mb-1">沈黙</div>
               <p className="text-xs text-muted-foreground mb-2">静かな余白が続いています</p>
-              <p className="text-[10px] text-foreground font-medium">沈黙は自然な余白です。急がなくて大丈夫。場の空気をあたためていきましょう</p>
+              <p className="text-[10px] text-foreground font-medium">
+                沈黙は自然な余白です。急がなくて大丈夫。
+                <br />
+                場の空気をあたためていきましょう。
+              </p>
             </div>
             <div className="p-3 bg-shrine-wave/10 rounded-lg border border-shrine-wave/20">
               <div className="text-xs font-medium text-foreground mb-1">静寂</div>
               <p className="text-xs text-muted-foreground mb-2">声と静けさが行き来しています</p>
-              <p className="text-[10px] text-foreground font-medium">会話が始まる準備ができています</p>
+              <p className="text-[10px] text-foreground font-medium">会話が始まる準備ができています。</p>
             </div>
           </div>
 
@@ -329,7 +335,9 @@ export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
               「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」
             </p>
             <p className="text-xs text-muted-foreground">
-              この祠は、あなたの判断の自由を守るために、静かに、しかし確実に動き続けています。
+              この祠はあなたの判断の自由を守るために、
+              <br />
+              静かに、しかし確実に動き続けています。
             </p>
           </div>
 
