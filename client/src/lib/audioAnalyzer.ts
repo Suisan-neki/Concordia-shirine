@@ -429,7 +429,8 @@ export class AudioAnalyzer {
     if (!this.isRunning || !this.analyser || !this.dataArray) return;
     
     // 時間データを取得
-    this.analyser.getFloatTimeDomainData(this.dataArray);
+    const dataArray = this.dataArray;
+    this.analyser.getFloatTimeDomainData(dataArray);
     
     // RMSを計算
     const rms = this.calculateRMS(this.dataArray);
