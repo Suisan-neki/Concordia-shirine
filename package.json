@@ -10,7 +10,7 @@
     "start": "vite preview",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.964.0",

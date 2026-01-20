@@ -264,7 +264,7 @@ export class AudioAnalyzer {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private mediaStream: MediaStream | null = null;
-  private dataArray: Float32Array | null = null;
+  private dataArray: Float32Array<ArrayBuffer> | null = null;
   private eventDetector: EventDetector;
   private config: AudioAnalyzerConfig;
   
@@ -374,7 +374,7 @@ export class AudioAnalyzer {
       const source = this.audioContext.createMediaStreamSource(this.mediaStream);
       source.connect(this.analyser);
       
-      this.dataArray = new Float32Array(this.analyser.fftSize);
+      this.dataArray = new Float32Array(new ArrayBuffer(this.analyser.fftSize * 4));
       this.startTime = performance.now() / 1000;
       this.isRunning = true;
       
@@ -429,7 +429,8 @@ export class AudioAnalyzer {
     if (!this.isRunning || !this.analyser || !this.dataArray) return;
     
     // 時間データを取得
-    this.analyser.getFloatTimeDomainData(this.dataArray);
+    const dataArray = this.dataArray;
+    this.analyser.getFloatTimeDomainData(dataArray);
     
     // RMSを計算
     const rms = this.calculateRMS(this.dataArray);

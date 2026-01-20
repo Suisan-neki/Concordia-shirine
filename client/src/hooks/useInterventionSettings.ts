@@ -43,7 +43,7 @@ export function useInterventionSettings() {
   });
 
   const settings: InterventionSettings = isAuthenticated && settingsQuery.data
-    ? (settingsQuery.data as InterventionSettings)
+    ? (settingsQuery.data as unknown as InterventionSettings)
     : DEFAULT_SETTINGS;
 
   const updateSettings = useCallback(async (newSettings: Partial<InterventionSettings>) => {
