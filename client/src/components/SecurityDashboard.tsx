@@ -181,6 +181,10 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
 対話という最小単位の場面では、両者は相互に支え合っている。`}
                     </div>
                     <div>
+                      <p className="mb-3 text-xs text-muted-foreground leading-relaxed">
+                        お饅頭工場をイメージしてみましょう。ここでは2人の作業員がお饅頭を作り、
+                        2台のロボットアームが包装とリボン掛けを担当しています。
+                      </p>
                       <FactoryAnimation />
                     </div>
                   </div>
