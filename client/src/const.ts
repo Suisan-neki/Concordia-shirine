@@ -8,7 +8,11 @@ function createNonce(): string {
     return cryptoApi.randomUUID();
   }
   if (!cryptoApi?.getRandomValues) {
-    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const message = "[Auth] Secure crypto API is required to generate nonce.";
+    if (!import.meta.env.DEV) {
+      throw new Error(message);
+    }
+    throw new Error(`${message} (dev)`);
   }
   const bytes = new Uint8Array(16);
   cryptoApi.getRandomValues(bytes);
