@@ -8,6 +8,7 @@ pydantic-settings>=2.5.0
 
 # Authentication
 PyJWT[crypto]>=2.9.0
+python-jose>=3.3.0
 python-multipart>=0.0.9
 
 # AWS SDK
