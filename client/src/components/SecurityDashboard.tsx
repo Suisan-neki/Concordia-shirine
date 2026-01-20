@@ -31,17 +31,6 @@ interface SecurityDashboardProps {
 // セキュリティレイヤーの説明
 const securityLayers = [
   {
-    id: 'cyber',
-    name: 'サイバーセキュリティ',
-    description: '技術的な防御層',
-    items: [
-      { name: '認証', description: 'ユーザーの身元を確認し不正アクセスを防止', icon: '🔐' },
-      { name: '暗号化', description: '通信とデータを暗号化し盗聴を防止', icon: '🔒' },
-      { name: 'アクセス制御', description: '権限に基づいたリソースへのアクセス管理', icon: '🛡️' },
-      { name: '監査ログ', description: '操作履歴を記録し異常を検知', icon: '📋' }
-    ]
-  },
-  {
     id: 'human',
     name: 'ヒューマンセキュリティ',
     description: '心理的な防御層',
@@ -51,6 +40,17 @@ const securityLayers = [
       { name: '介入支援', description: '適切なタイミングで場の改善を促す', icon: '✨' },
       { name: '記録と振り返り', description: '対話を記録し後から振り返る機会を提供', icon: '📝' }
     ]
+  },
+  {
+    id: 'cyber',
+    name: 'サイバーセキュリティ',
+    description: '技術的な防御層',
+    items: [
+      { name: '認証', description: 'ユーザーの身元を確認し不正アクセスを防止', icon: '🔐' },
+      { name: '暗号化', description: '通信とデータを暗号化し盗聴を防止', icon: '🔒' },
+      { name: 'アクセス制御', description: '権限に基づいたリソースへのアクセス管理', icon: '🛡️' },
+      { name: '監査ログ', description: '操作履歴を記録し異常を検知', icon: '📋' }
+    ]
   }
 ];
 
@@ -59,22 +59,22 @@ const sceneExplanations: Record<SceneType, { cyber: string[]; human: string[]; r
   '静寂': {
     cyber: ['結界は安定しています。', '外部からの脅威は検知されていません。'],
     human: ['対話は穏やかに進行しています。', '特別な介入は必要ありません。'],
-    relationship: 'サイバーセキュリティが安定した環境を提供し参加者は安心して対話できています'
+    relationship: 'ヒューマンセキュリティが話しやすい雰囲気を作り、サイバーセキュリティが堅牢な結界を提供することで安心して対話できています'
   },
   '調和': {
-    cyber: ['結界は最も強固な状態です。', '聖域は完全に保護されています。'],
-    human: ['参加者間で良好なコミュニケーションが取れています', '心理的安全性が高い状態です'],
-    relationship: '技術的な安全が心理的な安心を生みそれがさらに良い対話を促進しています。理想的な状態です'
+    cyber: ['結界は最も堅牢な状態です。', '聖域は完全に保護されています。'],
+    human: ['参加者間で良好なコミュニケーションが取れています。', '安心して話せる空間です。'],
+    relationship: '技術的な安全が心理的な安心を生み、それがさらに良い対話を促進しています。理想的な状態です。'
   },
   '一方的': {
-    cyber: ['結界は稼働を維持しています。', '外部からの脅威は検知されていません。'],
-    human: ['一方的な発言が続いています', '他の参加者の発言機会が奪われている可能性があります'],
-    relationship: '技術は環境を支えていますが、空気の変化に気づき整えるのは人の働きです。波の変化を気にかけてください'
+    cyber: ['結界は堅牢です。', '外部からの脅威は検知されていません。'],
+    human: ['一方的な発言が続いています。', '他の参加者の発言機会が奪われている可能性があります。'],
+    relationship: '技術は空間を支えていますが、空気感を意識できるのは人だけです。波の変化を気にかけてみてください。'
   },
   '沈黙': {
-    cyber: ['結界は安定しています。', '静かな余白を守っています。'],
-    human: ['静かな余白が流れています', '沈黙は自然な時間です。祠が場をあたため、安心感を支えます'],
-    relationship: '余白の可視化が安心感を生み、次の言葉が生まれる準備につながります'
+    cyber: ['結界は堅牢です。', '静かな余白を守っています。'],
+    human: ['静かな余白が流れています。', '沈黙は自然な時間です。', '祠が場をあたため、安心感を支えます。'],
+    relationship: '余白の可視化が安心感を生み、\n次の言葉が生まれる準備につながります。'
   }
 };
 
@@ -128,7 +128,7 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
               <div>
                 <h2 className="text-lg font-serif-jp text-foreground">セキュリティダッシュボード</h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  サイバーセキュリティとヒューマンセキュリティの相互作用
+                  ヒューマンセキュリティとサイバーセキュリティの相互作用
                 </p>
               </div>
               <button
@@ -147,10 +147,10 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
               <div className="mb-8 p-4 bg-muted/30 rounded-lg border border-border/50">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
-                    <h3 className="text-sm font-medium text-foreground mb-2">
-                      「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」
-                    </h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
+                <h3 className="text-sm font-medium text-foreground mb-2">
+                  「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
                       対話の場では、ヒューマンセキュリティとサイバーセキュリティの相乗効果が情報の重みを育てます。
                       どちらか一方だけでは成り立たず、支え合ってこそ真価を発揮します。
                     </p>
@@ -464,17 +464,6 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
               <div className="mb-8">
                 <h3 className="text-sm font-medium text-muted-foreground mb-4">現在の状態: {scene}</h3>
                 <div className="grid md:grid-cols-3 gap-4">
-                  <div className="p-4 bg-shrine-barrier/10 rounded-lg border border-shrine-barrier/20">
-                    <div className="text-xs text-shrine-barrier mb-2">サイバーセキュリティ</div>
-                    <p className="text-sm text-foreground">
-                      {explanation.cyber.map((line, index) => (
-                        <span key={index}>
-                          {line}
-                          {index < explanation.cyber.length - 1 && <br />}
-                        </span>
-                      ))}
-                    </p>
-                  </div>
                   <div className="p-4 bg-shrine-jade/10 rounded-lg border border-shrine-jade/20">
                     <div className="text-xs text-shrine-jade mb-2">ヒューマンセキュリティ</div>
                     <p className="text-sm text-foreground">
@@ -486,9 +475,20 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                       ))}
                     </p>
                   </div>
+                  <div className="p-4 bg-shrine-barrier/10 rounded-lg border border-shrine-barrier/20">
+                    <div className="text-xs text-shrine-barrier mb-2">サイバーセキュリティ</div>
+                    <p className="text-sm text-foreground">
+                      {explanation.cyber.map((line, index) => (
+                        <span key={index}>
+                          {line}
+                          {index < explanation.cyber.length - 1 && <br />}
+                        </span>
+                      ))}
+                    </p>
+                  </div>
                   <div className="p-4 bg-shrine-gold/10 rounded-lg border border-shrine-gold/20">
                     <div className="text-xs text-shrine-gold mb-2">相互作用</div>
-                    <p className="text-sm text-foreground">{explanation.relationship}</p>
+                    <p className="text-sm text-foreground whitespace-pre-line">{explanation.relationship}</p>
                   </div>
                 </div>
               </div>
