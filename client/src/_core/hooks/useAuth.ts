@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { clearCognitoTokens } from "@/lib/cognito";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo } from "react";
+import type { AuthUser } from "@/types/auth";
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
@@ -14,7 +15,7 @@ export function useAuth(options?: UseAuthOptions) {
     options ?? {};
   const queryClient = useQueryClient();
 
-  const meQuery = useQuery({
+  const meQuery = useQuery<AuthUser>({
     queryKey: ["auth", "me"],
     queryFn: () => api.auth.me(),
     retry: false,
