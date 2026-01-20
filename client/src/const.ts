@@ -3,11 +3,15 @@ export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 const NONCE_KEY = "cognito_auth_nonce";
 
 function createNonce(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
+  const cryptoApi = globalThis.crypto as Crypto | undefined;
+  if (cryptoApi?.randomUUID) {
+    return cryptoApi.randomUUID();
+  }
+  if (!cryptoApi?.getRandomValues) {
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
   const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+  cryptoApi.getRandomValues(bytes);
   return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
