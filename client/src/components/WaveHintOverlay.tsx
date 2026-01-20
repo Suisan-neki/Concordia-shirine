@@ -255,7 +255,7 @@ export function WaveHintOverlay({ onDismiss }: WaveHintOverlayProps) {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-foreground mb-1">セキュリティ</div>
                   <p className="text-xs text-muted-foreground">
-                    セキュリティダッシュボードで、AI時代の脅威対策やWebアプリケーションのセキュリティ対策の詳細を確認できます。
+                    セキュリティダッシュボードで、対話の状態とセキュリティの様子を確認できます。
                   </p>
                 </div>
               </div>
