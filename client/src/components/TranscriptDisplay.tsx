@@ -8,13 +8,7 @@
 
 import { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface TranscriptItem {
-  id: string;
-  text: string;
-  isFinal: boolean;
-  timestamp: number;
-}
+import type { TranscriptItem } from '@/types/transcript';
 
 interface TranscriptDisplayProps {
   transcripts: TranscriptItem[];
