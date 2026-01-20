@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/_core/hooks/useAuth';
 import type { SceneType } from '@/lib/waveEngine';
+import type { BackendSession } from '@/types/session';
 
 export interface SessionSummary {
   totalDuration: number;
@@ -309,7 +310,7 @@ export function useSessionManager() {
     currentSessionId,
     isActive,
     isAuthenticated,
-    sessions: isAuthenticated ? (sessionsQuery.data as Array<Record<string, unknown>>) ?? [] : [],
+    sessions: isAuthenticated ? (sessionsQuery.data as BackendSession[]) ?? [] : [],
     isLoadingSessions: sessionsQuery.isLoading,
 
     // Actions
