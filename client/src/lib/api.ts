@@ -1,4 +1,6 @@
 import { getCognitoIdToken } from "@/lib/cognito";
+import type { AuthUser } from "@/types/auth";
+import type { BackendSession } from "@/types/session";
 
 export class ApiError extends Error {
   status: number;
@@ -70,7 +72,7 @@ export const apiFetch = async <T>(
 
 export const api = {
   auth: {
-    me: () => apiFetch<unknown>("/api/v1/auth/me"),
+    me: () => apiFetch<AuthUser>("/api/v1/auth/me"),
     logout: () => apiFetch<{ success: boolean }>("/api/v1/auth/logout", { method: "POST" }),
   },
   sessions: {
@@ -81,7 +83,7 @@ export const api = {
         { method: "POST", body: JSON.stringify(body) }
       ),
     list: (limit?: number) =>
-      apiFetch<Array<Record<string, unknown>>>(`/api/v1/sessions${toQueryString({ limit })}`),
+      apiFetch<BackendSession[]>(`/api/v1/sessions${toQueryString({ limit })}`),
     get: (sessionId: string) => apiFetch<Record<string, unknown>>(`/api/v1/sessions/${sessionId}`),
     delete: (sessionId: string) =>
       apiFetch<{ success: boolean }>(`/api/v1/sessions/${sessionId}`, { method: "DELETE" }),
