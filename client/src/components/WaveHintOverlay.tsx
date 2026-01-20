@@ -144,7 +144,7 @@ const stepCopy = {
       },
       {
         title: '暗号化',
-        description: 'すべてのデータはAES-256-GCMで暗号化されています。',
+        description: 'データは用途に応じて強力に暗号化されます。',
         icon: (
           <svg className="w-4 h-4 text-shrine-jade" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -154,7 +154,7 @@ const stepCopy = {
       },
       {
         title: 'プライバシー',
-        description: '音声データは外部に送信されません。すべてローカルで処理されます。',
+        description: '音声は可能な限りローカルで処理し、必要に応じて安全に扱います。',
         icon: (
           <svg className="w-4 h-4 text-shrine-jade" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
