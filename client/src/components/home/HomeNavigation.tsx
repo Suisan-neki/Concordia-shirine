@@ -26,6 +26,7 @@ export function HomeNavigation({
           variant="outline"
           size="sm"
           onClick={() => onNavigate('/admin')}
+          aria-label="管理者"
           className="bg-card/60 backdrop-blur-sm text-xs border-primary/30 hover:border-primary/50 px-2 sm:px-3"
         >
           <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -40,6 +41,7 @@ export function HomeNavigation({
         variant="outline"
         size="sm"
         onClick={() => onNavigate('/security')}
+        aria-label="セキュリティ"
         className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
       >
         <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -52,6 +54,7 @@ export function HomeNavigation({
           variant="outline"
           size="sm"
           onClick={() => onNavigate('/security-detail')}
+          aria-label="詳細"
           className="bg-card/60 backdrop-blur-sm text-xs border-primary/30 hover:border-primary/50 px-2 sm:px-3"
         >
           <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -65,6 +68,7 @@ export function HomeNavigation({
         variant="outline"
         size="sm"
         onClick={() => onNavigate('/history')}
+        aria-label="履歴"
         className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
       >
         <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -77,6 +81,7 @@ export function HomeNavigation({
         variant="outline"
         size="sm"
         onClick={() => onNavigate('/intervention-settings')}
+        aria-label="介入設定"
         className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
       >
         <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -90,6 +95,7 @@ export function HomeNavigation({
           variant="outline"
           size="sm"
           onClick={onOpenReport}
+          aria-label="レポート"
           className="bg-card/60 backdrop-blur-sm text-xs px-2 sm:px-3"
         >
           <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
