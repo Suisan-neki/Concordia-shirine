@@ -899,7 +899,7 @@ export default function FactoryAnimation() {
       <div className="text-sm text-slate-300 leading-relaxed">
         {scenario === 'ideal' && (
           <p>
-            <span className="font-semibold text-green-400">理想状態</span>：仲のいい作業員たち（ヒューマンセキュリティ）が綺麗なお饅頭（質の高い情報）を作り、ロボットアーム（＝サイバーセキュリティ）が包装とリボン（暗号化や攻撃対策）をしてそれを保護します。仲の良い作業員（ヒューマンセキュリティ）とロボットアーム（サイバーセキュリティ）が支え合って真価を発揮します。
+            <span className="font-semibold text-green-400">理想状態</span>：仲のいい作業員たち（ヒューマンセキュリティ）が綺麗な お饅頭（質の高い情報）を作り、ロボットアーム（サイバーセキュリティ）が包装とリボン（暗号化や攻撃対策）をしてそれを保護します。仲の良い作業員（ヒューマンセキュリティ）とロボットアーム（サイバーセキュリティ）が支え合って真価を発揮します。
           </p>
         )}
         {scenario === 'human-failure' && (
@@ -909,7 +909,7 @@ export default function FactoryAnimation() {
         )}
         {scenario === 'cyber-failure' && (
           <p>
-            <span className="font-semibold text-orange-400">サイバーセキュリティが欠如した状態</span>：綺麗なお饅頭（質の高い情報）が生まれても、ロボットアームが眠っている（サイバーセキュリティが機能しない）とお饅頭は保護されずに腐ってしまいます。
+            <span className="font-semibold text-orange-400">サイバーセキュリティが欠如した状態</span>：綺麗な お饅頭（質の高い情報）が生まれても、ロボットアームが眠っている（サイバーセキュリティが機能しない）とお饅頭は保護されずに腐ってしまいます。
           </p>
         )}
       </div>
