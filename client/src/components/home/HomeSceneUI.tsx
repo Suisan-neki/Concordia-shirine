@@ -29,6 +29,8 @@ export function HomeSceneUI({
   interventionSettings,
   onIntervention,
 }: HomeSceneUIProps) {
+  const detailsId = 'mobile-info-details';
+
   return (
     <>
       {/* シーンインジケーター（PCのみ表示） */}
@@ -69,6 +71,9 @@ export function HomeSceneUI({
                   variant="ghost"
                   size="sm"
                   onClick={onToggleMobileInfo}
+                  aria-label="シーン詳細を切り替え"
+                  aria-expanded={isMobileInfoOpen}
+                  aria-controls={detailsId}
                   className="h-6 w-6 p-0 shrink-0"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -89,6 +94,7 @@ export function HomeSceneUI({
               {isMobileInfoOpen && (
                 <motion.div
                   key="mobile-info-details"
+                  id={detailsId}
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
