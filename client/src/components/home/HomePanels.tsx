@@ -9,13 +9,7 @@ import type { SecurityMetrics, LogEntry, SessionSummary, Session } from '@/lib/c
 import type { SceneType } from '@/lib/waveEngine';
 import type { SessionData } from '@/lib/reportGenerator';
 import type { InterventionSettings } from '@/hooks/useInterventionSettings';
-
-interface TranscriptItem {
-  id: string;
-  text: string;
-  isFinal: boolean;
-  timestamp: number;
-}
+import type { TranscriptItem } from '@/types/transcript';
 
 interface HomePanelsProps {
   isRecording: boolean;
