@@ -25,19 +25,13 @@ import { useInterventionSettings } from '@/hooks/useInterventionSettings';
 import { useIsMobile } from '@/hooks/useMobile';
 import type { SceneType } from '@/lib/waveEngine';
 import type { SessionData } from '@/lib/reportGenerator';
+import type { TranscriptItem } from '@/types/transcript';
 import { getLoginUrl } from '@/const';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 
 const MAX_RECORDING_MS = 15 * 60 * 1000;
 const GUEST_MODE_KEY = 'concordia-guest-mode';
-
-interface TranscriptItem {
-  id: string;
-  text: string;
-  isFinal: boolean;
-  timestamp: number;
-}
 
 export default function Home() {
   const [location, navigate] = useLocation();
