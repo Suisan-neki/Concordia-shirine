@@ -1,7 +1,7 @@
 /**
  * Concordia Shrine - Scene Indicator Component
  * 
- * 現在のシーン（空気）を表示
+ * 現在のシーン（対話の流れ）を表示
  * - 静寂、調和、一方的、沈黙の4つのシーン
  * - シーンの説明と視覚的フィードバック
  */
@@ -51,7 +51,7 @@ export const sceneConfigs: Record<SceneType, {
   '沈黙': {
     label: '沈黙',
     description: '静かな余白がゆっくり流れています',
-    guidance: '沈黙は自然な余白です。\n急がなくて大丈夫。\n場の空気をゆるやかにあたためていきましょう。',
+    guidance: '沈黙は自然な余白です。\n急がなくて大丈夫。\n対話の流れをゆるやかにあたためていきましょう。',
     color: 'text-shrine-wave-light',
     bgColor: 'bg-shrine-wave-light/10',
     icon: '◇'
