@@ -624,7 +624,15 @@ function ArticulatedRobotArm({
   
   return (
     <div className="relative">
-      <svg width="100" height="160" viewBox="0 0 100 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        width="100"
+        height="160"
+        viewBox="0 0 100 160"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+        focusable="false"
+      >
         {/* ベース台座 */}
         <g>
           <rect x="35" y="140" width="30" height="20" rx="2" fill="#2C3E50" stroke="#34495E" strokeWidth="2" />
