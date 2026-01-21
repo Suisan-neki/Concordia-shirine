@@ -36,7 +36,7 @@ const securityLayers = [
     description: '心理的な防御層',
     items: [
       { name: '同意の保護', description: '同調圧力から判断の自由を守る', icon: '💚' },
-      { name: '空気の可視化', description: '見えない圧力を可視化し気づきを促す', icon: '🌊' },
+      { name: '対話の揺らぎの可視化', description: '見えない圧力を可視化し気づきを促す', icon: '🌊' },
       { name: '介入支援', description: '適切なタイミングで場の改善を促す', icon: '✨' },
       { name: '記録と振り返り', description: '対話を記録し後から振り返る機会を提供', icon: '📝' }
     ]
@@ -69,7 +69,7 @@ const sceneExplanations: Record<SceneType, { cyber: string[]; human: string[]; r
   '一方的': {
     cyber: ['結界は堅牢です。', '外部からの脅威は検知されていません。'],
     human: ['一方的な発言が続いています。', '他の参加者の発言機会が奪われている可能性があります。'],
-    relationship: '技術は空間を支えていますが、空気感を意識できるのは人だけです。波の変化を気にかけてみてください。'
+    relationship: '技術は空間を支えていますが、対話の揺らぎを意識できるのは人だけです。波の変化を気にかけてみてください。'
   },
   '沈黙': {
     cyber: ['結界は堅牢です。', '静かな余白を守っています。'],
@@ -171,7 +171,7 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
 
 ここで「対話」という場面にしぼって考えると、重要な情報はログや文書としてではなくまずは人と人の1on1で立ち上がる。
 問題は対話が行われる環境だ。
-立場の差や暗黙の了解、察しを求める空気の中では、人は発話を無意識に制限し、重要な情報ほど自己検閲で削ぎ落とされてしまう。
+立場の差や暗黙の了解、察しを求める圧力の中では、人は発話を無意識に制限し、重要な情報ほど自己検閲で削ぎ落とされてしまう。
 私はこれを、発話制約を内包した「心理的に非安全な環境」と捉えたい。
 そこで生まれる情報は、サイバーセキュリティが守る以前にすでに意味的な「重み」を失っている。
 情報が十分に生成されなければ、暗号化やアクセス制御の議論は本質に届かない。
@@ -219,9 +219,9 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                           </filter>
                         </defs>
 
-                        {/* ヒューマン → 話しやすい空気 */}
+                        {/* ヒューマン → 話しやすい流れ */}
                         <line x1="75" y1="45" x2="75" y2="95" stroke="url(#human-gradient)" strokeWidth="4" strokeLinecap="round" filter="url(#glow)" />
-                        {/* 話しやすい空気 → 合流 */}
+                        {/* 話しやすい流れ → 合流 */}
                         <path d="M 75 140 Q 75 175 150 195" fill="none" stroke="url(#human-gradient)" strokeWidth="5" strokeLinecap="round" filter="url(#glow)" />
 
                         {/* サイバー → 信頼できる基盤 */}
@@ -265,7 +265,7 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                         </span>
                       </motion.div>
 
-                      {/* ノード：話しやすい空気 */}
+                      {/* ノード：話しやすい流れ */}
                       <motion.div
                         className="absolute flex flex-col items-center"
                         style={{ top: '95px', left: '75px', transform: 'translateX(-50%)' }}
@@ -275,7 +275,7 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                         <div className="flex items-center justify-center w-11 h-11 rounded-full bg-card/95 border-2 border-shrine-jade/60 shadow-md">
                           <span className="text-base">🍃</span>
                         </div>
-                        <span className="mt-1 text-[9px] text-foreground/90 text-center">話しやすい空気</span>
+                        <span className="mt-1 text-[9px] text-foreground/90 text-center">話しやすい流れ</span>
                       </motion.div>
 
                       {/* ノード：信頼できる基盤 */}
@@ -355,9 +355,9 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                           </linearGradient>
                         </defs>
 
-                        {/* ヒューマン → 話しにくい空気 */}
+                        {/* ヒューマン → 話しにくい流れ */}
                         <line x1="75" y1="45" x2="75" y2="95" stroke="url(#human-gradient-weak)" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 6" />
-                        {/* 話しにくい空気 → 合流 */}
+                        {/* 話しにくい流れ → 合流 */}
                         <path d="M 75 140 Q 75 175 150 195" fill="none" stroke="url(#human-gradient-weak)" strokeWidth="3" strokeLinecap="round" strokeDasharray="6 6" />
 
                         {/* サイバー → 不安定な基盤 */}
@@ -397,7 +397,7 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                         </span>
                       </div>
 
-                      {/* ノード：話しにくい空気（薄い） */}
+                      {/* ノード：話しにくい流れ（薄い） */}
                       <div
                         className="absolute flex flex-col items-center opacity-70"
                         style={{ top: '95px', left: '75px', transform: 'translateX(-50%)' }}
@@ -405,7 +405,7 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                         <div className="flex items-center justify-center w-11 h-11 rounded-full bg-card/80 border border-shrine-jade/40 shadow-sm">
                           <span className="text-base opacity-80">🍃</span>
                         </div>
-                        <span className="mt-1 text-[9px] text-muted-foreground text-center">話しにくい空気</span>
+                        <span className="mt-1 text-[9px] text-muted-foreground text-center">話しにくい流れ</span>
                       </div>
 
                       {/* ノード：不安定な基盤（薄い） */}
