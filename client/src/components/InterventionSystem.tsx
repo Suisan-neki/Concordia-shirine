@@ -38,12 +38,12 @@ const INTERVENTION_MESSAGES: Record<string, { title: string; message: string; ic
   },
   silence: {
     title: '静かな余白',
-    message: '少し静かな間が続いています。沈黙は自然な余白で、祠はその余白をあたためています。急がなくて大丈夫。必要なら、ひと呼吸おいて場の空気を整えてみてください',
+    message: '少し静かな間が続いています。沈黙は自然な余白で、祠はその余白をあたためています。急がなくて大丈夫。必要なら、ひと呼吸おいて場の流れを整えてみてください',
     icon: '✨',
   },
   prolonged_tension: {
-    title: '空気の変化',
-    message: '緊張した空気が続いています。一度深呼吸して場の空気を整えてみましょう',
+    title: '対話の変化',
+    message: '緊張した流れが続いています。一度深呼吸して場の流れを整えてみましょう',
     icon: '🍃',
   },
 };
@@ -268,7 +268,7 @@ export function InterventionSystem({
               {/* アクションヒント */}
               <div className="mt-3 pt-3 border-t border-border/50">
                 <p className="text-[10px] text-muted-foreground/70 text-center">
-                  このヒントは場の空気を改善するきっかけとしてお使いください
+                  このヒントは場の流れを整えるきっかけとしてお使いください
                 </p>
               </div>
             </div>
