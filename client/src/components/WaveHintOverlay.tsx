@@ -83,7 +83,7 @@ const stepCopy = {
         title: '沈黙',
         titleClassName: 'text-shrine-wave-light',
         description: '静かな余白が続いています',
-        noteLines: ['沈黙は自然な余白です。急がなくて大丈夫。', '場の空気をあたためていきましょう。'],
+        noteLines: ['沈黙は自然な余白です。急がなくて大丈夫。', '対話の流れをあたためていきましょう。'],
         cardClassName: 'bg-shrine-wave-light/10 border-shrine-wave-light/20'
       },
       {
@@ -224,7 +224,7 @@ const stepCopy = {
   },
   complete: {
     title: '準備完了です',
-    description: 'それでは、対話の空気を可視化してみましょう',
+    description: 'それでは、対話の揺らぎを可視化してみましょう',
     introLines: ['Concordia Waveの主要機能をご紹介しました。これで準備完了です。'],
     calloutTitle: '「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」',
     calloutLines: ['この祠はあなたの判断の自由を守るために、', '静かに、しかし確実に動き続けています。'],
