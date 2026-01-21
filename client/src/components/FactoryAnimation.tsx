@@ -372,15 +372,9 @@ function WorkerArea({ mood, animationKey }: { mood: 'happy' | 'angry'; animation
       
       {/* 作業員1と2を少し右側に配置 */}
       <div className="relative" style={{ marginLeft: '70px', marginTop: '25px' }}>
-        {mood === 'happy' ? (
-          <div className="absolute left-1/2 -top-2 -translate-x-1/2 text-2xl">
-            ❤️
-          </div>
-        ) : (
-          <div className="absolute left-1/2 -top-2 -translate-x-1/2 text-2xl">
-            💢
-          </div>
-        )}
+        <div className="absolute left-1/2 -top-2 -translate-x-1/2 text-2xl">
+          {mood === 'happy' ? '❤️' : '💢'}
+        </div>
         <div className="flex gap-8">
           {/* 作業員1 */}
           <Worker mood={mood} animationKey={animationKey} animatedHand="right" />
@@ -401,7 +395,15 @@ function Worker({ mood, animationKey, animatedHand }: { mood: 'happy' | 'angry';
   
   return (
     <div className="relative">
-      <svg width="60" height="100" viewBox="0 0 60 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        width="60"
+        height="100"
+        viewBox="0 0 60 100"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+        focusable="false"
+      >
         {/* 体 */}
         <rect x="20" y="40" width="20" height="35" rx="2" fill="white" stroke="currentColor" strokeWidth="1.5" />
         
