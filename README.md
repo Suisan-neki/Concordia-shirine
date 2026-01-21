@@ -1,4 +1,4 @@
-# Concordia Shrine
+# Concordia Wave
 
 > 「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」
 
@@ -6,7 +6,7 @@
 
 ## コンセプト
 
-Concordia Shrineは、会議やミーティングにおける「見えない圧力」を可視化するWebアプリケーションです。
+Concordia Waveは、会議やミーティングにおける「見えない圧力」を可視化するWebアプリケーションです。
 
 ### 守りたいもの
 
@@ -18,7 +18,7 @@ Concordia Shrineは、会議やミーティングにおける「見えない圧�
 
 従来のセキュリティは、データやネットワークを守ることに焦点を当ててきました。
 
-しかし、Concordia Shrineは「人の判断の自由」を守ることを目指します。
+しかし、Concordia Waveは「人の判断の自由」を守ることを目指します。
 
 技術的な防御（サイバーセキュリティ）が、心理的な安全（ヒューマンセキュリティ）を支え、
 その逆もまた真なのです。
@@ -147,4 +147,4 @@ MIT License
 
 ---
 
-Concordia Shrine — Human Decision Security
+Concordia Wave — Human Decision Security
