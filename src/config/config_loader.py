@@ -1,3 +1,4 @@
+import copy
 import json
 import pathlib
 from typing import Any, Dict, Optional
@@ -35,7 +36,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 
 
 def deep_update(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
-    result = dict(base)
+    result = copy.deepcopy(base)
     for key, value in updates.items():
         if isinstance(value, dict) and isinstance(result.get(key), dict):
             result[key] = deep_update(result[key], value)
