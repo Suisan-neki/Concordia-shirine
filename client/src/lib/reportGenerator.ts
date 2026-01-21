@@ -133,7 +133,7 @@ function generateRecommendations(
   }
   
   if (score < 60) {
-    recommendations.push('介入機能を有効にし、場の空気の変化に早めに気づけるようにしましょう');
+    recommendations.push('介入機能を有効にし、対話の流れの変化に早めに気づけるようにしましょう');
   }
   
   if (recommendations.length === 0) {
