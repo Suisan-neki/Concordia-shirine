@@ -79,7 +79,7 @@ export function InterventionSettingsPanel({
                 <div>
                   <Label className="text-sm font-medium">介入機能</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    場の空気に応じた気づきを表示
+                    場の流れに応じた気づきを表示
                   </p>
                 </div>
                 <Switch
@@ -130,7 +130,7 @@ export function InterventionSettingsPanel({
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground">
-                  沈黙がこの時間続くと、必要に応じて場の空気づくりのヒントを表示します
+                  沈黙がこの時間続くと、必要に応じて場の流れづくりのヒントを表示します
                 </p>
               </div>
               
@@ -177,7 +177,7 @@ export function InterventionSettingsPanel({
                   介入機能について
                 </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  この機能は対話の「空気」を監視します。
+                  この機能は対話の流れを監視します。
                   <br />
                   一方的な発言や沈黙が続いた場合、必要なときだけ穏やかな方法で参加者に気づきを促します。
                 </p>
