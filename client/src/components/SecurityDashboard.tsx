@@ -1,5 +1,5 @@
 /**
- * Concordia Shrine - Security Dashboard Component
+ * Concordia Wave - Security Dashboard Component
  * 
  * サイバーセキュリティとヒューマンセキュリティの関係を可視化
  * - 技術的なセキュリティ指標

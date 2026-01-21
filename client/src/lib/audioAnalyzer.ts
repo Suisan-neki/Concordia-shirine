@@ -1,5 +1,5 @@
 /**
- * Concordia Shrine - Audio Analyzer
+ * Concordia Wave - Audio Analyzer
  * 
  * 音声入力の分析とイベント検出
  * - VAD (Voice Activity Detection)

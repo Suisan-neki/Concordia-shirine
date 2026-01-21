@@ -93,10 +93,10 @@ export function HomeTopUI({
         className={`absolute ${isMobile ? 'top-32' : 'top-1/4'} left-1/2 -translate-x-1/2 text-center z-10 px-4 w-full max-w-2xl`}
       >
         <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl md:text-4xl'} font-serif-jp text-foreground/90 mb-2 tracking-wider`}>
-          Concordia Shrine
+          Concordia Wave
         </h1>
         <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground font-light`}>
-          空気だけを聴き、判断の自由をそっと守る祠
+          空気の揺らぎを聴き、判断の自由をそっと守る
         </p>
       </div>
 

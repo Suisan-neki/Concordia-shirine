@@ -1,5 +1,5 @@
 /**
- * Concordia Shrine - Transcript Display Component
+ * Concordia Wave - Transcript Display Component
  * 
  * リアルタイム文字起こしの表示
  * - 川の流れのように下部で静かに流れる

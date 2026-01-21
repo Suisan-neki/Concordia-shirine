@@ -11,7 +11,7 @@ export function HomeFooter() {
     >
       <Link href="/about">
         <span className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground cursor-pointer transition-colors">
-          Concordia Shrine — Human Decision Security
+          Concordia Wave — Human Decision Security
         </span>
       </Link>
     </motion.div>

@@ -1,5 +1,5 @@
 /**
- * Concordia Shrine - Session Manager Hook
+ * Concordia Wave - Session Manager Hook
  * 
  * バックエンドAPIと連携してセッションデータを管理するカスタムフック
  */

@@ -1,5 +1,5 @@
 /**
- * Concordia Shrine - Speech Recognition
+ * Concordia Wave - Speech Recognition
  * 
  * Web Speech APIを使用したリアルタイム文字起こし
  * - ブラウザネイティブの音声認識

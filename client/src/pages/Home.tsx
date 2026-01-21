@@ -1,5 +1,5 @@
 /**
- * Concordia Shrine - Home Page
+ * Concordia Wave - Home Page
  * 
  * 「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」を体現する
  * 対話の空気を可視化するメインページ
@@ -303,38 +303,38 @@ export default function Home() {
 
       if (localSummary) {
         const summary: SessionSummary = backendSummary
-          ? {
-              ...localSummary,
-              securityScore: backendSummary.securityScore,
-            }
+        ? {
+            ...localSummary,
+            securityScore: backendSummary.securityScore,
+          }
           : localSummary;
         setSessionSummary(summary);
         setIsLogExpanded(true);
       } else if (backendSummary) {
         const summary: SessionSummary = {
-          totalDuration: backendSummary.totalDuration,
-          speechDuration: 0,
-          silenceDuration: 0,
-          securityScore: backendSummary.securityScore,
-          sceneDistribution: (backendSummary.sceneDistribution || {}) as Record<SceneType, number>,
-          eventCounts: backendSummary.eventCounts || {},
-          insights: backendSummary.insights || [],
-        };
-        setSessionSummary(summary);
-        setIsLogExpanded(true);
+            totalDuration: backendSummary.totalDuration,
+            speechDuration: 0,
+            silenceDuration: 0,
+            securityScore: backendSummary.securityScore,
+            sceneDistribution: (backendSummary.sceneDistribution || {}) as Record<SceneType, number>,
+            eventCounts: backendSummary.eventCounts || {},
+            insights: backendSummary.insights || [],
+          };
+      setSessionSummary(summary);
+      setIsLogExpanded(true);
       }
 
       if (backendSummary) {
-        setReportSession({
-          sessionId: sessionManager.currentSessionId || `local_${Date.now()}`,
-          startTime: sessionStartTimeRef.current,
-          endTime: Date.now(),
-          duration: backendSummary.totalDuration,
-          securityScore: backendSummary.securityScore,
-          sceneDistribution: backendSummary.sceneDistribution,
-          eventCounts: backendSummary.eventCounts,
-          insights: backendSummary.insights,
-        });
+      setReportSession({
+        sessionId: sessionManager.currentSessionId || `local_${Date.now()}`,
+        startTime: sessionStartTimeRef.current,
+        endTime: Date.now(),
+        duration: backendSummary.totalDuration,
+        securityScore: backendSummary.securityScore,
+        sceneDistribution: backendSummary.sceneDistribution,
+        eventCounts: backendSummary.eventCounts,
+        insights: backendSummary.insights,
+      });
       }
       return;
     }
@@ -539,7 +539,7 @@ export default function Home() {
         onEnableGuestMode={handleEnableGuestMode}
         onNavigate={navigate}
         onOpenReport={handleOpenReport}
-      />
+        />
 
       <HomePanels
         isRecording={isRecording}

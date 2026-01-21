@@ -225,7 +225,7 @@ const stepCopy = {
   complete: {
     title: '準備完了です',
     description: 'それでは、対話の空気を可視化してみましょう',
-    introLines: ['Concordia Shrineの主要機能をご紹介しました。これで準備完了です。'],
+    introLines: ['Concordia Waveの主要機能をご紹介しました。これで準備完了です。'],
     calloutTitle: '「ヒューマンセキュリティなくしてサイバーセキュリティは実現しない」',
     calloutLines: ['この祠はあなたの判断の自由を守るために、', '静かに、しかし確実に動き続けています。'],
     hints: [

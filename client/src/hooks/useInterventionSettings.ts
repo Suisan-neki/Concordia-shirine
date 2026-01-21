@@ -1,5 +1,5 @@
 /**
- * Concordia Shrine - Intervention Settings Hook
+ * Concordia Wave - Intervention Settings Hook
  * 
  * 介入機能の設定を管理するカスタムフック
  */
