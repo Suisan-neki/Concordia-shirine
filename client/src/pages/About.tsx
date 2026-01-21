@@ -157,7 +157,7 @@ export default function About() {
                 <div className="bg-shrine-jade/10 rounded-lg p-4 my-6 border border-shrine-jade/30">
                   <h3 className="text-sm font-medium text-shrine-jade mb-3">💚 同意保護の仕組み</h3>
                   <p className="text-xs text-muted-foreground mb-2">
-                    波の形が変わったとき、それは「空気」が変わったサインです。
+                    波の形が変わったとき、それは対話の流れが変わったサインです。
                   </p>
                   <ul className="text-xs text-muted-foreground space-y-1">
                     <li>• 一方的な発言が続くと、波は赤く、荒々しくなります</li>
@@ -279,7 +279,7 @@ export default function About() {
                     </div>
                     <p className="text-sm text-muted-foreground">
                       リアルタイムの音声波形分析(Web Audio API)と、LLMによる文脈分析を融合。
-                      「空気」という抽象的な概念を、数学的なモデルを通じて可視化しています。
+                      「対話の流れ」という抽象的な概念を、数学的なモデルを通じて可視化しています。
                     </p>
                   </CardContent>
                 </Card>
