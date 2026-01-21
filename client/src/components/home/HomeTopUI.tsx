@@ -96,7 +96,7 @@ export function HomeTopUI({
           Concordia Wave
         </h1>
         <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground font-light`}>
-          対話の揺らぎを聴き、判断の自由をそっと守る
+          対話の揺らぎを手がかりに、判断の自由をそっと守る
         </p>
       </div>
 
