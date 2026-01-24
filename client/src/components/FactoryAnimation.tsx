@@ -946,24 +946,60 @@ export default function FactoryAnimation() {
   const [scenario, setScenario] = useState<'ideal' | 'human-failure' | 'cyber-failure'>('ideal');
   const [isRunning, setIsRunning] = useState(false);
   const [startPending, setStartPending] = useState(false);
+  const [countdownSeconds, setCountdownSeconds] = useState(0);
   const startTimerRef = useRef<number | null>(null);
+  const countdownTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (startTimerRef.current !== null) {
         window.clearTimeout(startTimerRef.current);
       }
+      if (countdownTimerRef.current !== null) {
+        window.clearInterval(countdownTimerRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (!startPending) {
+      if (countdownTimerRef.current !== null) {
+        window.clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+      return;
+    }
+
+    countdownTimerRef.current = window.setInterval(() => {
+      setCountdownSeconds(prev => {
+        if (prev <= 1) {
+          if (countdownTimerRef.current !== null) {
+            window.clearInterval(countdownTimerRef.current);
+            countdownTimerRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (countdownTimerRef.current !== null) {
+        window.clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    };
+  }, [startPending]);
 
   const handleStart = () => {
     if (isRunning || startPending) return;
     setStartPending(true);
+    setCountdownSeconds(10);
     startTimerRef.current = window.setTimeout(() => {
       setIsRunning(true);
       setStartPending(false);
       startTimerRef.current = null;
-    }, 5000);
+    }, 10000);
   };
 
   return (
@@ -1015,7 +1051,11 @@ export default function FactoryAnimation() {
                 : 'bg-blue-500 text-white hover:bg-blue-600'
           }`}
         >
-          {isRunning ? '再生中' : startPending ? '5秒後に開始...' : 'スタート（5秒後に開始）'}
+          {isRunning
+            ? '再生中'
+            : startPending
+              ? `開始まで ${countdownSeconds} 秒`
+              : 'スタート（10秒後に開始）'}
         </button>
       </div>
 
