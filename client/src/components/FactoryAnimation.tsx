@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 const MOVE_DURATION_MS = 10000;
@@ -89,7 +89,7 @@ interface FactoryAnimationProps {
   scenario: 'ideal' | 'human-failure' | 'cyber-failure';
 }
 
-function FactoryAnimationCore({ scenario }: FactoryAnimationProps) {
+function FactoryAnimationCore({ scenario, isRunning }: FactoryAnimationProps & { isRunning: boolean }) {
   const [animationKey, setAnimationKey] = useState(0);
 
   // シナリオが変わったらアニメーションをリセット
@@ -104,19 +104,20 @@ function FactoryAnimationCore({ scenario }: FactoryAnimationProps) {
   return (
     <div className="relative w-full h-[500px] bg-gradient-to-b from-slate-900 to-slate-800 rounded-lg p-8">
       {/* 作業員エリア */}
-      <WorkerArea mood={mood} animationKey={animationKey} />
+      <WorkerArea mood={mood} animationKey={animationKey} isRunning={isRunning} />
       
       {/* レーンとロボットアーム */}
-      <ConveyorBelt />
+      <ConveyorBelt isRunning={isRunning} />
       
       {/* ロボットアーム - 左は横レーンの途中、右はL字の角 */}
-      <RobotArms working={isCyberGood} animationKey={animationKey} />
+      <RobotArms working={isCyberGood} animationKey={animationKey} isRunning={isRunning} />
       
       {/* お饅頭 */}
       <Manju 
         isGood={isHumanGood} 
         cyberWorking={isCyberGood}
         animationKey={animationKey}
+        isRunning={isRunning}
       />
     </div>
   );
@@ -125,11 +126,26 @@ function FactoryAnimationCore({ scenario }: FactoryAnimationProps) {
 /**
  * お饅頭のコンポーネント
  */
-function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberWorking: boolean; animationKey: number }) {
+function Manju({
+  isGood,
+  cyberWorking,
+  animationKey,
+  isRunning
+}: {
+  isGood: boolean;
+  cyberWorking: boolean;
+  animationKey: number;
+  isRunning: boolean;
+}) {
   const [progress, setProgress] = useState(0);
   const [currentState, setCurrentState] = useState<'initial' | 'wrapped' | 'ribboned' | 'rotted'>('initial');
 
   useEffect(() => {
+    if (!isRunning) {
+      setProgress(0);
+      setCurrentState('initial');
+      return;
+    }
     let frameId = 0;
     let startTime = performance.now();
     let activeSegmentIndex = -1;
@@ -213,7 +229,7 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
     frameId = requestAnimationFrame(tick);
 
     return () => cancelAnimationFrame(frameId);
-  }, [animationKey, cyberWorking]);
+  }, [animationKey, cyberWorking, isRunning]);
 
   // 座標計算 - 停止ポイントに合わせた動き
   const getPosition = (p: number) => {
@@ -363,7 +379,7 @@ function Manju({ isGood, cyberWorking, animationKey }: { isGood: boolean; cyberW
 /**
  * 作業員エリアのコンポーネント
  */
-function WorkerArea({ mood, animationKey }: { mood: 'happy' | 'angry'; animationKey: number }) {
+function WorkerArea({ mood, animationKey, isRunning }: { mood: 'happy' | 'angry'; animationKey: number; isRunning: boolean }) {
   return (
     <div className="absolute top-8 left-8">
       <div className="text-cyan-400 text-sm mb-2 font-medium" style={{ marginLeft: '60px', marginTop: '-20px' }}>
@@ -377,10 +393,10 @@ function WorkerArea({ mood, animationKey }: { mood: 'happy' | 'angry'; animation
         </div>
         <div className="flex gap-8">
           {/* 作業員1 */}
-          <Worker mood={mood} animationKey={animationKey} animatedHand="right" />
+          <Worker mood={mood} animationKey={animationKey} animatedHand="right" isRunning={isRunning} />
           
           {/* 作業員2 */}
-          <Worker mood={mood} animationKey={animationKey} animatedHand="left" />
+          <Worker mood={mood} animationKey={animationKey} animatedHand="left" isRunning={isRunning} />
         </div>
       </div>
     </div>
@@ -390,7 +406,17 @@ function WorkerArea({ mood, animationKey }: { mood: 'happy' | 'angry'; animation
 /**
  * 作業員のSVGコンポーネント
  */
-function Worker({ mood, animationKey, animatedHand }: { mood: 'happy' | 'angry'; animationKey: number; animatedHand: 'left' | 'right' | 'none' }) {
+function Worker({
+  mood,
+  animationKey,
+  animatedHand,
+  isRunning
+}: {
+  mood: 'happy' | 'angry';
+  animationKey: number;
+  animatedHand: 'left' | 'right' | 'none';
+  isRunning: boolean;
+}) {
   const isHappy = mood === 'happy';
   
   return (
@@ -434,7 +460,7 @@ function Worker({ mood, animationKey, animatedHand }: { mood: 'happy' | 'angry';
         )}
         
         {/* 左手 */}
-        {animatedHand === 'left' ? (
+        {animatedHand === 'left' && isRunning ? (
           <motion.g
             key={`hand-left-${animationKey}`}
             initial={{ y: 0 }}
@@ -453,7 +479,7 @@ function Worker({ mood, animationKey, animatedHand }: { mood: 'happy' | 'angry';
         )}
         
         {/* 右手 */}
-        {animatedHand === 'right' ? (
+        {animatedHand === 'right' && isRunning ? (
           <motion.g
             key={`hand-right-${animationKey}`}
             initial={{ y: 0 }}
@@ -482,7 +508,7 @@ function Worker({ mood, animationKey, animatedHand }: { mood: 'happy' | 'angry';
 /**
  * ベルトコンベアのコンポーネント
  */
-function ConveyorBelt() {
+function ConveyorBelt({ isRunning }: { isRunning: boolean }) {
   return (
     <div className="absolute" style={{ top: '160px', left: '100px' }}>
       {/* 横レーン */}
@@ -521,8 +547,8 @@ function ConveyorBelt() {
           stroke="rgba(100, 116, 139, 0.5)"
           strokeWidth="4"
           strokeDasharray="20 16"
-          animate={{ strokeDashoffset: -36 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          animate={{ strokeDashoffset: isRunning ? -36 : 0 }}
+          transition={isRunning ? { duration: 1, repeat: Infinity, ease: 'linear' } : { duration: 0 }}
         />
       </motion.svg>
     </div>
@@ -532,7 +558,15 @@ function ConveyorBelt() {
 /**
  * ロボットアームのコンポーネント（改善版：多関節構造と現実的な動作）
  */
-function RobotArms({ working, animationKey }: { working: boolean; animationKey: number }) {
+function RobotArms({
+  working,
+  animationKey,
+  isRunning
+}: {
+  working: boolean;
+  animationKey: number;
+  isRunning: boolean;
+}) {
   const timeline = getManjuTimeline();
   const cycleDurationMs = timeline.totalMs;
   const arm1ActionStart = timeline.arm1PauseStartMs / cycleDurationMs;
@@ -549,6 +583,7 @@ function RobotArms({ working, animationKey }: { working: boolean; animationKey: 
           actionStart={arm1ActionStart}
           cycleDurationMs={cycleDurationMs}
           actionDurationMs={ARM_ACTION_MS}
+          isRunning={isRunning}
         />
       </div>
 
@@ -561,6 +596,7 @@ function RobotArms({ working, animationKey }: { working: boolean; animationKey: 
           actionStart={arm2ActionStart}
           cycleDurationMs={cycleDurationMs}
           actionDurationMs={ARM_ACTION_MS}
+          isRunning={isRunning}
         />
       </div>
 
@@ -593,7 +629,8 @@ function ArticulatedRobotArm({
   taskType,
   actionStart,
   cycleDurationMs,
-  actionDurationMs
+  actionDurationMs,
+  isRunning
 }: { 
   working: boolean; 
   animationKey: number; 
@@ -601,6 +638,7 @@ function ArticulatedRobotArm({
   actionStart: number;
   cycleDurationMs: number;
   actionDurationMs: number;
+  isRunning: boolean;
 }) {
   // 動作シーケンスのキーフレーム
   // 待機 → 下降 → 掴む → 持ち上げる → 作業 → 戻る
@@ -624,6 +662,47 @@ function ArticulatedRobotArm({
     1
   ];
   
+  if (!isRunning) {
+    return (
+      <div className="relative">
+        <svg
+          width="100"
+          height="160"
+          viewBox="0 0 100 160"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+          focusable="false"
+        >
+          {/* ベース台座 */}
+          <g>
+            <rect x="35" y="140" width="30" height="20" rx="2" fill="#2C3E50" stroke="#34495E" strokeWidth="2" />
+            <rect x="30" y="135" width="40" height="5" rx="1" fill="#34495E" stroke="#2C3E50" strokeWidth="1" />
+            <circle cx="50" cy="147" r="3" fill="#7F8C8D" />
+          </g>
+          
+          {/* 静止状態のアーム */}
+          <rect x="44" y="85" width="12" height="55" rx="2" fill="#FFD700" stroke="#FFA500" strokeWidth="2" />
+          <line x1="47" y1="90" x2="47" y2="135" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+          <line x1="53" y1="90" x2="53" y2="135" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+          <circle cx="50" cy="140" r="8" fill="#FFA500" stroke="#FF8C00" strokeWidth="2" />
+          <circle cx="50" cy="140" r="4" fill="#FFD700" />
+          
+          <rect x="44" y="40" width="12" height="45" rx="2" fill="#FFD700" stroke="#FFA500" strokeWidth="2" />
+          <line x1="47" y1="45" x2="47" y2="80" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+          <line x1="53" y1="45" x2="53" y2="80" stroke="#FFA500" strokeWidth="1" opacity="0.5" />
+          <circle cx="50" cy="85" r="7" fill="#FFA500" stroke="#FF8C00" strokeWidth="2" />
+          <circle cx="50" cy="85" r="3" fill="#FFD700" />
+          
+          <circle cx="50" cy="40" r="6" fill="#FFA500" stroke="#FF8C00" strokeWidth="2" />
+          <circle cx="50" cy="40" r="2" fill="#FFD700" />
+          <rect x="38" y="28" width="8" height="14" rx="1" fill="#696969" stroke="#505050" strokeWidth="1.5" />
+          <rect x="54" y="28" width="8" height="14" rx="1" fill="#696969" stroke="#505050" strokeWidth="1.5" />
+        </svg>
+      </div>
+    );
+  }
+
   return (
     <div className="relative">
       <svg
@@ -865,6 +944,27 @@ function ArticulatedRobotArm({
  */
 export default function FactoryAnimation() {
   const [scenario, setScenario] = useState<'ideal' | 'human-failure' | 'cyber-failure'>('ideal');
+  const [isRunning, setIsRunning] = useState(false);
+  const [startPending, setStartPending] = useState(false);
+  const startTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (startTimerRef.current !== null) {
+        window.clearTimeout(startTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleStart = () => {
+    if (isRunning || startPending) return;
+    setStartPending(true);
+    startTimerRef.current = window.setTimeout(() => {
+      setIsRunning(true);
+      setStartPending(false);
+      startTimerRef.current = null;
+    }, 5000);
+  };
 
   return (
     <div className="space-y-4">
@@ -902,8 +1002,25 @@ export default function FactoryAnimation() {
         </button>
       </div>
 
+      {/* スタートボタン */}
+      <div className="flex justify-center">
+        <button
+          onClick={handleStart}
+          disabled={isRunning || startPending}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            isRunning
+              ? 'bg-slate-600 text-slate-300'
+              : startPending
+                ? 'bg-blue-600 text-white'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+          }`}
+        >
+          {isRunning ? '再生中' : startPending ? '5秒後に開始...' : 'スタート（5秒後に開始）'}
+        </button>
+      </div>
+
       {/* アニメーション */}
-      <FactoryAnimationCore scenario={scenario} />
+      <FactoryAnimationCore scenario={scenario} isRunning={isRunning} />
 
       {/* 説明文 */}
       <div className="text-sm text-slate-300 leading-relaxed">
