@@ -5,6 +5,7 @@ import { SceneIndicator, sceneConfigs } from '@/components/SceneIndicator';
 import type { SecurityMetrics } from '@/lib/conversationLog';
 import type { SceneType } from '@/lib/waveEngine';
 import type { InterventionSettings } from '@/hooks/useInterventionSettings';
+import type { SpeakerStat } from '@/lib/awsTranscribeStreaming';
 
 interface HomeSceneUIProps {
   isMobile: boolean;
@@ -12,6 +13,7 @@ interface HomeSceneUIProps {
   isRecording: boolean;
   isDemoMode: boolean;
   promoMode: boolean;
+  speakerStats: SpeakerStat[];
   securityMetrics: SecurityMetrics;
   isMobileInfoOpen: boolean;
   onToggleMobileInfo: () => void;
@@ -25,6 +27,7 @@ export function HomeSceneUI({
   isRecording,
   isDemoMode,
   promoMode,
+  speakerStats,
   securityMetrics,
   isMobileInfoOpen,
   onToggleMobileInfo,
@@ -35,11 +38,70 @@ export function HomeSceneUI({
   const effectiveSettings = promoMode
     ? { ...interventionSettings, soundEnabled: false }
     : interventionSettings;
+  const topSpeakers = speakerStats.slice(0, 3);
+  const extraRatio = speakerStats
+    .slice(3)
+    .reduce((sum, stat) => sum + stat.ratio, 0);
+  const showSpeakerPanel = isRecording && speakerStats.length > 0;
 
   return (
     <>
       {/* シーンインジケーター（PCのみ表示） */}
       {!isMobile && <SceneIndicator scene={scene} isRecording={isRecording} typingMode={promoMode} />}
+
+      {/* 話者分離の可視化（PCのみ） */}
+      {!isMobile && showSpeakerPanel && (
+        <div className="fixed top-4 right-4 z-20">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg p-4 w-56"
+          >
+            <div className="text-xs text-muted-foreground font-serif-jp mb-3">
+              話者の占有率
+            </div>
+            <div className="space-y-2">
+              {topSpeakers.map((stat) => {
+                const percentage = Math.round(stat.ratio * 100);
+                return (
+                  <div key={stat.speaker} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-foreground/80">{stat.speaker}</span>
+                      <span className="text-muted-foreground">{percentage}%</span>
+                    </div>
+                    <div className="h-1.5 bg-muted/60 rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full bg-shrine-jade/80 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${percentage}%` }}
+                        transition={{ duration: 0.4 }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {extraRatio > 0 && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-foreground/80">その他</span>
+                    <span className="text-muted-foreground">
+                      {Math.round(extraRatio * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-muted/60 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-shrine-jade/40 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.round(extraRatio * 100)}%` }}
+                      transition={{ duration: 0.4 }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* スマホ用情報パネル */}
       {isMobile && (

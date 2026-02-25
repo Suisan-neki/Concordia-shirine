@@ -20,7 +20,7 @@ import { HomeFooter, HomeNavigation, HomePanels, HomeSceneUI, HomeTopUI } from '
 import { AudioAnalyzer, type ConcordiaEvent } from '@/lib/audioAnalyzer';
 import { ConversationLogManager, type SecurityMetrics, type LogEntry, type SessionSummary, type Session, analyzeSentiment } from '@/lib/conversationLog';
 import { SpeechRecognitionManager, type SpeechRecognitionResult } from '@/lib/speechRecognition';
-import { AWSTranscribeStreamingManager, type SpeakerItem } from '@/lib/awsTranscribeStreaming';
+import { AWSTranscribeStreamingManager, type SpeakerItem, type SpeakerStat } from '@/lib/awsTranscribeStreaming';
 import { useSessionManager } from '@/hooks/useSessionManager';
 import { useInterventionSettings } from '@/hooks/useInterventionSettings';
 import { useIsMobile } from '@/hooks/useMobile';
@@ -62,6 +62,7 @@ export default function Home() {
   const [isLogExpanded, setIsLogExpanded] = useState(false);
   const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
   const [interimText, setInterimText] = useState('');
+  const [speakerStats, setSpeakerStats] = useState<SpeakerStat[]>([]);
   const [isSecurityDashboardOpen, setIsSecurityDashboardOpen] = useState(false);
   const [isSecurityDetailOpen, setIsSecurityDetailOpen] = useState(false);
   const [isSessionHistoryOpen, setIsSessionHistoryOpen] = useState(false);
@@ -324,6 +325,7 @@ export default function Home() {
     void awsTranscribeRef.current?.stop();
     setIsRecording(false);
     setInterimText('');
+    setSpeakerStats([]);
 
     // ローカルのサマリーを取得
     const localSummary = await logManagerRef.current?.endSession();
@@ -386,6 +388,7 @@ export default function Home() {
       setSessionSummary(null);
       setTranscripts([]);
       setInterimText('');
+      setSpeakerStats([]);
       speechStartRef.current = null;
       lastSceneRef.current = '静寂';
       setScene('静寂');
@@ -415,6 +418,7 @@ export default function Home() {
                 sessionManagerRef.current.logSceneChange(newScene);
               }
             },
+            onSpeakerStats: (stats) => setSpeakerStats(stats),
             onError: (msg) => console.warn('AWS Transcribe error:', msg),
           });
           await awsTranscribeRef.current.start(selectedAudioDeviceId || undefined);
@@ -633,6 +637,7 @@ export default function Home() {
             isRecording={isRecording}
             isDemoMode={isDemoMode}
         promoMode={isPromoMode}
+            speakerStats={speakerStats}
             securityMetrics={securityMetrics}
             isMobileInfoOpen={isMobileInfoOpen}
             onToggleMobileInfo={() => setIsMobileInfoOpen(!isMobileInfoOpen)}

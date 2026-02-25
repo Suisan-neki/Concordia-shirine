@@ -39,6 +39,8 @@ export interface AWSTranscribeCallbacks {
   onPartialResult?: (text: string) => void;
   /** シーン（祠の機嫌）が変わったとき */
   onSceneChange?: (scene: SceneType) => void;
+  /** 話者の占有率が更新されたとき */
+  onSpeakerStats?: (stats: SpeakerStat[]) => void;
   /** 接続状態が変わったとき */
   onStatusChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
   /** エラー */
@@ -53,17 +55,24 @@ interface SpeakerSegment {
   endTime: number;
 }
 
+export interface SpeakerStat {
+  speaker: string;
+  ratio: number;
+  durationMs: number;
+}
+
 const WINDOW_MS = 30_000;      // 30 秒のスライディングウィンドウ
 const DOMINANCE_THRESHOLD = 0.75;  // 75% 以上で「一方的」
 
-function computeScene(segments: SpeakerSegment[]): SceneType {
+function computeSpeakerStats(segments: SpeakerSegment[]): {
+  stats: SpeakerStat[];
+  totalMs: number;
+} {
   const now = Date.now();
   const windowStart = now - WINDOW_MS;
 
   // ウィンドウ内のセグメントのみ
   const active = segments.filter(s => s.endTime >= windowStart);
-
-  if (active.length === 0) return '静寂';
 
   // 各話者の発話時間を集計
   const speakerMs: Record<string, number> = {};
@@ -77,7 +86,22 @@ function computeScene(segments: SpeakerSegment[]): SceneType {
     totalMs += duration;
   }
 
-  const dominantMs = Math.max(...Object.values(speakerMs));
+  const stats = Object.entries(speakerMs)
+    .map(([speaker, durationMs]) => ({
+      speaker,
+      durationMs,
+      ratio: totalMs > 0 ? durationMs / totalMs : 0,
+    }))
+    .sort((a, b) => b.ratio - a.ratio);
+
+  return { stats, totalMs };
+}
+
+function computeScene(segments: SpeakerSegment[]): SceneType {
+  const { stats, totalMs } = computeSpeakerStats(segments);
+  if (stats.length === 0 || totalMs <= 0) return '静寂';
+
+  const dominantMs = stats[0]?.durationMs ?? 0;
   const dominanceRatio = dominantMs / totalMs;
 
   return dominanceRatio >= DOMINANCE_THRESHOLD ? '一方的' : '調和';
@@ -274,6 +298,10 @@ export class AWSTranscribeStreamingManager {
     // 古いセグメントを削除
     const windowStart = now - WINDOW_MS;
     this.speakerSegments = this.speakerSegments.filter(s => s.endTime >= windowStart);
+
+    // 話者占有率を更新
+    const { stats } = computeSpeakerStats(this.speakerSegments);
+    this.callbacks.onSpeakerStats?.(stats);
 
     // シーンを更新
     const newScene = computeScene(this.speakerSegments);
