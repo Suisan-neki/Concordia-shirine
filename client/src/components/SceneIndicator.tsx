@@ -6,12 +6,14 @@
  * - シーンの説明と視覚的フィードバック
  */
 
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { SceneType } from '@/lib/waveEngine';
 
 interface SceneIndicatorProps {
   scene: SceneType;
   isRecording: boolean;
+  typingMode?: boolean;
   className?: string;
 }
 
@@ -58,8 +60,39 @@ export const sceneConfigs: Record<SceneType, {
   }
 };
 
-export function SceneIndicator({ scene, isRecording, className = '' }: SceneIndicatorProps) {
+export function SceneIndicator({ scene, isRecording, typingMode = false, className = '' }: SceneIndicatorProps) {
   const config = sceneConfigs[scene];
+  const [typedDescription, setTypedDescription] = useState(config.description);
+  const [typedGuidance, setTypedGuidance] = useState(config.guidance);
+
+  useEffect(() => {
+    if (!typingMode) {
+      setTypedDescription(config.description);
+      setTypedGuidance(config.guidance);
+      return;
+    }
+
+    setTypedDescription('');
+    setTypedGuidance('');
+    let index = 0;
+    const descriptionText = config.description;
+    const guidanceText = config.guidance;
+    const intervalId = window.setInterval(() => {
+      index += 1;
+      if (index <= descriptionText.length) {
+        setTypedDescription(descriptionText.slice(0, index));
+        return;
+      }
+
+      const guidanceIndex = index - descriptionText.length;
+      setTypedGuidance(guidanceText.slice(0, guidanceIndex));
+      if (guidanceIndex >= guidanceText.length) {
+        window.clearInterval(intervalId);
+      }
+    }, 120);
+
+    return () => window.clearInterval(intervalId);
+  }, [scene, config.description, config.guidance, typingMode]);
   
   return (
     <div className={`fixed top-4 left-4 z-20 ${className}`}>
@@ -108,12 +141,16 @@ export function SceneIndicator({ scene, isRecording, className = '' }: SceneIndi
               </span>
             </div>
             
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {config.description}
-            </p>
-            <p className="text-xs text-foreground mt-2 font-medium whitespace-pre-line">
-              {config.guidance}
-            </p>
+            {typedDescription.trim().length > 0 && (
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {typedDescription}
+              </p>
+            )}
+            {typedGuidance.trim().length > 0 && (
+              <p className="text-xs text-foreground mt-2 font-medium whitespace-pre-line">
+                {typedGuidance}
+              </p>
+            )}
           </motion.div>
         </AnimatePresence>
         

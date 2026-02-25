@@ -180,6 +180,12 @@ export class WaveEngine {
   // 呼吸のリズム（8秒周期）
   private breathCycle: number = 8000;
   
+  // プロモーション用の波ブースト
+  private promoBoost = {
+    amplitude: 1,
+    speed: 1
+  };
+  
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
@@ -208,6 +214,16 @@ export class WaveEngine {
    */
   setEnergy(energy: number): void {
     this.instantEnergy = Math.max(0, Math.min(1, energy));
+  }
+
+  /**
+   * プロモーション用の波ブーストを設定
+   */
+  setPromoBoost(boost: { amplitude?: number; speed?: number }): void {
+    this.promoBoost = {
+      amplitude: boost.amplitude ?? this.promoBoost.amplitude,
+      speed: boost.speed ?? this.promoBoost.speed
+    };
   }
   
   /**
@@ -262,6 +278,8 @@ export class WaveEngine {
    */
   private calculateWaveHeight(x: number, time: number, params: WaveParams): number {
     const { amplitude, frequency, speed, turbulence } = params;
+    const boostedAmplitude = amplitude * this.promoBoost.amplitude;
+    const boostedSpeed = speed * this.promoBoost.speed;
     
     // 呼吸のリズム
     const breathPhase = (time % this.breathCycle) / this.breathCycle;
@@ -269,13 +287,13 @@ export class WaveEngine {
     
     // 基本波（複数の正弦波の合成）
     const baseWave = 
-      Math.sin(x * frequency + time * speed * 0.001) * 0.5 +
-      Math.sin(x * frequency * 1.5 + time * speed * 0.0008) * 0.3 +
-      Math.sin(x * frequency * 0.5 + time * speed * 0.0012) * 0.2;
+      Math.sin(x * frequency + time * boostedSpeed * 0.001) * 0.5 +
+      Math.sin(x * frequency * 1.5 + time * boostedSpeed * 0.0008) * 0.3 +
+      Math.sin(x * frequency * 0.5 + time * boostedSpeed * 0.0012) * 0.2;
     
     // Perlin Noiseによる乱流
     const noiseScale = 0.002;
-    const noiseTime = time * 0.0001 * speed;
+    const noiseTime = time * 0.0001 * boostedSpeed;
     const noise = this.perlin.octaveNoise2D(x * noiseScale, noiseTime, 3, 0.5);
     
     // 音声エネルギーによる瞬時の反応
@@ -283,7 +301,7 @@ export class WaveEngine {
     
     // 最終的な波の高さ
     const height = (baseWave * (1 - turbulence) + noise * turbulence) * 
-                   amplitude * breathFactor * energyFactor;
+                   boostedAmplitude * breathFactor * energyFactor;
     
     return height;
   }

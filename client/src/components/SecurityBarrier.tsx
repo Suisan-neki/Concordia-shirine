@@ -14,6 +14,11 @@ import type { SecurityMetrics, SecurityIndicator } from '@/lib/conversationLog';
 
 interface SecurityBarrierProps {
   metrics: SecurityMetrics;
+  logToggle?: {
+    isExpanded: boolean;
+    onToggle: () => void;
+    count?: number;
+  };
   className?: string;
 }
 
@@ -59,7 +64,7 @@ function IndicatorIcon({ type, status }: { type: SecurityIndicator['type']; stat
   );
 }
 
-export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProps) {
+export function SecurityBarrier({ metrics, logToggle, className = '' }: SecurityBarrierProps) {
   const isMobile = useIsMobile();
   const [pulseIntensity, setPulseIntensity] = useState(0);
   
@@ -210,6 +215,21 @@ export function SecurityBarrier({ metrics, className = '' }: SecurityBarrierProp
             ))}
           </div>
         </motion.div>
+        {logToggle && (
+          <button
+            onClick={logToggle.onToggle}
+            className="mt-2 w-full bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span className="font-serif-jp">
+              {logToggle.isExpanded ? '▼ ログを閉じる' : '▲ ログを開く'}
+            </span>
+            {!logToggle.isExpanded && (logToggle.count ?? 0) > 0 && (
+              <span className="ml-2 text-[10px] bg-shrine-jade/20 text-shrine-jade px-1.5 py-0.5 rounded">
+                {logToggle.count}
+              </span>
+            )}
+          </button>
+        )}
       </div>
       )}
       

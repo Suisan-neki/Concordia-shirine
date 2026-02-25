@@ -11,6 +11,7 @@ interface HomeSceneUIProps {
   scene: SceneType;
   isRecording: boolean;
   isDemoMode: boolean;
+  promoMode: boolean;
   securityMetrics: SecurityMetrics;
   isMobileInfoOpen: boolean;
   onToggleMobileInfo: () => void;
@@ -23,6 +24,7 @@ export function HomeSceneUI({
   scene,
   isRecording,
   isDemoMode,
+  promoMode,
   securityMetrics,
   isMobileInfoOpen,
   onToggleMobileInfo,
@@ -30,11 +32,14 @@ export function HomeSceneUI({
   onIntervention,
 }: HomeSceneUIProps) {
   const detailsId = 'mobile-info-details';
+  const effectiveSettings = promoMode
+    ? { ...interventionSettings, soundEnabled: false }
+    : interventionSettings;
 
   return (
     <>
       {/* シーンインジケーター（PCのみ表示） */}
-      {!isMobile && <SceneIndicator scene={scene} isRecording={isRecording} />}
+      {!isMobile && <SceneIndicator scene={scene} isRecording={isRecording} typingMode={promoMode} />}
 
       {/* スマホ用情報パネル */}
       {isMobile && (
@@ -123,7 +128,7 @@ export function HomeSceneUI({
       <InterventionSystem
         scene={scene}
         isActive={isRecording || isDemoMode}
-        settings={interventionSettings}
+        settings={effectiveSettings}
         onIntervention={onIntervention}
       />
     </>

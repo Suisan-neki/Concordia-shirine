@@ -1,5 +1,5 @@
 /**
- * About Page - Concordia Shrine
+ * About Page - Concordia Wave
  * 
  * プロジェクトの哲学と技術を物語として説明するページ
  * 「気づかないうちに守られている」を体現
@@ -21,12 +21,12 @@ export default function About() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/">
             <span className="text-lg font-serif-jp cursor-pointer hover:text-primary transition-colors">
-              Concordia Shrine
+              Concordia Wave
             </span>
           </Link>
           <Link href="/">
             <Button variant="outline" size="sm">
-              祠に戻る
+              ホームに戻る
             </Button>
           </Link>
         </div>
@@ -69,7 +69,7 @@ export default function About() {
                   序章：聖域の誕生
                 </h2>
                 <p className="text-muted-foreground leading-relaxed mb-4">
-                  あなたがこの祠を訪れた瞬間、見えない結界が展開されました。
+                  あなたがこの場を訪れた瞬間、見えない結界が展開されました。
                 </p>
                 <p className="text-muted-foreground leading-relaxed mb-4">
                   それは、あなたが気づくことなく、静かに、しかし確実に動き始めています。
@@ -151,7 +151,7 @@ export default function About() {
                   しかし、あなたの判断の自由を奪う「攻撃」です。
                 </p>
                 <p className="text-muted-foreground leading-relaxed mb-4">
-                  Concordia Shrineは、この「見えない攻撃」を検知します。
+                  Concordia Waveは、この「見えない攻撃」を検知します。
                 </p>
 
                 <div className="bg-shrine-jade/10 rounded-lg p-4 my-6 border border-shrine-jade/30">
@@ -209,14 +209,14 @@ export default function About() {
                   終章：あなたの聖域
                 </h2>
                 <p className="text-muted-foreground leading-relaxed mb-4">
-                  この祠は、あなたのための聖域です。
+                  この場は、あなたのための聖域です。
                 </p>
                 <p className="text-muted-foreground leading-relaxed mb-4">
                   ここでは、技術があなたを守り、
                   あなたは自由に考え、自由に話すことができます。
                 </p>
                 <p className="text-muted-foreground leading-relaxed">
-                  これが、Concordia Shrine の物語です。
+                  これが、Concordia Wave の物語です。
                 </p>
               </section>
 
@@ -229,7 +229,7 @@ export default function About() {
               >
                 <Link href="/">
                   <Button size="lg" className="font-serif-jp">
-                    祠に入る
+                    ホームへ
                   </Button>
                 </Link>
               </motion.div>
@@ -355,7 +355,7 @@ export default function About() {
               <div className="text-center mt-12 bg-muted/10 p-8 rounded-lg">
                 <p className="font-serif-jp text-lg mb-4">Developers</p>
                 <p className="text-muted-foreground text-sm">
-                  Designed & Developed by the Concordia Shrine Team
+                  Designed & Developed by the Concordia Wave Team
                   <br />
                   Powered by Advanced Agentic Coding
                 </p>
@@ -379,7 +379,7 @@ export default function About() {
       <footer className="border-t border-border/50 py-8">
         <div className="container mx-auto px-4 text-center">
           <p className="text-xs text-muted-foreground">
-            Concordia Shrine — Human Decision Security
+            Concordia Wave — Human Decision Security
           </p>
         </div>
       </footer>

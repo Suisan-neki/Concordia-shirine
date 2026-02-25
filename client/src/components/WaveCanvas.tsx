@@ -28,6 +28,8 @@ interface WaveCanvasProps {
   scene: SceneType;
   /** 音声エネルギー（0-1の範囲） */
   energy: number;
+  /** プロモーション用の波ブースト */
+  promoMode?: boolean;
   /** 追加のCSSクラス名（オプション） */
   className?: string;
 }
@@ -56,7 +58,7 @@ interface WaveCanvasProps {
  * @param props.className - 追加のCSSクラス名（オプション）
  * @returns WaveCanvasコンポーネント
  */
-export function WaveCanvas({ scene, energy, className = '' }: WaveCanvasProps) {
+export function WaveCanvas({ scene, energy, promoMode = false, className = '' }: WaveCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<WaveEngine | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -127,6 +129,13 @@ export function WaveCanvas({ scene, energy, className = '' }: WaveCanvasProps) {
   useEffect(() => {
     engineRef.current?.setEnergy(energy);
   }, [energy]);
+
+  useEffect(() => {
+    engineRef.current?.setPromoBoost({
+      amplitude: promoMode ? 1.6 : 1,
+      speed: promoMode ? 1.8 : 1
+    });
+  }, [promoMode]);
   
   const [isHovered, setIsHovered] = useState(false);
 

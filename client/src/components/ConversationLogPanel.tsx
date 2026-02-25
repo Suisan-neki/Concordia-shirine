@@ -17,6 +17,7 @@ interface ConversationLogPanelProps {
   summary?: SessionSummary | null;
   isExpanded: boolean;
   onToggle: () => void;
+  showToggle?: boolean;
   className?: string;
 }
 
@@ -230,6 +231,7 @@ export function ConversationLogPanel({
   summary,
   isExpanded,
   onToggle,
+  showToggle = true,
   className = ''
 }: ConversationLogPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -244,19 +246,21 @@ export function ConversationLogPanel({
   return (
     <div className={`fixed bottom-0 left-0 right-0 z-20 ${className}`}>
       {/* トグルボタン */}
-      <button
-        onClick={onToggle}
-        className="absolute -top-10 left-1/2 -translate-x-1/2 bg-card/80 backdrop-blur-sm border border-border/50 rounded-t-lg px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <span className="font-serif-jp">
-          {isExpanded ? '▼ ログを閉じる' : '▲ ログを開く'}
-        </span>
-        {!isExpanded && logs.length > 0 && (
-          <span className="ml-2 text-xs bg-shrine-jade/20 text-shrine-jade px-1.5 py-0.5 rounded">
-            {logs.length}
+      {showToggle && (
+        <button
+          onClick={onToggle}
+          className="absolute -top-10 left-1/2 -translate-x-1/2 bg-card/80 backdrop-blur-sm border border-border/50 rounded-t-lg px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <span className="font-serif-jp">
+            {isExpanded ? '▼ ログを閉じる' : '▲ ログを開く'}
           </span>
-        )}
-      </button>
+          {!isExpanded && logs.length > 0 && (
+            <span className="ml-2 text-xs bg-shrine-jade/20 text-shrine-jade px-1.5 py-0.5 rounded">
+              {logs.length}
+            </span>
+          )}
+        </button>
+      )}
       
       {/* パネル本体 */}
       <AnimatePresence>

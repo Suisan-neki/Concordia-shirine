@@ -1,8 +1,10 @@
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import type { AuthUser } from '@/types/auth';
 
 interface HomeTopUIProps {
   isMobile: boolean;
+  isPromoMode: boolean;
   isAuthenticated: boolean;
   user: AuthUser | null;
   isGuestMode: boolean;
@@ -16,6 +18,7 @@ interface HomeTopUIProps {
 
 export function HomeTopUI({
   isMobile,
+  isPromoMode,
   isAuthenticated,
   user,
   isGuestMode,
@@ -92,28 +95,48 @@ export function HomeTopUI({
       <div
         className={`absolute ${isMobile ? 'top-32' : 'top-1/4'} left-1/2 -translate-x-1/2 text-center z-10 px-4 w-full max-w-2xl`}
       >
-        <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl md:text-4xl'} font-serif-jp text-foreground/90 mb-2 tracking-wider`}>
+        <motion.h1
+          initial={isPromoMode ? { opacity: 0, y: 10 } : false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={isPromoMode ? { duration: 1, ease: 'easeOut', delay: 0.2 } : { duration: 0 }}
+          className={`${isMobile ? 'text-2xl' : 'text-3xl md:text-4xl'} font-serif-jp text-foreground/90 mb-2 tracking-wider`}
+        >
           Concordia Wave
-        </h1>
-        <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground font-light`}>
+        </motion.h1>
+        <motion.p
+          initial={isPromoMode ? { opacity: 0, y: 10 } : false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={isPromoMode ? { duration: 1, ease: 'easeOut', delay: 0.6 } : { duration: 0 }}
+          className={`${isMobile ? 'text-xs' : 'text-sm'} text-muted-foreground font-light`}
+        >
           対話の揺らぎを手がかりに、判断の自由をそっと守る
-        </p>
+        </motion.p>
       </div>
 
       {/* コンセプトメッセージ */}
       <div
         className={`absolute ${isMobile ? 'top-44' : 'top-1/3'} left-1/2 -translate-x-1/2 ${isMobile ? 'mt-4' : 'mt-8'} text-center z-10 max-w-lg px-4`}
       >
-        <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground/70 leading-relaxed`}>
+        <motion.p
+          initial={isPromoMode ? { opacity: 0, y: 10 } : false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={isPromoMode ? { duration: 1, ease: 'easeOut', delay: 1.0 } : { duration: 0 }}
+          className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground/70 leading-relaxed`}
+        >
           「ヒューマンセキュリティなくして
           <br />
           サイバーセキュリティは実現しない」
-        </p>
-        <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground/50 mt-2`}>
+        </motion.p>
+        <motion.p
+          initial={isPromoMode ? { opacity: 0, y: 10 } : false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={isPromoMode ? { duration: 1, ease: 'easeOut', delay: 1.4 } : { duration: 0 }}
+          className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-muted-foreground/50 mt-2`}
+        >
           この聖域では技術が人の心を守ります。
           <br />
           結界が展開され、あなたの判断の自由が守られています。
-        </p>
+        </motion.p>
       </div>
 
       {/* ナビゲーションボタン */}

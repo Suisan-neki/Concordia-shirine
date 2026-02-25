@@ -20,6 +20,7 @@ import { HomeFooter, HomeNavigation, HomePanels, HomeSceneUI, HomeTopUI } from '
 import { AudioAnalyzer, type ConcordiaEvent } from '@/lib/audioAnalyzer';
 import { ConversationLogManager, type SecurityMetrics, type LogEntry, type SessionSummary, type Session, analyzeSentiment } from '@/lib/conversationLog';
 import { SpeechRecognitionManager, type SpeechRecognitionResult } from '@/lib/speechRecognition';
+import { AWSTranscribeStreamingManager, type SpeakerItem } from '@/lib/awsTranscribeStreaming';
 import { useSessionManager } from '@/hooks/useSessionManager';
 import { useInterventionSettings } from '@/hooks/useInterventionSettings';
 import { useIsMobile } from '@/hooks/useMobile';
@@ -52,6 +53,9 @@ export default function Home() {
   const [energy, setEnergy] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [isPromoMode, setIsPromoMode] = useState(false);
+  const [isPromoCountdown, setIsPromoCountdown] = useState(false);
+  const [promoCountdownSeconds, setPromoCountdownSeconds] = useState(0);
   const [demoScene, setDemoScene] = useState<SceneType>('静寂');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
@@ -91,12 +95,14 @@ export default function Home() {
   const audioAnalyzerRef = useRef<AudioAnalyzer | null>(null);
   const logManagerRef = useRef<ConversationLogManager | null>(null);
   const speechRecognitionRef = useRef<SpeechRecognitionManager | null>(null);
+  const awsTranscribeRef = useRef<AWSTranscribeStreamingManager | null>(null);
   const lastSceneRef = useRef<SceneType | null>(null);
   const sessionStartTimeRef = useRef<number>(0);
   const recordingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speechStartRef = useRef<number | null>(null);
   const sessionManagerRef = useRef(sessionManager);
   const isDemoModeRef = useRef(isDemoMode);
+  const promoSceneIntervalRef = useRef<number | null>(null);
 
   // ルートに応じてモーダルを切り替える
   useEffect(() => {
@@ -105,6 +111,13 @@ export default function Home() {
     setIsSecurityDetailOpen(path === '/security-detail');
     setIsSessionHistoryOpen(path === '/history');
     setIsInterventionSettingsOpen(path === '/intervention-settings');
+  }, [location]);
+
+  // プロモーションモード判定（?promo=1/true/on）
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const promo = params.get('promo');
+    setIsPromoMode(promo === '1' || promo === 'true' || promo === 'on');
   }, [location]);
 
   // 認証状態が変わったらセキュリティメトリクスを更新
@@ -138,6 +151,7 @@ export default function Home() {
     isDemoModeRef.current = isDemoMode;
   }, [isDemoMode]);
 
+
   const loadAudioDevices = useCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) return;
     try {
@@ -162,14 +176,7 @@ export default function Home() {
     audioAnalyzerRef.current = new AudioAnalyzer();
     audioAnalyzerRef.current.setCallbacks({
       onEnergyUpdate: (e) => setEnergy(e),
-      onSceneChange: (s) => {
-        if (!isDemoModeRef.current && (lastSceneRef.current === null || s !== lastSceneRef.current)) {
-          lastSceneRef.current = s;
-          setScene(s);
-          logManagerRef.current?.logSceneChange(s);
-          sessionManagerRef.current.logSceneChange(s);
-        }
-      },
+      // シーン判定は文字起こし（SpeechRecognition）から行うためonSceneChangeは使用しない
       onEvent: (event) => {
         logManagerRef.current?.logEvent(event);
         sessionManagerRef.current.logEvent(event.type, event.metadata);
@@ -208,7 +215,7 @@ export default function Home() {
       }))
     });
 
-    // SpeechRecognitionの初期化
+    // SpeechRecognitionの初期化（フォールバック）
     speechRecognitionRef.current = new SpeechRecognitionManager();
     speechRecognitionRef.current.setCallbacks({
       onResult: handleSpeechResult,
@@ -217,9 +224,13 @@ export default function Home() {
       onEnd: () => console.log('Speech recognition ended')
     });
 
+    // AWS Transcribe Streaming マネージャーの初期化
+    awsTranscribeRef.current = new AWSTranscribeStreamingManager();
+
     return () => {
       audioAnalyzerRef.current?.stop();
       speechRecognitionRef.current?.stop();
+      void awsTranscribeRef.current?.stop();
     };
   }, []);
 
@@ -248,16 +259,39 @@ export default function Home() {
       logManagerRef.current?.logSpeech(result.text);
       sessionManagerRef.current.logSpeech(result.text);
 
-      // 感情分析によるシーン更新
-      const sentiment = analyzeSentiment(result.text);
-      if (sentiment && !isDemoModeRef.current) {
-        setScene(sentiment);
-        lastSceneRef.current = sentiment;
+      // 文字起こしからシーンを判定（発話があればシーンを更新）
+      if (!isDemoModeRef.current) {
+        const sentiment = analyzeSentiment(result.text);
+        // キーワードが見つかれば該当シーン、なければ「調和」（対話中のデフォルト）
+        const newScene: typeof scene = sentiment ?? '調和';
+        if (newScene !== lastSceneRef.current) {
+          lastSceneRef.current = newScene;
+          setScene(newScene);
+          logManagerRef.current?.logSceneChange(newScene);
+          sessionManagerRef.current.logSceneChange(newScene);
+        }
       }
     } else {
       // 暫定テキスト
       setInterimText(result.text);
     }
+  }, []);
+
+  // AWS Transcribe の確定結果ハンドラ
+  const handleAwsFinalResult = useCallback((text: string, _speakerItems: SpeakerItem[]) => {
+    if (!text.trim()) return;
+
+    const newTranscript: TranscriptItem = {
+      id: `transcript_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      text,
+      isFinal: true,
+      timestamp: Date.now(),
+    };
+    setTranscripts(prev => [...prev, newTranscript]);
+    setInterimText('');
+    logManagerRef.current?.logSpeech(text);
+    sessionManagerRef.current.logSpeech(text);
+    // シーン変更は onSceneChange コールバック側で処理されるためここでは行わない
   }, []);
 
   // イベントハンドラ
@@ -287,6 +321,7 @@ export default function Home() {
 
     audioAnalyzerRef.current?.stop();
     speechRecognitionRef.current?.stop();
+    void awsTranscribeRef.current?.stop();
     setIsRecording(false);
     setInterimText('');
 
@@ -352,7 +387,8 @@ export default function Home() {
       setTranscripts([]);
       setInterimText('');
       speechStartRef.current = null;
-      lastSceneRef.current = null;
+      lastSceneRef.current = '静寂';
+      setScene('静寂');
 
       // バックエンドセッションを開始
       await sessionManager.startSession();
@@ -362,12 +398,37 @@ export default function Home() {
       await audioAnalyzerRef.current?.start(selectedAudioDeviceId || undefined);
       await loadAudioDevices();
 
-      // 音声認識も開始
-      if (speechRecognitionRef.current?.isSupported()) {
-        speechRecognitionRef.current.start();
+      setIsRecording(true);
+
+      // AWS Transcribe Streaming を優先で開始、失敗時は Web Speech API にフォールバック
+      let awsStarted = false;
+      if (awsTranscribeRef.current) {
+        try {
+          awsTranscribeRef.current.setCallbacks({
+            onFinalResult: (text, speakerItems) => handleAwsFinalResult(text, speakerItems),
+            onPartialResult: (text) => setInterimText(text),
+            onSceneChange: (newScene) => {
+              if (!isDemoModeRef.current && newScene !== lastSceneRef.current) {
+                lastSceneRef.current = newScene;
+                setScene(newScene);
+                logManagerRef.current?.logSceneChange(newScene);
+                sessionManagerRef.current.logSceneChange(newScene);
+              }
+            },
+            onError: (msg) => console.warn('AWS Transcribe error:', msg),
+          });
+          await awsTranscribeRef.current.start(selectedAudioDeviceId || undefined);
+          awsStarted = true;
+          console.log('AWS Transcribe Streaming started');
+        } catch (e) {
+          console.warn('AWS Transcribe failed, falling back to Web Speech API:', e);
+        }
       }
 
-      setIsRecording(true);
+      // AWS が起動できなかった場合は Web Speech API を使用
+      if (!awsStarted && speechRecognitionRef.current?.isSupported()) {
+        speechRecognitionRef.current.start();
+      }
 
       if (recordingTimeoutRef.current) {
         clearTimeout(recordingTimeoutRef.current);
@@ -441,6 +502,45 @@ export default function Home() {
     }));
   }, []);
 
+  useEffect(() => {
+    if (!isPromoMode) return;
+    setIsPromoCountdown(true);
+    setPromoCountdownSeconds(15);
+
+    const countdownIntervalId = window.setInterval(() => {
+      setPromoCountdownSeconds(prev => Math.max(prev - 1, 0));
+    }, 1000);
+
+    const startTimeoutId = window.setTimeout(() => {
+      setIsPromoCountdown(false);
+      setIsDemoMode(true);
+      setIsSecurityDashboardOpen(false);
+      setIsSecurityDetailOpen(false);
+      setIsSessionHistoryOpen(false);
+      setIsInterventionSettingsOpen(false);
+      setIsReportPanelOpen(false);
+
+      const scenes: SceneType[] = ['静寂', '調和', '一方的', '沈黙'];
+      let index = 0;
+      handleDemoSceneChange(scenes[index]);
+      const intervalId = window.setInterval(() => {
+        index = (index + 1) % scenes.length;
+        handleDemoSceneChange(scenes[index]);
+      }, 18000);
+
+      promoSceneIntervalRef.current = intervalId;
+    }, 15000);
+
+    return () => {
+      window.clearInterval(countdownIntervalId);
+      window.clearTimeout(startTimeoutId);
+      if (promoSceneIntervalRef.current) {
+        window.clearInterval(promoSceneIntervalRef.current);
+        promoSceneIntervalRef.current = null;
+      }
+    };
+  }, [isPromoMode, handleDemoSceneChange]);
+
   // ログパネルのトグル
   const handleToggleLog = useCallback(() => {
     setIsLogExpanded(prev => !prev);
@@ -496,101 +596,128 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
-      {/* 初回ヒントオーバーレイ */}
-      <WaveHintOverlay />
+      {isPromoCountdown ? (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background">
+          <div className="text-center">
+            <div className="text-5xl font-semibold text-foreground">開始まで</div>
+            <div className="mt-4 text-7xl font-bold text-foreground tabular-nums">{promoCountdownSeconds}</div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* 初回ヒントオーバーレイ */}
+          {!isPromoMode && <WaveHintOverlay />}
 
-      {/* 波のキャンバス（背景） */}
+          {/* 波のキャンバス（背景） */}
       <div className="absolute inset-0">
-        <WaveCanvas scene={scene} energy={energy} />
-      </div>
+        <WaveCanvas scene={scene} energy={energy} promoMode={isPromoMode} />
+          </div>
 
-      {/* セキュリティバリア（結界） */}
-      <SecurityBarrier metrics={securityMetrics} />
-
-      <HomeSceneUI
-        isMobile={isMobile}
-        scene={scene}
-        isRecording={isRecording}
-        isDemoMode={isDemoMode}
-        securityMetrics={securityMetrics}
-        isMobileInfoOpen={isMobileInfoOpen}
-        onToggleMobileInfo={() => setIsMobileInfoOpen(!isMobileInfoOpen)}
-        interventionSettings={interventionSettings}
-        onIntervention={handleIntervention}
+          {/* セキュリティバリア（結界） */}
+      <SecurityBarrier
+        metrics={securityMetrics}
+        logToggle={
+          isMobile
+            ? undefined
+            : {
+                isExpanded: isLogExpanded,
+                onToggle: handleToggleLog,
+                count: logs.length
+              }
+        }
       />
 
-      <HomeNavigation
-        isMobile={isMobile}
-        isAuthenticated={isAuthenticated}
-        isAdmin={Boolean(user?.role === 'admin')}
-        hasReport={Boolean(reportSession)}
-        onNavigate={navigate}
-        onOpenReport={handleOpenReport}
-      />
+          <HomeSceneUI
+            isMobile={isMobile}
+            scene={scene}
+            isRecording={isRecording}
+            isDemoMode={isDemoMode}
+        promoMode={isPromoMode}
+            securityMetrics={securityMetrics}
+            isMobileInfoOpen={isMobileInfoOpen}
+            onToggleMobileInfo={() => setIsMobileInfoOpen(!isMobileInfoOpen)}
+            interventionSettings={interventionSettings}
+            onIntervention={handleIntervention}
+          />
 
-      <HomeTopUI
-        isMobile={isMobile}
-        isAuthenticated={isAuthenticated}
-        user={user}
-        isGuestMode={isGuestMode}
-        hasReport={Boolean(reportSession)}
-        onLogin={() => { window.location.href = getLoginUrl(); }}
-        onLogout={() => logout()}
-        onEnableGuestMode={handleEnableGuestMode}
-        onNavigate={navigate}
-        onOpenReport={handleOpenReport}
-        />
+          <HomeNavigation
+            isMobile={isMobile}
+            isAuthenticated={isAuthenticated}
+            isAdmin={Boolean(user?.role === 'admin')}
+            hasReport={Boolean(reportSession)}
+            onNavigate={navigate}
+            onOpenReport={handleOpenReport}
+          />
 
-      <HomePanels
-        isRecording={isRecording}
-        transcripts={transcripts}
-        interimText={interimText}
-        isDemoMode={isDemoMode}
-        demoScene={demoScene}
-        onStartRecording={handleStartRecording}
-        onStopRecording={handleStopRecording}
-        onToggleDemoMode={handleToggleDemoMode}
-        onDemoSceneChange={handleDemoSceneChange}
-        audioInputDevices={audioInputDevices}
-        selectedAudioDeviceId={selectedAudioDeviceId}
-        onSelectAudioDevice={handleSelectAudioDevice}
-        logs={logs}
-        sessionSummary={sessionSummary}
-        isLogExpanded={isLogExpanded}
-        onToggleLog={handleToggleLog}
-        securityMetrics={securityMetrics}
-        scene={scene}
-        isSecurityDashboardOpen={isSecurityDashboardOpen}
-        onCloseSecurityDashboard={() => {
-          setIsSecurityDashboardOpen(false);
-          navigate('/');
-        }}
-        isSecurityDetailOpen={isSecurityDetailOpen}
-        onCloseSecurityDetail={() => {
-          setIsSecurityDetailOpen(false);
-          navigate('/');
-        }}
-        isSessionHistoryOpen={isSessionHistoryOpen}
-        onCloseSessionHistory={() => {
-          setIsSessionHistoryOpen(false);
-          navigate('/');
-        }}
-        onLoadSessions={handleLoadSessions}
-        onDeleteSession={handleDeleteSession}
-        isInterventionSettingsOpen={isInterventionSettingsOpen}
-        onCloseInterventionSettings={() => {
-          setIsInterventionSettingsOpen(false);
-          navigate('/');
-        }}
-        interventionSettings={interventionSettings}
-        onUpdateSettings={updateInterventionSettings}
-        isAuthenticated={isAuthenticated}
-        isReportPanelOpen={isReportPanelOpen}
-        onCloseReportPanel={() => setIsReportPanelOpen(false)}
-        reportSession={reportSession}
-      />
+          <HomeTopUI
+            isMobile={isMobile}
+            isPromoMode={isPromoMode}
+            isAuthenticated={isAuthenticated}
+            user={user}
+            isGuestMode={isGuestMode}
+            hasReport={Boolean(reportSession)}
+            onLogin={() => { window.location.href = getLoginUrl(); }}
+            onLogout={() => logout()}
+            onEnableGuestMode={handleEnableGuestMode}
+            onNavigate={navigate}
+            onOpenReport={handleOpenReport}
+            />
 
-      <HomeFooter />
+          <HomePanels
+            isRecording={isRecording}
+            transcripts={transcripts}
+            interimText={interimText}
+            isDemoMode={isDemoMode}
+            promoMode={isPromoMode}
+        showLogToggle={isMobile}
+            demoScene={demoScene}
+            onStartRecording={handleStartRecording}
+            onStopRecording={handleStopRecording}
+            onToggleDemoMode={handleToggleDemoMode}
+            onDemoSceneChange={handleDemoSceneChange}
+            audioInputDevices={audioInputDevices}
+            selectedAudioDeviceId={selectedAudioDeviceId}
+            onSelectAudioDevice={handleSelectAudioDevice}
+            logs={logs}
+            sessionSummary={sessionSummary}
+            isLogExpanded={isLogExpanded}
+            onToggleLog={handleToggleLog}
+            securityMetrics={securityMetrics}
+            scene={scene}
+            isSecurityDashboardOpen={isSecurityDashboardOpen}
+            onCloseSecurityDashboard={() => {
+              if (isPromoMode) return;
+              setIsSecurityDashboardOpen(false);
+              navigate('/');
+            }}
+            isSecurityDetailOpen={isSecurityDetailOpen}
+            onCloseSecurityDetail={() => {
+              setIsSecurityDetailOpen(false);
+              navigate('/');
+            }}
+            isSessionHistoryOpen={isSessionHistoryOpen}
+            onCloseSessionHistory={() => {
+              setIsSessionHistoryOpen(false);
+              navigate('/');
+            }}
+            onLoadSessions={handleLoadSessions}
+            onDeleteSession={handleDeleteSession}
+            isInterventionSettingsOpen={isInterventionSettingsOpen}
+            onCloseInterventionSettings={() => {
+              setIsInterventionSettingsOpen(false);
+              navigate('/');
+            }}
+            interventionSettings={interventionSettings}
+            onUpdateSettings={updateInterventionSettings}
+            isAuthenticated={isAuthenticated}
+            isReportPanelOpen={isReportPanelOpen}
+            onCloseReportPanel={() => setIsReportPanelOpen(false)}
+            reportSession={reportSession}
+          />
+
+          <HomeFooter />
+        </>
+      )}
     </div>
   );
 }

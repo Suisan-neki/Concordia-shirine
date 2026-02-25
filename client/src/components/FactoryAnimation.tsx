@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 
 const MOVE_DURATION_MS = 10000;
@@ -87,6 +87,9 @@ function getManjuTimeline(): ManjuTimeline {
 
 interface FactoryAnimationProps {
   scenario: 'ideal' | 'human-failure' | 'cyber-failure';
+  autoStart?: boolean;
+  autoCycleScenario?: boolean;
+  hideControls?: boolean;
 }
 
 function FactoryAnimationCore({ scenario, isRunning }: FactoryAnimationProps & { isRunning: boolean }) {
@@ -942,13 +945,18 @@ function ArticulatedRobotArm({
 /**
  * メインのFactoryAnimationコンポーネント
  */
-export default function FactoryAnimation() {
+export default function FactoryAnimation({
+  autoStart = false,
+  autoCycleScenario = false,
+  hideControls = false
+}: Pick<FactoryAnimationProps, 'autoStart' | 'autoCycleScenario' | 'hideControls'>) {
   const [scenario, setScenario] = useState<'ideal' | 'human-failure' | 'cyber-failure'>('ideal');
   const [isRunning, setIsRunning] = useState(false);
   const [startPending, setStartPending] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(0);
   const startTimerRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
+  const autoStartedRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -991,7 +999,7 @@ export default function FactoryAnimation() {
     };
   }, [startPending]);
 
-  const handleStart = () => {
+  const handleStart = useCallback(() => {
     if (isRunning || startPending) return;
     setStartPending(true);
     setCountdownSeconds(10);
@@ -1000,64 +1008,86 @@ export default function FactoryAnimation() {
       setStartPending(false);
       startTimerRef.current = null;
     }, 10000);
-  };
+  }, [isRunning, startPending]);
+
+  useEffect(() => {
+    if (!autoStart || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    handleStart();
+  }, [autoStart, handleStart]);
+
+  useEffect(() => {
+    if (!autoCycleScenario) return;
+    const scenarios: Array<'ideal' | 'human-failure' | 'cyber-failure'> = ['ideal', 'human-failure', 'cyber-failure'];
+    let index = 0;
+    setScenario(scenarios[index]);
+    const intervalId = window.setInterval(() => {
+      index = (index + 1) % scenarios.length;
+      setScenario(scenarios[index]);
+    }, 12000);
+    return () => window.clearInterval(intervalId);
+  }, [autoCycleScenario]);
 
   return (
     <div className="space-y-4">
-      {/* シナリオ選択ボタン */}
-      <div className="flex gap-2 justify-center">
-        <button
-          onClick={() => setScenario('ideal')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            scenario === 'ideal'
-              ? 'bg-green-600 text-white'
-              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-          }`}
-        >
-          理想状態（両方が機能）
-        </button>
-        <button
-          onClick={() => setScenario('human-failure')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            scenario === 'human-failure'
-              ? 'bg-orange-600 text-white'
-              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-          }`}
-        >
-          ヒューマンセキュリティが欠如した状態
-        </button>
-        <button
-          onClick={() => setScenario('cyber-failure')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            scenario === 'cyber-failure'
-              ? 'bg-orange-600 text-white'
-              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-          }`}
-        >
-          サイバーセキュリティが欠如した状態
-        </button>
-      </div>
+      {!hideControls && (
+        <>
+          {/* シナリオ選択ボタン */}
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => setScenario('ideal')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                scenario === 'ideal'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              理想状態（両方が機能）
+            </button>
+            <button
+              onClick={() => setScenario('human-failure')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                scenario === 'human-failure'
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              ヒューマンセキュリティが欠如した状態
+            </button>
+            <button
+              onClick={() => setScenario('cyber-failure')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                scenario === 'cyber-failure'
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              サイバーセキュリティが欠如した状態
+            </button>
+          </div>
 
-      {/* スタートボタン */}
-      <div className="flex justify-center">
-        <button
-          onClick={handleStart}
-          disabled={isRunning || startPending}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            isRunning
-              ? 'bg-slate-600 text-slate-300'
-              : startPending
-                ? 'bg-blue-600 text-white'
-                : 'bg-blue-500 text-white hover:bg-blue-600'
-          }`}
-        >
-          {isRunning
-            ? '再生中'
-            : startPending
-              ? `開始まで ${countdownSeconds} 秒`
-              : 'スタート（10秒後に開始）'}
-        </button>
-      </div>
+          {/* スタートボタン */}
+          <div className="flex justify-center">
+            <button
+              onClick={handleStart}
+              disabled={isRunning || startPending}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                isRunning
+                  ? 'bg-slate-600 text-slate-300'
+                  : startPending
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+              }`}
+            >
+              {isRunning
+                ? '再生中'
+                : startPending
+                  ? `開始まで ${countdownSeconds} 秒`
+                  : 'スタート（10秒後に開始）'}
+            </button>
+          </div>
+        </>
+      )}
 
       {/* アニメーション */}
       <FactoryAnimationCore scenario={scenario} isRunning={isRunning} />

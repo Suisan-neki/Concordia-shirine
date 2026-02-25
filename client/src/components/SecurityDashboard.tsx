@@ -7,7 +7,7 @@
  * - 両者の相互作用の可視化
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { SecurityMetrics } from '@/lib/conversationLog';
 import type { SceneType } from '@/lib/waveEngine';
@@ -26,6 +26,8 @@ interface SecurityDashboardProps {
   isOpen: boolean;
   /** ダッシュボードを閉じるコールバック */
   onClose: () => void;
+  /** プロモーション用の自動演出モード */
+  promoMode?: boolean;
 }
 
 // セキュリティレイヤーの説明
@@ -97,11 +99,18 @@ const sceneExplanations: Record<SceneType, { cyber: string[]; human: string[]; r
  * @param props.onClose - ダッシュボードを閉じるコールバック
  * @returns SecurityDashboardコンポーネント
  */
-export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityDashboardProps) {
+export function SecurityDashboard({ metrics, scene, isOpen, onClose, promoMode = false }: SecurityDashboardProps) {
   const [activeLayer, setActiveLayer] = useState<'cyber' | 'human' | 'ai' | null>(null);
   const [isConceptOpen, setIsConceptOpen] = useState(false);
   const [isManjuOpen, setIsManjuOpen] = useState(false);
   const explanation = sceneExplanations[scene];
+
+  useEffect(() => {
+    if (promoMode) {
+      setIsConceptOpen(true);
+      setIsManjuOpen(true);
+    }
+  }, [promoMode]);
   
   return (
     <AnimatePresence>
@@ -185,7 +194,7 @@ export function SecurityDashboard({ metrics, scene, isOpen, onClose }: SecurityD
                         お饅頭工場をイメージしてみましょう。ここでは2人の作業員がお饅頭を作り、
                         2台のロボットアームが包装とリボン掛けを担当しています。
                       </p>
-                      <FactoryAnimation />
+                      <FactoryAnimation autoStart={promoMode} autoCycleScenario={promoMode} hideControls={promoMode} />
                     </div>
                   </div>
                 )}

@@ -16,6 +16,8 @@ interface HomePanelsProps {
   transcripts: TranscriptItem[];
   interimText: string;
   isDemoMode: boolean;
+  promoMode: boolean;
+  showLogToggle: boolean;
   demoScene: SceneType;
   onStartRecording: () => void;
   onStopRecording: () => void;
@@ -53,6 +55,8 @@ export function HomePanels({
   transcripts,
   interimText,
   isDemoMode,
+  promoMode,
+  showLogToggle,
   demoScene,
   onStartRecording,
   onStopRecording,
@@ -95,18 +99,20 @@ export function HomePanels({
       )}
 
       {/* コントロールパネル */}
-      <ControlPanel
-        isRecording={isRecording}
-        isDemoMode={isDemoMode}
-        demoScene={demoScene}
-        onStartRecording={onStartRecording}
-        onStopRecording={onStopRecording}
-        onToggleDemoMode={onToggleDemoMode}
-        onDemoSceneChange={onDemoSceneChange}
-        audioInputDevices={audioInputDevices}
-        selectedAudioDeviceId={selectedAudioDeviceId}
-        onSelectAudioDevice={onSelectAudioDevice}
-      />
+      {!promoMode && (
+        <ControlPanel
+          isRecording={isRecording}
+          isDemoMode={isDemoMode}
+          demoScene={demoScene}
+          onStartRecording={onStartRecording}
+          onStopRecording={onStopRecording}
+          onToggleDemoMode={onToggleDemoMode}
+          onDemoSceneChange={onDemoSceneChange}
+          audioInputDevices={audioInputDevices}
+          selectedAudioDeviceId={selectedAudioDeviceId}
+          onSelectAudioDevice={onSelectAudioDevice}
+        />
+      )}
 
       {/* 会話ログパネル */}
       <ConversationLogPanel
@@ -114,6 +120,7 @@ export function HomePanels({
         summary={sessionSummary}
         isExpanded={isLogExpanded}
         onToggle={onToggleLog}
+        showToggle={showLogToggle}
       />
 
       {/* セキュリティダッシュボード */}
@@ -122,6 +129,7 @@ export function HomePanels({
         scene={scene}
         isOpen={isSecurityDashboardOpen}
         onClose={onCloseSecurityDashboard}
+        promoMode={promoMode}
       />
 
       {/* セキュリティ詳細パネル */}

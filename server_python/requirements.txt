@@ -13,6 +13,7 @@ python-multipart>=0.0.9
 
 # AWS SDK
 boto3>=1.35.0
+amazon-transcribe>=0.6.0
 
 # HTTP client
 httpx>=0.27.0

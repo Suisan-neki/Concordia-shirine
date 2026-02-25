@@ -165,10 +165,7 @@ export function InterventionSystem({
       if (scene === '一方的' && adjustedDuration >= settings.monologueThreshold) {
         interventionType = 'monologue';
       }
-      // 沈黙状態のチェック
-      else if (scene === '沈黙' && adjustedDuration >= settings.silenceThreshold) {
-        interventionType = 'silence';
-      }
+      // 沈黙状態では介入ヒントを出さない
 
       if (interventionType) {
         triggerIntervention(interventionType);

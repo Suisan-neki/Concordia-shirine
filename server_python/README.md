@@ -18,6 +18,14 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
+### 2.5. AWS Transcribe Streaming の準備
+
+Transcribe Streaming を使う場合は、AWS の認証情報と権限が必要です。
+
+- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`（または AWS CLI のプロファイル）
+- リージョン（`AWS_REGION` or `AWS_DEFAULT_REGION`）
+- IAM ポリシー: `transcribe:StartStreamTranscription`
+
 ### 3. サーバーの起動
 
 ```bash
