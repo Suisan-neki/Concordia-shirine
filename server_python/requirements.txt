@@ -28,3 +28,6 @@ python-dotenv>=1.0.0
 # Testing
 pytest>=8.3.0
 pytest-asyncio>=0.23.0
+
+torch>=2.2.2
+torch

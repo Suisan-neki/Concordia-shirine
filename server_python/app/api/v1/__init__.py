@@ -2,7 +2,7 @@
 API v1 routers
 """
 from fastapi import APIRouter
-from app.api.v1 import auth, sessions, intervention, security, admin, cognito, transcribe
+from app.api.v1 import auth, sessions, intervention, security, admin, cognito, transcribe, whisperx
 
 api_router = APIRouter()
 
@@ -13,3 +13,4 @@ api_router.include_router(intervention.router)
 api_router.include_router(security.router)
 api_router.include_router(admin.router)
 api_router.include_router(transcribe.router)
+api_router.include_router(whisperx.router)
