@@ -8,6 +8,7 @@ Version: 2.0 - Python 3.12 compatible
 
 import logging
 import os
+import shutil
 import subprocess
 from typing import Any
 
@@ -26,6 +27,23 @@ s3 = boto3.client("s3")
 OUTPUT_BUCKET = os.environ.get("OUTPUT_BUCKET", "")
 SAMPLE_RATE = 16000
 CHANNELS = 1
+FFMPEG_PATH = os.environ.get("FFMPEG_PATH")
+
+
+def resolve_ffmpeg() -> str:
+    """ffmpeg バイナリのパスを解決する。"""
+    candidate = FFMPEG_PATH or "ffmpeg"
+    if os.path.isabs(candidate) or candidate.startswith("./"):
+        if not os.path.exists(candidate):
+            raise FileNotFoundError(f"FFMPEG_PATH not found: {candidate}")
+        return candidate
+
+    resolved = shutil.which(candidate)
+    if not resolved:
+        raise FileNotFoundError(
+            "ffmpeg not found in PATH. Set FFMPEG_PATH to bundled binary path."
+        )
+    return resolved
 
 
 def extract_audio(input_path: str, output_path: str) -> None:
@@ -45,8 +63,9 @@ def extract_audio(input_path: str, output_path: str) -> None:
 
     logger.info(f"Extracting audio from {input_path} to {output_path}")
 
+    ffmpeg_path = resolve_ffmpeg()
     cmd = [
-        "ffmpeg",
+        ffmpeg_path,
         "-i", input_path,
         "-ac", str(CHANNELS),       # モノラル
         "-ar", str(SAMPLE_RATE),    # 16kHz

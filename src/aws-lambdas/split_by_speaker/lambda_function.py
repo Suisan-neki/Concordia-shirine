@@ -10,6 +10,7 @@ Version: 2.0 - Python 3.12 compatible
 import json
 import logging
 import os
+import shutil
 import subprocess
 from typing import Any
 
@@ -26,6 +27,23 @@ s3 = boto3.client("s3")
 
 # 環境変数
 OUTPUT_BUCKET = os.environ.get("OUTPUT_BUCKET", "")
+FFMPEG_PATH = os.environ.get("FFMPEG_PATH")
+
+
+def resolve_ffmpeg() -> str:
+    """ffmpeg バイナリのパスを解決する。"""
+    candidate = FFMPEG_PATH or "ffmpeg"
+    if os.path.isabs(candidate) or candidate.startswith("./"):
+        if not os.path.exists(candidate):
+            raise FileNotFoundError(f"FFMPEG_PATH not found: {candidate}")
+        return candidate
+
+    resolved = shutil.which(candidate)
+    if not resolved:
+        raise FileNotFoundError(
+            "ffmpeg not found in PATH. Set FFMPEG_PATH to bundled binary path."
+        )
+    return resolved
 
 
 def split_audio(
@@ -47,8 +65,9 @@ def split_audio(
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
+    ffmpeg_path = resolve_ffmpeg()
     cmd = [
-        "ffmpeg",
+        ffmpeg_path,
         "-ss", str(start_sec),
         "-t", str(duration_sec),
         "-i", input_path,

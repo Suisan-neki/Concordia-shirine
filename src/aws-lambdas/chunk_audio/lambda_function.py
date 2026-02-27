@@ -14,6 +14,7 @@ Version: 1.0 - チャンク並列処理対応
 import json
 import logging
 import os
+import shutil
 import subprocess
 from typing import Any
 
@@ -33,6 +34,31 @@ CHUNK_DURATION = int(os.environ.get("CHUNK_DURATION", "480"))  # 8分
 OVERLAP_DURATION = int(os.environ.get("OVERLAP_DURATION", "30"))  # 30秒
 MIN_CHUNK_DURATION = int(os.environ.get("MIN_CHUNK_DURATION", "60"))  # 1分
 OUTPUT_BUCKET = os.environ.get("OUTPUT_BUCKET", "")
+FFMPEG_PATH = os.environ.get("FFMPEG_PATH")
+FFPROBE_PATH = os.environ.get("FFPROBE_PATH")
+
+
+def _resolve_binary(env_path: str | None, default: str, label: str) -> str:
+    candidate = env_path or default
+    if os.path.isabs(candidate) or candidate.startswith("./"):
+        if not os.path.exists(candidate):
+            raise FileNotFoundError(f"{label} not found: {candidate}")
+        return candidate
+
+    resolved = shutil.which(candidate)
+    if not resolved:
+        raise FileNotFoundError(
+            f"{default} not found in PATH. Set {label} to bundled binary path."
+        )
+    return resolved
+
+
+def resolve_ffprobe() -> str:
+    return _resolve_binary(FFPROBE_PATH, "ffprobe", "FFPROBE_PATH")
+
+
+def resolve_ffmpeg() -> str:
+    return _resolve_binary(FFMPEG_PATH, "ffmpeg", "FFMPEG_PATH")
 
 
 def get_audio_duration(audio_path: str) -> float:
@@ -45,9 +71,10 @@ def get_audio_duration(audio_path: str) -> float:
     Returns:
         音声の長さ（秒）
     """
+    ffprobe_path = resolve_ffprobe()
     result = subprocess.run(
         [
-            "ffprobe",
+            ffprobe_path,
             "-v", "quiet",
             "-show_entries", "format=duration",
             "-of", "json",
@@ -112,9 +139,10 @@ def split_audio_to_chunks(
         output_path = os.path.join(output_dir, f"{base_name}_chunk_{chunk_index:02d}.wav")
 
         # ffmpeg でチャンク抽出
+        ffmpeg_path = resolve_ffmpeg()
         subprocess.run(
             [
-                "ffmpeg",
+                ffmpeg_path,
                 "-y",
                 "-i", audio_path,
                 "-ss", str(chunk_start),
