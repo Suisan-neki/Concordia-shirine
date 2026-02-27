@@ -5,7 +5,6 @@ import os
 import tempfile
 from typing import List
 
-import whisperx
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
 
@@ -30,6 +29,15 @@ async def diarize_audio(audio_file: UploadFile = File(...)):
     """
     if not audio_file.content_type.startswith("audio/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Only audio files are supported.")
+
+    try:
+        import whisperx
+        import torch
+    except ModuleNotFoundError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="WhisperX is not installed. Install with: pip install whisperx",
+        ) from exc
 
     # 一時ファイルに音声を保存
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_audio_file:
@@ -66,7 +74,7 @@ async def diarize_audio(audio_file: UploadFile = File(...)):
 
         for segment in result["segments"]:
             if "speaker" in segment:
-                full_transcript += f"[{segment["speaker"]}] {segment["text"]}\n"
+                full_transcript += f"[{segment['speaker']}] {segment['text']}\n"
                 speaker_items.append(
                     SpeakerItem(
                         speaker=segment["speaker"],
@@ -76,7 +84,7 @@ async def diarize_audio(audio_file: UploadFile = File(...)):
                     )
                 )
             else:
-                full_transcript += f"{segment["text"]}\n"
+                full_transcript += f"{segment['text']}\n"
                 speaker_items.append(
                     SpeakerItem(
                         speaker="UNKNOWN", # 話者情報がない場合

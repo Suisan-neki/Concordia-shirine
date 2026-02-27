@@ -20,8 +20,8 @@ export interface SpeakerItem {
   speaker: string;
   content: string;
   type: string;
-  start_time: number;
-  end_time: number;
+  start_time: number | string;
+  end_time: number | string;
 }
 
 export interface TranscribeResult {
@@ -317,7 +317,10 @@ export class AWSTranscribeStreamingManager {
     for (const item of items) {
       if (item.type !== 'pronunciation') continue;
       if (!item.speaker) continue;
-      const duration = item.end_time - item.start_time;
+      const start = typeof item.start_time === 'string' ? Number(item.start_time) : item.start_time;
+      const end = typeof item.end_time === 'string' ? Number(item.end_time) : item.end_time;
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+      const duration = end - start;
       if (duration <= 0) continue;
       result[item.speaker] = (result[item.speaker] ?? 0) + duration;
     }
